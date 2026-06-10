@@ -5,7 +5,6 @@ import type {
   ChecklistTask,
   CityMetric,
   DocumentItem,
-  InventoryBox,
   MarketplaceService,
   MovingPlanWeek,
   RouteStop,
@@ -351,7 +350,8 @@ export const CHECKLIST_TASKS: ChecklistTask[] = [
   { id: "20", title: "Plan 2-day driving route with stops", category: "Travel", status: "completed", dueDate: "2026-07-01", priority: "medium" },
 ];
 
-export const INVENTORY_BOXES: InventoryBox[] = [
+/** Legacy seed labels — mapped to room keys in inventory-context */
+export const INVENTORY_BOXES = [
   { id: "1", boxNumber: 1, room: "Kitchen", contents: "Plates, mugs, coffee maker", hasPhoto: true },
   { id: "2", boxNumber: 2, room: "Kitchen", contents: "Pots, pans, utensils", hasPhoto: true },
   { id: "3", boxNumber: 3, room: "Living Room", contents: "Books, photo albums, decor", hasPhoto: false },
@@ -363,8 +363,8 @@ export const INVENTORY_BOXES: InventoryBox[] = [
   { id: "9", boxNumber: 9, room: "Bathroom", contents: "Toiletries, towels, medicine", hasPhoto: false },
   { id: "10", boxNumber: 10, room: "Garage", contents: "Tools, extension cords", hasPhoto: true },
   { id: "11", boxNumber: 11, room: "Garage", contents: "Camping gear, sports equipment", hasPhoto: false },
-  { id: "12", boxNumber: 12, room: "Kitchen", contents: "Plates, mugs, coffee maker", hasPhoto: true },
-];
+  { id: "12", boxNumber: 12, room: "Kitchen", contents: "Small appliances, spices", hasPhoto: false },
+] as const;
 
 export const DOCUMENTS: DocumentItem[] = [
   { id: "1", name: "Austin Lease Agreement", category: "Lease", status: "verified", uploadedAt: "2026-05-10" },

@@ -46,13 +46,11 @@ export interface ChecklistTask {
   priority: TaskPriority;
 }
 
-export interface InventoryBox {
-  id: string;
-  boxNumber: number;
-  room: string;
-  contents: string;
-  hasPhoto: boolean;
-}
+export type {
+  InventoryBox,
+  InventoryBoxStatus,
+  InventoryRoomKey,
+} from "@/lib/inventory/types";
 
 export interface DocumentItem {
   id: string;

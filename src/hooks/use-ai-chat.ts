@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useInventory } from "@/contexts/inventory-context";
 import { useMove } from "@/contexts/move-context";
 import { useLocale } from "@/contexts/locale-context";
 import { translate } from "@/lib/i18n";
@@ -13,6 +14,7 @@ export interface ChatMessage {
 
 export function useAiChat() {
   const { getMoveContextForApi } = useMove();
+  const { boxes } = useInventory();
   const { locale } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +61,18 @@ export function useAiChat() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: history.map((m) => ({ role: m.role, content: m.content })),
-            moveContext: getMoveContextForApi(),
+            moveContext: {
+              ...getMoveContextForApi(),
+              inventorySummary:
+                boxes.length > 0
+                  ? boxes
+                      .map(
+                        (b) =>
+                          `#${b.boxNumber} (${b.room}, ${b.status}): ${b.contents}`
+                      )
+                      .join("; ")
+                  : undefined,
+            },
             locale,
           }),
         });
@@ -99,7 +112,7 @@ export function useAiChat() {
         setIsLoading(false);
       }
     },
-    [messages, isLoading, getMoveContextForApi, locale]
+    [messages, isLoading, getMoveContextForApi, boxes, locale]
   );
 
   return { messages, isLoading, sendMessage };

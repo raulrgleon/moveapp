@@ -17,6 +17,7 @@ export interface MoveContextInput {
   vehicle?: VehicleInfo;
   vehicles?: VehicleInfo[];
   locale?: Locale;
+  inventorySummary?: string;
 }
 
 /** Compact move context for fast, grounded AI responses. */
@@ -66,6 +67,7 @@ PROGRESS: ${MOVE_STATS.taskCompletionPercent}% | MILES: ${MOVE_STATS.totalMiles}
 RENTAL: ${MOCK_USER.rentalPreference}
 TRAILER TIP: ${TRAILER_RECOMMENDATION}
 UTILITIES (~$${UTILITY_AI_SUMMARY.estimatedMonthlyTotal}/mo): ${utilityPicks}
+INVENTORY BOXES: ${ctx?.inventorySummary ?? "not tracked yet — user can add boxes in Inventory"}
 
 Answer only about this move. If unsure, say what to verify. Prioritize actionable next steps.`;
 }
