@@ -4,6 +4,8 @@ Your AI co-pilot for moving anywhere.
 
 Professional MVP dashboard prototype built with Next.js 14, TypeScript, Tailwind CSS, and shadcn/ui.
 
+📖 **Documentación completa (español):** ver [DOCUMENTACION.md](./DOCUMENTACION.md) — arquitectura, páginas, APIs, IA, mapas, utilities y roadmap.
+
 ## Quick start
 
 ```bash
