@@ -22,6 +22,7 @@ import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { UtilityProviderCard } from "@/components/dashboard/utility-provider-card";
 import { useMove } from "@/contexts/move-context";
+import { useT } from "@/contexts/locale-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,6 +59,7 @@ function personalizeProviders(
 }
 
 export default function UtilitiesPage() {
+  const t = useT();
   const [filter, setFilter] = useState("all");
   const {
     isAddressConfirmed,
@@ -96,10 +98,10 @@ export default function UtilitiesPage() {
   if (!isHydrated) {
     return (
       <>
-        <DashboardHeader title="Home Utilities" description="Loading…" />
+        <DashboardHeader title={t("utilities.title")} description={t("common.loading")} />
         <PageContainer>
           <div className="flex justify-center py-20 text-muted-foreground text-sm">
-            Loading…
+            {t("common.loading")}
           </div>
         </PageContainer>
       </>
@@ -108,17 +110,14 @@ export default function UtilitiesPage() {
 
   return (
     <>
-      <DashboardHeader
-        title="Home Utilities"
-        description="Services at your new address"
-      />
+      <DashboardHeader title={t("utilities.title")} description={t("utilities.subtitle")} />
       <PageContainer>
         <PageHeader
-          title="Utilities & services at your new home"
+          title={t("utilities.pageTitle")}
           description={
             isAddressConfirmed
-              ? "Best providers for your confirmed address"
-              : "Enter your address to unlock personalized recommendations"
+              ? t("utilities.pageDescConfirmed")
+              : t("utilities.pageDescLocked")
           }
         />
 
@@ -126,7 +125,7 @@ export default function UtilitiesPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
-              New home address
+              {t("utilities.newHomeAddress")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -230,7 +229,7 @@ export default function UtilitiesPage() {
 
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                Filter by service
+                {t("utilities.filterService")}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {UTILITY_CATEGORIES.map((cat) => {
@@ -247,7 +246,7 @@ export default function UtilitiesPage() {
                       )}
                     >
                       {Icon && <Icon className="h-3.5 w-3.5" />}
-                      {cat.label}
+                      {t(cat.labelKey)}
                     </button>
                   );
                 })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Send } from "lucide-react";
+import { useT } from "@/contexts/locale-context";
 import { MarkdownMessage } from "@/components/ai/markdown-message";
 import type { ChatMessage } from "@/hooks/use-ai-chat";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,8 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, isLoading, compact }: ChatMessagesProps) {
+  const t = useT();
+
   return (
     <div className="space-y-3">
       {messages.map((msg) => (
@@ -36,7 +39,7 @@ export function ChatMessages({ messages, isLoading, compact }: ChatMessagesProps
           ) : isLoading ? (
             <span className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Thinking…
+              {t("chat.thinking")}
             </span>
           ) : null}
         </div>
@@ -60,10 +63,12 @@ export function ChatInputBar({
   isLoading,
   compact,
 }: ChatInputBarProps) {
+  const t = useT();
+
   return (
     <div className="flex gap-2">
       <Input
-        placeholder="Ask about your move..."
+        placeholder={t("chat.placeholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && !isLoading && onSend()}

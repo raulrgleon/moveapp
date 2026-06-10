@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { AddressAutocomplete } from "@/components/address/address-autocomplete";
+import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
 import { Logo } from "@/components/layout/logo";
 import { useMove } from "@/contexts/move-context";
+import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,17 +22,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const STEPS = [
-  { id: 1, title: "Move details" },
-  { id: 2, title: "Household" },
-  { id: 3, title: "Vehicles & logistics" },
-  { id: 4, title: "Budget & needs" },
-];
-
 export default function OnboardingPage() {
   const router = useRouter();
-  const { confirmAddress, isAddressConfirmed, destinationAddress } = useMove();
+  const t = useT();
+  const {
+    confirmAddress,
+    isAddressConfirmed,
+    destinationAddress,
+    vehicles,
+    setVehicles,
+  } = useMove();
   const [step, setStep] = useState(1);
+
+  const STEPS = [
+    { id: 1, title: t("onboarding.stepMove") },
+    { id: 2, title: t("onboarding.stepHousehold") },
+    { id: 3, title: t("onboarding.stepVehicles") },
+    { id: 4, title: t("onboarding.stepBudget") },
+  ];
+
+  const vehiclePreview =
+    vehicles.length > 1
+      ? vehicles.map((v) => v.displayLabel).join(" + ")
+      : `${vehicles[0]?.displayLabel ?? ""} ${t("onboarding.trailerRecommended")}`;
 
   const handleComplete = () => {
     router.push("/dashboard");
@@ -44,7 +58,7 @@ export default function OnboardingPage() {
           <Button variant="ghost" size="sm" asChild>
             <Link href="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              {t("common.back")}
             </Link>
           </Button>
         </div>
@@ -73,41 +87,51 @@ export default function OnboardingPage() {
             ))}
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Step {step} of {STEPS.length}: {STEPS[step - 1].title}
+            {t("onboarding.stepOf", {
+              step,
+              total: STEPS.length,
+              title: STEPS[step - 1].title,
+            })}
           </p>
         </div>
 
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{STEPS[step - 1].title}</CardTitle>
-            <CardDescription>
-              Help us personalize your moving plan
-            </CardDescription>
+            <CardDescription>{t("onboarding.personalize")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {step === 1 && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="origin">Where are you moving from?</Label>
-                  <Input id="origin" defaultValue="Austin, TX" placeholder="City, State" />
+                  <Label htmlFor="origin">{t("onboarding.origin")}</Label>
+                  <Input
+                    id="origin"
+                    defaultValue="Austin, TX"
+                    placeholder={t("onboarding.cityPlaceholder")}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="destination">Where are you moving to?</Label>
-                  <Input id="destination" defaultValue="Huntington, WV" placeholder="City, State" />
+                  <Label htmlFor="destination">{t("onboarding.destination")}</Label>
+                  <Input
+                    id="destination"
+                    defaultValue="Huntington, WV"
+                    placeholder={t("onboarding.cityPlaceholder")}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>New home address (for utility lookup)</Label>
+                  <Label>{t("onboarding.newAddress")}</Label>
                   <AddressAutocomplete
                     onSelect={confirmAddress}
                     initialValue={isAddressConfirmed ? destinationAddress : ""}
-                    placeholder="Start typing your new address…"
+                    placeholder={t("onboarding.addressPlaceholder")}
                   />
                   {isAddressConfirmed && (
-                    <p className="text-xs text-emerald-600">Address saved for utilities & map</p>
+                    <p className="text-xs text-emerald-600">{t("onboarding.addressSaved")}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="moveDate">What is your moving date?</Label>
+                  <Label htmlFor="moveDate">{t("onboarding.moveDate")}</Label>
                   <Input id="moveDate" type="date" defaultValue="2026-09-15" />
                 </div>
               </>
@@ -116,16 +140,24 @@ export default function OnboardingPage() {
             {step === 2 && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="household">How many people are moving?</Label>
-                  <Input id="household" defaultValue="2 adults, 1 child" placeholder="e.g. 2 adults, 1 child" />
+                  <Label htmlFor="household">{t("onboarding.household")}</Label>
+                  <Input
+                    id="household"
+                    defaultValue="2 adults, 1 child"
+                    placeholder={t("onboarding.householdPlaceholder")}
+                  />
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox id="pets" defaultChecked />
-                  <Label htmlFor="pets" className="font-normal">Do you have pets?</Label>
+                  <Label htmlFor="pets" className="font-normal">{t("onboarding.pets")}</Label>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="petDetails">Pet details (optional)</Label>
-                  <Input id="petDetails" defaultValue="1 dog" placeholder="e.g. 1 dog, 2 cats" />
+                  <Label htmlFor="petDetails">{t("onboarding.petDetails")}</Label>
+                  <Input
+                    id="petDetails"
+                    defaultValue="1 dog"
+                    placeholder={t("onboarding.petPlaceholder")}
+                  />
                 </div>
               </>
             )}
@@ -133,31 +165,28 @@ export default function OnboardingPage() {
             {step === 3 && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="vehicles">What vehicles do you own?</Label>
-                  <Input
-                    id="vehicles"
-                    defaultValue="2019 Volkswagen Atlas V6 4Motion"
-                    placeholder="Make, model, year"
-                  />
+                  <Label>{t("onboarding.yourVehicles")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("onboarding.vehiclesHint")}</p>
+                  <VehicleListEditor vehicles={vehicles} onChange={setVehicles} showTips />
                 </div>
                 <div className="space-y-2">
-                  <Label>Rental preference</Label>
+                  <Label>{t("onboarding.rentalPreference")}</Label>
                   <Select defaultValue="trailer">
                     <SelectTrigger>
-                      <SelectValue placeholder="Select option" />
+                      <SelectValue placeholder={t("onboarding.selectOption")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="truck">Rent a truck</SelectItem>
-                      <SelectItem value="trailer">Rent a trailer</SelectItem>
-                      <SelectItem value="movers">Hire movers</SelectItem>
-                      <SelectItem value="combo">Trailer + own vehicle</SelectItem>
+                      <SelectItem value="truck">{t("onboarding.rentTruck")}</SelectItem>
+                      <SelectItem value="trailer">{t("onboarding.rentTrailer")}</SelectItem>
+                      <SelectItem value="movers">{t("onboarding.hireMovers")}</SelectItem>
+                      <SelectItem value="combo">{t("onboarding.trailerCombo")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox id="vehicleTransport" />
                   <Label htmlFor="vehicleTransport" className="font-normal">
-                    Do you need help transporting a vehicle?
+                    {t("onboarding.needTransport")}
                   </Label>
                 </div>
               </>
@@ -166,22 +195,22 @@ export default function OnboardingPage() {
             {step === 4 && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="budget">What is your estimated budget?</Label>
+                  <Label htmlFor="budget">{t("onboarding.estimatedBudget")}</Label>
                   <Input id="budget" type="number" defaultValue="4000" placeholder="USD" />
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox id="housing" defaultChecked />
                   <Label htmlFor="housing" className="font-normal">
-                    Do you need help finding housing?
+                    {t("onboarding.needHousing")}
                   </Label>
                 </div>
                 <div className="rounded-lg bg-accent/50 p-4 text-sm">
-                  <p className="font-medium text-accent-foreground">Your plan preview</p>
+                  <p className="font-medium text-accent-foreground">{t("onboarding.planPreview")}</p>
                   <p className="mt-2 text-muted-foreground">
-                    Austin, TX → Huntington, WV · Sep 15, 2026 · $4,000 budget
+                    Austin, TX → Huntington, WV · Sep 15, 2026 · $4,000
                   </p>
                   <p className="mt-1 text-muted-foreground">
-                    2 adults, 1 child, 1 dog · VW Atlas + trailer recommended
+                    2 adults, 1 child, 1 dog · {vehiclePreview}
                   </p>
                 </div>
               </>
@@ -193,16 +222,16 @@ export default function OnboardingPage() {
                 onClick={() => setStep((s) => Math.max(1, s - 1))}
                 disabled={step === 1}
               >
-                Previous
+                {t("common.previous")}
               </Button>
               {step < STEPS.length ? (
                 <Button onClick={() => setStep((s) => s + 1)}>
-                  Continue
+                  {t("common.continue")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
                 <Button onClick={handleComplete}>
-                  Create my plan
+                  {t("onboarding.createPlan")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               )}

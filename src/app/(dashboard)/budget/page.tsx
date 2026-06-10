@@ -1,4 +1,7 @@
+"use client";
+
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { useT } from "@/contexts/locale-context";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
@@ -17,18 +20,16 @@ import { formatCurrency } from "@/lib/utils";
 import { DollarSign, PiggyBank, TrendingDown } from "lucide-react";
 
 export default function BudgetPage() {
+  const t = useT();
   const totalEstimated = BUDGET_ITEMS.reduce((sum, item) => sum + item.estimated, 0);
   const totalActual = BUDGET_ITEMS.reduce((sum, item) => sum + item.actual, 0);
   const difference = totalEstimated - totalActual;
 
   return (
     <>
-      <DashboardHeader title="Budget" description="Track estimated vs. actual costs" />
+      <DashboardHeader title={t("budget.title")} description={t("budget.subtitle")} />
       <PageContainer>
-        <PageHeader
-          title="Budget Planner"
-          description="Full breakdown of your moving expenses"
-        />
+        <PageHeader title={t("budget.pageTitle")} description={t("budget.pageDesc")} />
 
         <div className="grid gap-4 sm:grid-cols-3">
           <StatCard

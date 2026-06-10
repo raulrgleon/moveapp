@@ -12,9 +12,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { messages, moveContext } = (await req.json()) as {
+    const { messages, moveContext, locale } = (await req.json()) as {
       messages: { role: "user" | "assistant"; content: string }[];
       moveContext?: MoveContextInput;
+      locale?: MoveContextInput["locale"];
     };
 
     if (!messages?.length) {
@@ -29,7 +30,10 @@ export async function POST(req: NextRequest) {
       temperature: 0.4,
       max_tokens: 400,
       messages: [
-        { role: "system", content: buildMoveSystemPrompt(moveContext) },
+        {
+          role: "system",
+          content: buildMoveSystemPrompt({ ...moveContext, locale: locale ?? moveContext?.locale }),
+        },
         ...messages.slice(-6).map((m) => ({
           role: m.role,
           content: m.content,

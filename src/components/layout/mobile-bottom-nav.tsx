@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MOBILE_NAV_ITEMS } from "@/lib/constants";
+import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const t = useT();
 
   return (
     <nav
@@ -29,7 +31,9 @@ export function MobileBottomNav() {
               )}
             >
               <Icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
-              <span className="text-[10px] font-medium truncate max-w-full">{item.label}</span>
+              <span className="text-[10px] font-medium truncate max-w-full">
+                {t(item.labelKey)}
+              </span>
             </Link>
           );
         })}

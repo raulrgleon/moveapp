@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useT } from "@/contexts/locale-context";
+import { MOCK_USER } from "@/lib/mock-data";
 import {
   AlertTriangle,
   ArrowRight,
@@ -22,23 +26,23 @@ import {
   ALERTS,
   MOVE_STATS,
   QUICK_ACTIONS,
-  MOCK_USER,
 } from "@/lib/mock-data";
 import { daysUntil, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
+  const t = useT();
   const daysLeft = daysUntil(MOCK_USER.moveDate);
 
   return (
     <>
       <DashboardHeader
-        title="Dashboard"
-        description={`Welcome back, ${MOCK_USER.name.split(" ")[0]}`}
+        title={t("dashboard.title")}
+        description={t("common.welcomeBack", { name: MOCK_USER.name.split(" ")[0] })}
       />
       <PageContainer>
         <PageHeader
-          title="Move overview"
-          description="Your relocation from Austin to Huntington at a glance"
+          title={t("dashboard.overview")}
+          description={t("dashboard.overviewDesc")}
         />
 
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">

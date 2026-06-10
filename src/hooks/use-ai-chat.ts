@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMove } from "@/contexts/move-context";
+import { useLocale } from "@/contexts/locale-context";
+import { translate } from "@/lib/i18n";
 
 export interface ChatMessage {
   id: string;
@@ -9,89 +11,96 @@ export interface ChatMessage {
   content: string;
 }
 
-const WELCOME: ChatMessage = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "Hi Raul! I'm your MovePilot co-pilot — powered by AI. Ask me anything about your Austin → Huntington move.",
-};
-
 export function useAiChat() {
   const { getMoveContextForApi } = useMove();
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const { locale } = useLocale();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const sendMessage = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || isLoading) return;
+  useEffect(() => {
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        content: translate(locale, "chat.welcome"),
+      },
+    ]);
+  }, [locale]);
 
-    const userMsg: ChatMessage = {
-      id: `u-${Date.now()}`,
-      role: "user",
-      content: trimmed,
-    };
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isLoading) return;
 
-    const assistantId = `a-${Date.now()}`;
-    const assistantMsg: ChatMessage = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-    };
+      const userMsg: ChatMessage = {
+        id: `u-${Date.now()}`,
+        role: "user",
+        content: trimmed,
+      };
 
-    const history = [
-      ...messages.filter((m) => m.id !== "welcome" && m.content.length > 0),
-      userMsg,
-    ];
+      const assistantId = `a-${Date.now()}`;
+      const assistantMsg: ChatMessage = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+      };
 
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
-    setIsLoading(true);
+      const history = [
+        ...messages.filter((m) => m.id !== "welcome" && m.content.length > 0),
+        userMsg,
+      ];
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: history.map((m) => ({ role: m.role, content: m.content })),
-          moveContext: getMoveContextForApi(),
-        }),
-      });
+      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      setIsLoading(true);
 
-      if (!res.ok) {
-        throw new Error("Chat request failed");
-      }
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: history.map((m) => ({ role: m.role, content: m.content })),
+            moveContext: getMoveContextForApi(),
+            locale,
+          }),
+        });
 
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      let full = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          full += decoder.decode(value, { stream: true });
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: full } : m
-            )
-          );
+        if (!res.ok) {
+          throw new Error("Chat request failed");
         }
+
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        let full = "";
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            full += decoder.decode(value, { stream: true });
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: full } : m
+              )
+            );
+          }
+        }
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  content: translate(locale, "chat.error"),
+                }
+              : m
+          )
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId
-            ? {
-                ...m,
-                content:
-                  "Sorry, I couldn't reach the AI service. Check your connection and try again.",
-              }
-            : m
-        )
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [messages, isLoading, getMoveContextForApi]);
+    },
+    [messages, isLoading, getMoveContextForApi, locale]
+  );
 
   return { messages, isLoading, sendMessage };
 }

@@ -12,14 +12,16 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useAiChat } from "@/hooks/use-ai-chat";
 import { useMove } from "@/contexts/move-context";
+import { useT } from "@/contexts/locale-context";
 import { AI_QUICK_QUESTIONS, MOCK_USER } from "@/lib/mock-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function AssistantPage() {
+  const t = useT();
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useAiChat();
-  const { destinationAddress, destination, isAddressConfirmed } = useMove();
+  const { destinationAddress, destination, isAddressConfirmed, vehicles } = useMove();
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -30,12 +32,9 @@ export default function AssistantPage() {
 
   return (
     <>
-      <DashboardHeader title="AI Assistant" description="GPT-powered moving co-pilot" />
+      <DashboardHeader title={t("assistant.title")} description={t("assistant.subtitle")} />
       <PageContainer>
-        <PageHeader
-          title="AI Assistant"
-          description="Real-time answers about your move — streaming for fast responses"
-        />
+        <PageHeader title={t("assistant.title")} description={t("assistant.subtitle")} />
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2 min-h-[480px] flex flex-col">
@@ -90,17 +89,22 @@ export default function AssistantPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Move context</CardTitle>
+                <CardTitle className="text-base">{t("assistant.contextTitle")}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-2">
                 <p>{MOCK_USER.origin} → {destination}</p>
                 <p className="break-words">
-                  {isAddressConfirmed ? destinationAddress : "Address not set — add in Utilities"}
+                  {isAddressConfirmed
+                    ? destinationAddress
+                    : t("assistant.noAddress")}
                 </p>
-                <p>Move date: Sep 15, 2026</p>
-                <p>Budget: $4,000</p>
+                <p>{t("assistant.date")}: 15 sep 2026</p>
+                <p>{t("assistant.budget")}: $4,000</p>
                 <p>{MOCK_USER.household}</p>
-                <p>{MOCK_USER.vehicles[0]} + trailer</p>
+                <p>
+                  {vehicles.map((v) => v.displayLabel).join(" · ")}
+                  {vehicles.length === 1 ? ` ${t("assistant.trailer")}` : ""}
+                </p>
               </CardContent>
             </Card>
           </div>

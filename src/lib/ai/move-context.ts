@@ -5,12 +5,18 @@ import {
   TRAILER_RECOMMENDATION,
 } from "@/lib/mock-data";
 
+import type { Locale } from "@/lib/i18n";
+import type { VehicleInfo } from "@/lib/vehicles/types";
+
 export interface MoveContextInput {
   destinationAddress?: string;
   destination?: string;
   lat?: number;
   lon?: number;
   isAddressConfirmed?: boolean;
+  vehicle?: VehicleInfo;
+  vehicles?: VehicleInfo[];
+  locale?: Locale;
 }
 
 /** Compact move context for fast, grounded AI responses. */
@@ -29,7 +35,14 @@ export function buildMoveSystemPrompt(ctx?: MoveContextInput): string {
     .map((p) => `${p.category}: ${p.provider}`)
     .join("; ");
 
+  const replyLanguage =
+    ctx?.locale === "es"
+      ? "Spanish (español). All user-facing text must be in Spanish."
+      : "English. All user-facing text must be in English.";
+
   return `You are MovePilot AI, a fast and practical moving co-pilot.
+
+LANGUAGE: Reply in ${replyLanguage}
 
 RESPONSE FORMAT (required):
 - Use Markdown only. Never plain unformatted paragraphs.
@@ -47,7 +60,7 @@ NEW ADDRESS: ${address}
 ${addressNote}
 MOVE DATE: ${MOCK_USER.moveDate}
 HOUSEHOLD: ${MOCK_USER.household} | PETS: ${MOCK_USER.pets ? "yes" : "no"}
-VEHICLE: ${MOCK_USER.vehicles.join(", ")}
+VEHICLE(S): ${ctx?.vehicles?.map((v) => v.displayLabel).join("; ") ?? ctx?.vehicle?.displayLabel ?? MOCK_USER.vehicles.join(", ")}
 BUDGET: $${MOCK_USER.budget} (est. total $${MOVE_STATS.estimatedTotalBudget})
 PROGRESS: ${MOVE_STATS.taskCompletionPercent}% | MILES: ${MOVE_STATS.totalMiles} | DRIVE: ${MOVE_STATS.estimatedDriveTime}
 RENTAL: ${MOCK_USER.rentalPreference}

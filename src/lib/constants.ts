@@ -17,40 +17,40 @@ import {
 } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/moving-plan", label: "Moving Plan", icon: ClipboardList },
-  { href: "/budget", label: "Budget", icon: Wallet },
-  { href: "/route", label: "Route", icon: Route },
-  { href: "/trucks", label: "Trucks & Trailers", icon: Truck },
-  { href: "/vehicles", label: "Vehicles", icon: Car },
-  { href: "/utilities", label: "Home Utilities", icon: Zap },
-  { href: "/city-comparison", label: "City Comparison", icon: Building2 },
-  { href: "/checklist", label: "Checklist", icon: CheckSquare },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/documents", label: "Documents", icon: FileText },
-  { href: "/marketplace", label: "Marketplace", icon: Store },
-  { href: "/assistant", label: "AI Assistant", icon: Bot },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/moving-plan", labelKey: "nav.movingPlan", icon: ClipboardList },
+  { href: "/budget", labelKey: "nav.budget", icon: Wallet },
+  { href: "/route", labelKey: "nav.route", icon: Route },
+  { href: "/trucks", labelKey: "nav.trucks", icon: Truck },
+  { href: "/vehicles", labelKey: "nav.vehicles", icon: Car },
+  { href: "/utilities", labelKey: "nav.utilities", icon: Zap },
+  { href: "/city-comparison", labelKey: "nav.cityComparison", icon: Building2 },
+  { href: "/checklist", labelKey: "nav.checklist", icon: CheckSquare },
+  { href: "/inventory", labelKey: "nav.inventory", icon: Package },
+  { href: "/documents", labelKey: "nav.documents", icon: FileText },
+  { href: "/marketplace", labelKey: "nav.marketplace", icon: Store },
+  { href: "/assistant", labelKey: "nav.assistant", icon: Bot },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 
 export const MOBILE_NAV_ITEMS = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/utilities", label: "Utilities", icon: Zap },
-  { href: "/checklist", label: "Tasks", icon: CheckSquare },
-  { href: "/marketplace", label: "Services", icon: Store },
-  { href: "/assistant", label: "AI", icon: Bot },
+  { href: "/dashboard", labelKey: "mobileNav.home", icon: LayoutDashboard },
+  { href: "/utilities", labelKey: "mobileNav.utilities", icon: Zap },
+  { href: "/checklist", labelKey: "mobileNav.tasks", icon: CheckSquare },
+  { href: "/marketplace", labelKey: "mobileNav.services", icon: Store },
+  { href: "/assistant", labelKey: "mobileNav.ai", icon: Bot },
 ] as const;
 
 export const UTILITY_CATEGORIES = [
-  { id: "all", label: "All services" },
-  { id: "electricity", label: "Electricity" },
-  { id: "water", label: "Water & sewer" },
-  { id: "gas", label: "Gas" },
-  { id: "internet", label: "Internet" },
-  { id: "fiber", label: "Fiber" },
-  { id: "cable", label: "Cable & TV" },
-  { id: "waste", label: "Waste & recycling" },
-  { id: "security", label: "Home security" },
+  { id: "all", labelKey: "utilityCategories.all" },
+  { id: "electricity", labelKey: "utilityCategories.electricity" },
+  { id: "water", labelKey: "utilityCategories.water" },
+  { id: "gas", labelKey: "utilityCategories.gas" },
+  { id: "internet", labelKey: "utilityCategories.internet" },
+  { id: "fiber", labelKey: "utilityCategories.fiber" },
+  { id: "cable", labelKey: "utilityCategories.cable" },
+  { id: "waste", labelKey: "utilityCategories.waste" },
+  { id: "security", labelKey: "utilityCategories.security" },
 ] as const;
 
 export const CHECKLIST_CATEGORIES = [

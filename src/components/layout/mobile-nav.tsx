@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
+import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -11,13 +12,14 @@ import { Logo } from "./logo";
 
 export function MobileNav() {
   const pathname = usePathname();
+  const t = useT();
 
   return (
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-5 w-5" />
-          <span className="sr-only">Open menu</span>
+          <span className="sr-only">Menu</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">
@@ -42,7 +44,7 @@ export function MobileNav() {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}

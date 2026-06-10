@@ -9,11 +9,13 @@ import {
   QuickQuestions,
 } from "@/components/ai/chat-ui";
 import { useAiChat } from "@/hooks/use-ai-chat";
+import { useT } from "@/contexts/locale-context";
 import { AI_QUICK_QUESTIONS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function AIAssistantPanel() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useAiChat();
@@ -61,8 +63,8 @@ export function AIAssistantPanel() {
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold">AI Assistant</p>
-            <p className="text-xs text-muted-foreground">GPT-powered · fast</p>
+            <p className="text-sm font-semibold">{t("aiPanel.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("aiPanel.subtitle")}</p>
           </div>
         </div>
         <div className="flex flex-1 flex-col min-h-0">{panelBody}</div>
@@ -76,14 +78,14 @@ export function AIAssistantPanel() {
               size="icon"
             >
               <Bot className="h-6 w-6" />
-              <span className="sr-only">Open AI Assistant</span>
+              <span className="sr-only">{t("aiPanel.open")}</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
             <SheetHeader className="border-b p-4 shrink-0">
               <SheetTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                AI Assistant
+                {t("assistant.title")}
               </SheetTitle>
             </SheetHeader>
             {panelBody}
