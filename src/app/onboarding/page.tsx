@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { AddressAutocomplete } from "@/components/address/address-autocomplete";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
+import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
@@ -53,14 +54,17 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-background p-4 sm:p-6">
-        <div className="mx-auto max-w-2xl flex items-center justify-between">
+        <div className="mx-auto max-w-2xl flex items-center justify-between gap-2">
           <Logo />
-          <Button variant="ghost" size="sm" asChild>
+          <div className="flex items-center gap-1">
+            <LanguageToggle />
+            <Button variant="ghost" size="sm" asChild>
             <Link href="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
               {t("common.back")}
             </Link>
           </Button>
+          </div>
         </div>
       </header>
 

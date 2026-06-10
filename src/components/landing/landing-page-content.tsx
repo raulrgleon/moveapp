@@ -10,6 +10,7 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
+import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,8 @@ export function LandingPageContent() {
               {t("landing.howItWorks")}
             </a>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageToggle />
             <Button variant="ghost" asChild>
               <Link href="/login">{t("landing.logIn")}</Link>
             </Button>

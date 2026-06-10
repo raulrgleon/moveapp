@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
-      <header className="p-6">
+      <header className="flex items-center justify-between p-6">
         <Logo />
+        <LanguageToggle />
       </header>
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Car, Loader2 } from "lucide-react";
+import { Car, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import type { VehicleInfo, VehicleMake, VehicleModel, VehicleTip } from "@/lib/vehicles/types";
 import { createVehicleId } from "@/lib/vehicles/types";
 import { formatVehicleLabel } from "@/lib/vehicles/nhtsa";
@@ -24,6 +23,7 @@ interface VehicleSelectorProps {
   onChange: (vehicle: VehicleInfo) => void;
   showTips?: boolean;
   className?: string;
+  layout?: "default" | "compact";
 }
 
 const DEFAULT_YEAR = "2019";
@@ -46,11 +46,18 @@ function sameVehicle(a: VehicleInfo | null | undefined, b: VehicleInfo): boolean
   );
 }
 
+const tipStyles = {
+  success: "border-emerald-200 bg-emerald-50/80 text-emerald-900",
+  warning: "border-amber-200 bg-amber-50/80 text-amber-900",
+  info: "border-blue-200 bg-blue-50/80 text-blue-900",
+} as const;
+
 export function VehicleSelector({
   value,
   onChange,
   showTips = true,
   className,
+  layout = "default",
 }: VehicleSelectorProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -184,13 +191,26 @@ export function VehicleSelector({
   const modelSelectValue =
     modelName && models.some((m) => m.modelName === modelName) ? modelName : undefined;
 
+  const built = buildVehicle();
+  const gridClass =
+    layout === "compact"
+      ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      : "grid gap-4 sm:grid-cols-2";
+
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>{t("vehicleSelector.year")}</Label>
+      {built && layout === "compact" && (
+        <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-sm">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+          <span className="font-medium truncate">{built.displayLabel}</span>
+        </div>
+      )}
+
+      <div className={gridClass}>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{t("vehicleSelector.year")}</Label>
           <Select value={year} onValueChange={setYear}>
-            <SelectTrigger>
+            <SelectTrigger className="h-10">
               <SelectValue placeholder={t("vehicleSelector.selectYear")} />
             </SelectTrigger>
             <SelectContent>
@@ -201,14 +221,14 @@ export function VehicleSelector({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>{t("vehicleSelector.make")}</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{t("vehicleSelector.make")}</Label>
           <Select
             value={makeSelectValue}
             onValueChange={handleMakeChange}
             disabled={loadingMakes}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-10">
               <SelectValue
                 placeholder={loadingMakes ? t("common.loading") : t("vehicleSelector.selectMake")}
               />
@@ -223,14 +243,14 @@ export function VehicleSelector({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>{t("vehicleSelector.model")}</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{t("vehicleSelector.model")}</Label>
           <Select
             value={modelSelectValue}
             onValueChange={handleModelChange}
             disabled={loadingModels || !models.length || !makeSelectValue}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-10">
               <SelectValue
                 placeholder={
                   loadingModels
@@ -251,9 +271,10 @@ export function VehicleSelector({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>{t("vehicleSelector.trim")}</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{t("vehicleSelector.trim")}</Label>
           <Input
+            className="h-10"
             value={trim}
             onChange={(e) => setTrim(e.target.value)}
             placeholder={t("vehicleSelector.trimPlaceholder")}
@@ -261,41 +282,52 @@ export function VehicleSelector({
         </div>
       </div>
 
-      {buildVehicle() && (
-        <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
-          <Car className="h-5 w-5 shrink-0 text-primary" />
-          <span className="font-medium">{buildVehicle()?.displayLabel}</span>
+      {built && layout === "default" && (
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
+          <Car className="h-4 w-4 shrink-0 text-primary" />
+          <span className="font-medium">{built.displayLabel}</span>
         </div>
       )}
 
       {showTips && tips.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t("vehicleSelector.tipsTitle")}
           </p>
-          {tips.slice(0, 4).map((tip) => (
-            <Card
-              key={tip.id}
-              className={cn(
-                "border-l-4",
-                tip.type === "success" && "border-l-emerald-500",
-                tip.type === "warning" && "border-l-amber-500",
-                tip.type === "info" && "border-l-blue-500"
-              )}
-            >
-              <CardContent className="p-3">
-                <p className="text-sm font-medium">{tip.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">{tip.message}</p>
-              </CardContent>
-            </Card>
-          ))}
+          <div
+            className={cn(
+              layout === "compact"
+                ? "grid gap-2 sm:grid-cols-2"
+                : "space-y-2"
+            )}
+          >
+            {tips.slice(0, layout === "compact" ? 2 : 4).map((tip) => (
+              <div
+                key={tip.id}
+                className={cn(
+                  "rounded-lg border px-3 py-2.5",
+                  tipStyles[tip.type]
+                )}
+              >
+                <p className="text-sm font-medium leading-snug">{tip.title}</p>
+                <p className="mt-1 text-xs opacity-80 leading-relaxed">{tip.message}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {(loadingMakes || loadingModels) && (
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
           {t("vehicleSelector.catalogLoading")}
+        </p>
+      )}
+
+      {!loadingMakes && !loadingModels && layout === "default" && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <Info className="h-3 w-3 shrink-0" />
+          NHTSA
         </p>
       )}
     </div>

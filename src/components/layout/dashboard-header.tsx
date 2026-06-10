@@ -6,6 +6,7 @@ import { useT } from "@/contexts/locale-context";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LanguageToggle } from "./language-toggle";
 import { MobileNav } from "./mobile-nav";
 
 interface DashboardHeaderProps {
@@ -38,6 +39,7 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
             <Input placeholder={t("common.search")} className="pl-9 h-9" />
           </div>
         </div>
+        <LanguageToggle />
         <Button variant="ghost" size="icon" className="shrink-0">
           <Bell className="h-4 w-4" />
           <span className="sr-only">{t("common.notifications")}</span>
