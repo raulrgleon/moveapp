@@ -1,0 +1,45 @@
+import {
+  LayoutDashboard,
+  Map,
+  Wallet,
+  Route,
+  Truck,
+  Car,
+  Building2,
+  CheckSquare,
+  Package,
+  FileText,
+  Store,
+  Bot,
+  Settings,
+  ClipboardList,
+} from "lucide-react";
+
+export const NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/moving-plan", label: "Moving Plan", icon: ClipboardList },
+  { href: "/budget", label: "Budget", icon: Wallet },
+  { href: "/route", label: "Route", icon: Route },
+  { href: "/trucks", label: "Trucks & Trailers", icon: Truck },
+  { href: "/vehicles", label: "Vehicles", icon: Car },
+  { href: "/city-comparison", label: "City Comparison", icon: Building2 },
+  { href: "/checklist", label: "Checklist", icon: CheckSquare },
+  { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/documents", label: "Documents", icon: FileText },
+  { href: "/marketplace", label: "Marketplace", icon: Store },
+  { href: "/assistant", label: "AI Assistant", icon: Bot },
+  { href: "/settings", label: "Settings", icon: Settings },
+] as const;
+
+export const CHECKLIST_CATEGORIES = [
+  "Housing",
+  "Utilities",
+  "Address change",
+  "Vehicle",
+  "School",
+  "Medical",
+  "Pets",
+  "Documents",
+  "Packing",
+  "Travel",
+] as const;
