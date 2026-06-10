@@ -1,6 +1,8 @@
 import { ArrowRight, Building2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,7 +19,7 @@ export default function CityComparisonPage() {
   return (
     <>
       <DashboardHeader title="City Comparison" description="Compare origin and destination" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="City Comparison"
           description="Understand your new home before you arrive"
@@ -46,6 +48,7 @@ export default function CityComparisonPage() {
             <CardTitle className="text-base">Side-by-side metrics</CardTitle>
           </CardHeader>
           <CardContent>
+            <TableScroll>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -84,6 +87,7 @@ export default function CityComparisonPage() {
                 ))}
               </TableBody>
             </Table>
+            </TableScroll>
           </CardContent>
         </Card>
 
@@ -101,7 +105,7 @@ export default function CityComparisonPage() {
             </Card>
           ))}
         </div>
-      </div>
+      </PageContainer>
     </>
   );
 }

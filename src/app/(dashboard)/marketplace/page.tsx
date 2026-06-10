@@ -1,4 +1,5 @@
 import { ExternalLink, Star } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,7 @@ export default function MarketplacePage() {
   return (
     <>
       <DashboardHeader title="Marketplace" description="Recommended services for your move" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Services Marketplace"
           description="Curated providers for your Austin → Huntington move"
@@ -78,7 +79,7 @@ export default function MarketplacePage() {
             </TabsContent>
           ))}
         </Tabs>
-      </div>
+      </PageContainer>
     </>
   );
 }

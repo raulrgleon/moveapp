@@ -1,4 +1,5 @@
 import { Car, Fuel, Sparkles, Wrench } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ export default function VehiclesPage() {
   return (
     <>
       <DashboardHeader title="Vehicles" description="Transport planning for your car" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Car Transport & Vehicle Planning"
           description="Options for your 2019 Volkswagen Atlas"
@@ -93,7 +94,7 @@ export default function VehiclesPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     </>
   );
 }

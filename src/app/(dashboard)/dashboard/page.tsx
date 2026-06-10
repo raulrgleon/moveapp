@@ -10,7 +10,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { DashboardUtilitiesCard } from "@/components/dashboard/dashboard-utilities-card";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,9 +20,9 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   ALERTS,
-  MOCK_USER,
   MOVE_STATS,
   QUICK_ACTIONS,
+  MOCK_USER,
 } from "@/lib/mock-data";
 import { daysUntil, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -33,7 +35,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description={`Welcome back, ${MOCK_USER.name.split(" ")[0]}`}
       />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Move overview"
           description="Your relocation from Austin to Huntington at a glance"
@@ -142,6 +144,8 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        <DashboardUtilitiesCard />
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Alerts & recommendations</CardTitle>
@@ -172,7 +176,7 @@ export default function DashboardPage() {
             ))}
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     </>
   );
 }

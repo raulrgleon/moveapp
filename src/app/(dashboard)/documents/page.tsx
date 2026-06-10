@@ -1,4 +1,5 @@
 import { FileLock, Upload } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DocumentStatusBadge } from "@/components/dashboard/status-badge";
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DOCUMENTS } from "@/lib/mock-data";
 
 export default function DocumentsPage() {
-  const categories = [...new Set(DOCUMENTS.map((d) => d.category))];
+  const categories = Array.from(new Set(DOCUMENTS.map((d) => d.category)));
   const verified = DOCUMENTS.filter((d) => d.status === "verified").length;
   const pending = DOCUMENTS.filter((d) => d.status === "pending").length;
   const missing = DOCUMENTS.filter((d) => d.status === "missing").length;
@@ -16,7 +17,7 @@ export default function DocumentsPage() {
   return (
     <>
       <DashboardHeader title="Documents" description="Secure document vault" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Documents Center"
           description="Secure vault for all moving-related documents"
@@ -93,7 +94,7 @@ export default function DocumentsPage() {
             </Card>
           );
         })}
-      </div>
+      </PageContainer>
     </>
   );
 }

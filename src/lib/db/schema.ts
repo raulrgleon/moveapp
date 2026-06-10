@@ -17,6 +17,7 @@ export const DB_TABLES = {
     user_id: "uuid REFERENCES users(id)",
     origin: "varchar(255) NOT NULL",
     destination: "varchar(255) NOT NULL",
+    destination_address: "varchar(500)",
     move_date: "date NOT NULL",
     household: "text",
     budget: "integer",

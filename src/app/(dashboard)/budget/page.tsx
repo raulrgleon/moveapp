@@ -1,5 +1,7 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { TableScroll } from "@/components/dashboard/table-scroll";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,7 +24,7 @@ export default function BudgetPage() {
   return (
     <>
       <DashboardHeader title="Budget" description="Track estimated vs. actual costs" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Budget Planner"
           description="Full breakdown of your moving expenses"
@@ -53,6 +55,7 @@ export default function BudgetPage() {
             <CardTitle className="text-base">Expense breakdown</CardTitle>
           </CardHeader>
           <CardContent>
+            <TableScroll>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -95,6 +98,7 @@ export default function BudgetPage() {
                 </TableRow>
               </TableBody>
             </Table>
+            </TableScroll>
           </CardContent>
         </Card>
 
@@ -113,7 +117,7 @@ export default function BudgetPage() {
             </Card>
           ))}
         </div>
-      </div>
+      </PageContainer>
     </>
   );
 }

@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { AddressAutocomplete } from "@/components/address/address-autocomplete";
 import { Logo } from "@/components/layout/logo";
+import { useMove } from "@/contexts/move-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +29,7 @@ const STEPS = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { confirmAddress, isAddressConfirmed, destinationAddress } = useMove();
   const [step, setStep] = useState(1);
 
   const handleComplete = () => {
@@ -91,6 +94,17 @@ export default function OnboardingPage() {
                 <div className="space-y-2">
                   <Label htmlFor="destination">Where are you moving to?</Label>
                   <Input id="destination" defaultValue="Huntington, WV" placeholder="City, State" />
+                </div>
+                <div className="space-y-2">
+                  <Label>New home address (for utility lookup)</Label>
+                  <AddressAutocomplete
+                    onSelect={confirmAddress}
+                    initialValue={isAddressConfirmed ? destinationAddress : ""}
+                    placeholder="Start typing your new address…"
+                  />
+                  {isAddressConfirmed && (
+                    <p className="text-xs text-emerald-600">Address saved for utilities & map</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="moveDate">What is your moving date?</Label>

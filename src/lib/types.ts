@@ -2,11 +2,22 @@ export type TaskStatus = "completed" | "in_progress" | "pending" | "blocked";
 export type TaskPriority = "high" | "medium" | "low";
 export type DocumentStatus = "verified" | "pending" | "expired" | "missing";
 
+export type UtilityCategory =
+  | "electricity"
+  | "water"
+  | "gas"
+  | "internet"
+  | "fiber"
+  | "cable"
+  | "waste"
+  | "security";
+
 export interface UserProfile {
   name: string;
   email: string;
   origin: string;
   destination: string;
+  destinationAddress: string;
   moveDate: string;
   household: string;
   pets: boolean;
@@ -115,4 +126,23 @@ export interface AIQuickQuestion {
   id: string;
   question: string;
   response: string;
+}
+
+export interface DestinationUtilityProvider {
+  id: string;
+  name: string;
+  category: UtilityCategory;
+  categoryLabel: string;
+  rank: number;
+  isBestPick: boolean;
+  availableAtAddress: boolean;
+  estimatedMonthlyPrice: number;
+  priceUnit: string;
+  speedOrCapacity?: string;
+  rating: number;
+  coverageNote: string;
+  pros: string[];
+  cons: string[];
+  setupFee?: number;
+  contractMonths?: number;
 }

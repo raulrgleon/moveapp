@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import {
@@ -29,7 +30,7 @@ export default function ChecklistPage() {
   return (
     <>
       <DashboardHeader title="Checklist" description="Track every moving task" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Moving Checklist"
           description={`${completed} of ${CHECKLIST_TASKS.length} tasks complete`}
@@ -89,7 +90,7 @@ export default function ChecklistPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
+      </PageContainer>
     </>
   );
 }

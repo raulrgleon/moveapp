@@ -8,8 +8,18 @@ Professional MVP dashboard prototype built with Next.js 14, TypeScript, Tailwind
 
 ```bash
 npm install
+cp .env.example .env.local   # add your OPENAI_API_KEY
 npm run dev
 ```
+
+### Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | OpenAI API key (server-side only) |
+| `OPENAI_MODEL` | Model name (default: `gpt-4o-mini` for speed) |
+
+Maps use **OpenStreetMap** tiles and **OSRM** routing — no API key required.
 
 Open [http://localhost:3000](http://localhost:3000).
 
@@ -35,6 +45,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `/route` | Route planner |
 | `/trucks` | Truck & trailer finder |
 | `/vehicles` | Vehicle transport planning |
+| `/utilities` | Home utilities & services at destination address |
 | `/city-comparison` | City comparison |
 | `/checklist` | Moving checklist |
 | `/inventory` | Box inventory manager |

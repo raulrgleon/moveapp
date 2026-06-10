@@ -1,4 +1,5 @@
 import { Download, RefreshCw, Sparkles } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { PriorityBadge } from "@/components/dashboard/status-badge";
@@ -17,7 +18,7 @@ export default function MovingPlanPage() {
   return (
     <>
       <DashboardHeader title="Moving Plan" description="AI-generated week-by-week timeline" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="AI Moving Plan"
           description="Personalized timeline for your Austin → Huntington move"
@@ -139,7 +140,7 @@ export default function MovingPlanPage() {
             </Card>
           </div>
         </div>
-      </div>
+      </PageContainer>
     </>
   );
 }

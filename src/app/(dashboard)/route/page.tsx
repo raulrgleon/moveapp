@@ -1,6 +1,19 @@
+import dynamic from "next/dynamic";
 import { CloudRain, Fuel, Hotel, MapPin, PawPrint, Route as RouteIcon } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { MapPlaceholder } from "@/components/dashboard/map-placeholder";
+
+const RouteMap = dynamic(
+  () => import("@/components/dashboard/route-map-wrapper").then((m) => m.RouteMapWrapper),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[280px] sm:min-h-[360px] rounded-xl border bg-muted/30 flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading map…</p>
+      </div>
+    ),
+  }
+);
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +31,7 @@ export default function RoutePage() {
   return (
     <>
       <DashboardHeader title="Route" description="Plan your drive with stops and alerts" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Route Planner"
           description={`${MOCK_USER.origin} to ${MOCK_USER.destination}`}
@@ -45,11 +58,7 @@ export default function RoutePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <MapPlaceholder
-            origin={MOCK_USER.origin}
-            destination={MOCK_USER.destination}
-            className="min-h-[320px]"
-          />
+          <RouteMap className="min-h-[280px] sm:min-h-[360px]" showNewHome />
 
           <div className="space-y-4">
             <Card className="border-amber-200 bg-amber-50/50">
@@ -125,7 +134,7 @@ export default function RoutePage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     </>
   );
 }

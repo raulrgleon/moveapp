@@ -1,4 +1,9 @@
+"use client";
+
+import { AddressAutocomplete } from "@/components/address/address-autocomplete";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { useMove } from "@/contexts/move-context";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +14,12 @@ import { MOCK_USER } from "@/lib/mock-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function SettingsPage() {
+  const { confirmAddress, isAddressConfirmed, destinationAddress, destination } = useMove();
+
   return (
     <>
       <DashboardHeader title="Settings" description="Manage your account and move profile" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in max-w-3xl">
+      <PageContainer className="max-w-3xl">
         <PageHeader title="Settings" description="Account and move preferences" />
 
         <Card>
@@ -49,6 +56,13 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="destination">Moving to</Label>
                 <Input id="destination" defaultValue={MOCK_USER.destination} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>New home address</Label>
+                <AddressAutocomplete
+                  onSelect={confirmAddress}
+                  initialValue={isAddressConfirmed ? destinationAddress : ""}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="moveDate">Move date</Label>
@@ -109,11 +123,11 @@ export default function SettingsPage() {
 
         <Separator />
 
-        <div className="flex gap-4">
-          <Button variant="outline">Export all data</Button>
-          <Button variant="destructive">Delete account</Button>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Button variant="outline" className="w-full sm:w-auto">Export all data</Button>
+          <Button variant="destructive" className="w-full sm:w-auto">Delete account</Button>
         </div>
-      </div>
+      </PageContainer>
     </>
   );
 }

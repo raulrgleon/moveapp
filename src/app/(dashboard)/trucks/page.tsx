@@ -1,4 +1,5 @@
 import { ExternalLink, Sparkles, Truck } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ export default function TrucksPage() {
   return (
     <>
       <DashboardHeader title="Trucks & Trailers" description="Compare rental options" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Moving Truck & Trailer Finder"
           description="Compare providers for your Austin → Huntington move"
@@ -48,7 +49,7 @@ export default function TrucksPage() {
             <OptionGrid options={TRUCK_OPTIONS} />
           </TabsContent>
         </Tabs>
-      </div>
+      </PageContainer>
     </>
   );
 }

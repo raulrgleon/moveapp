@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Image, Plus, QrCode, Search } from "lucide-react";
+import { Camera, Plus, QrCode, Search } from "lucide-react";
+import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export default function InventoryPage() {
   return (
     <>
       <DashboardHeader title="Inventory" description="Track boxes and contents" />
-      <div className="p-4 lg:p-8 space-y-8 animate-fade-in">
+      <PageContainer>
         <PageHeader
           title="Inventory Manager"
           description={`${INVENTORY_BOXES.length} boxes tracked`}
@@ -50,12 +51,12 @@ export default function InventoryPage() {
               <div className="flex h-24 items-center justify-center bg-muted/50 border-b">
                 {box.hasPhoto ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <Image className="h-8 w-8" />
+                    <Camera className="h-8 w-8" />
                     <span className="text-xs">Photo placeholder</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <Image className="h-8 w-8 opacity-40" />
+                    <Camera className="h-8 w-8 opacity-40" />
                     <span className="text-xs">No photo</span>
                   </div>
                 )}
@@ -81,7 +82,7 @@ export default function InventoryPage() {
             No boxes match your search.
           </div>
         )}
-      </div>
+      </PageContainer>
     </>
   );
 }
