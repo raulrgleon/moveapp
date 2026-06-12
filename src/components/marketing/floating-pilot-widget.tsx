@@ -114,29 +114,31 @@ export function FloatingPilotWidget() {
         />
       )}
 
-      {/* Floating launcher */}
+      {/* Floating launcher — light surface + navy icon for contrast on green hero sections */}
       <Button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "fixed z-[60] h-14 w-14 rounded-full shadow-lg shadow-brand/30",
-          "bg-gradient-to-br from-brand-dark to-brand hover:opacity-90",
+          "fixed z-[60] h-14 w-14 rounded-full",
+          "bg-white text-brand-navy border-2 border-white",
+          "shadow-[0_4px_24px_rgba(15,23,42,0.22)] ring-2 ring-brand-navy/20",
+          "hover:bg-white hover:text-brand-navy hover:brightness-[0.98]",
           "right-4 bottom-4 sm:right-6 sm:bottom-6",
           "transition-transform hover:scale-105 active:scale-95",
-          open && "sm:ring-2 sm:ring-primary/40"
+          open && "ring-brand-navy/35"
         )}
         size="icon"
         aria-expanded={open}
         aria-label={open ? t("guestChat.close") : t("guestChat.open")}
       >
         {open ? (
-          <X className="h-6 w-6 text-white" />
+          <X className="h-6 w-6" />
         ) : (
           <>
-            <MessageCircle className="h-6 w-6 text-white" />
+            <MessageCircle className="h-6 w-6" strokeWidth={2.25} />
             <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-accent" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-80" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500 ring-2 ring-white" />
             </span>
           </>
         )}
