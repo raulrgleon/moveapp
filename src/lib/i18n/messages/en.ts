@@ -424,6 +424,10 @@ export const en = {
   },
   address: {
     placeholder: "Start typing your new address…",
+    selectDestinationFirst: "Select your destination city first — then we'll search addresses only in that state.",
+    searchInState: "Searching in {city}, {state} only",
+    searchInStateOnly: "Searching in {state} only",
+    noResultsInState: "No matches in this state. Try street number + name.",
   },
   dashboard: {
     title: "Dashboard",

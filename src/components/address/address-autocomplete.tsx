@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Loader2, MapPin, Search } from "lucide-react";
+import type { AddressSearchRegion } from "@/lib/geo/address-region";
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { DropdownPortal } from "@/components/ui/dropdown-portal";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 
 interface AddressAutocompleteProps {
@@ -13,6 +15,8 @@ interface AddressAutocompleteProps {
   initialValue?: string;
   disabled?: boolean;
   className?: string;
+  /** Restrict street search to destination city/state area */
+  region?: AddressSearchRegion;
 }
 
 export function AddressAutocomplete({
@@ -21,7 +25,9 @@ export function AddressAutocomplete({
   initialValue = "",
   disabled,
   className,
+  region,
 }: AddressAutocompleteProps) {
+  const t = useT();
   const [query, setQuery] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,36 +37,54 @@ export function AddressAutocomplete({
   const anchorRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const search = useCallback(async (text: string) => {
-    if (text.trim().length < 3) {
+  const regionReady = Boolean(region?.state?.trim() || (region?.lat != null && region?.lon != null));
+  const isDisabled = disabled || !regionReady;
+
+  const search = useCallback(
+    async (text: string) => {
+      if (!regionReady || text.trim().length < 3) {
+        setSuggestions([]);
+        setOpen(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ q: text.trim() });
+        if (region?.state) params.set("state", region.state);
+        if (region?.city) params.set("city", region.city);
+        if (region?.lat != null) params.set("lat", String(region.lat));
+        if (region?.lon != null) params.set("lon", String(region.lon));
+
+        const res = await fetch(`/api/address/search?${params.toString()}`);
+        const data = (await res.json()) as AddressSuggestion[];
+        setSuggestions(data);
+        setOpen(data.length > 0);
+        setActiveIndex(-1);
+      } catch {
+        setSuggestions([]);
+        setOpen(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [region, regionReady]
+  );
+
+  useEffect(() => {
+    setQuery(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    if (isDisabled) {
       setSuggestions([]);
       setOpen(false);
       return;
     }
-
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/address/search?q=${encodeURIComponent(text.trim())}`
-      );
-      const data = (await res.json()) as AddressSuggestion[];
-      setSuggestions(data);
-      setOpen(data.length > 0);
-      setActiveIndex(-1);
-    } catch {
-      setSuggestions([]);
-      setOpen(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (disabled) return;
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(query), 280);
+    debounceRef.current = setTimeout(() => search(query), 320);
     return () => clearTimeout(debounceRef.current);
-  }, [query, search, disabled]);
+  }, [query, search, isDisabled]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -97,8 +121,15 @@ export function AddressAutocomplete({
     }
   };
 
+  const regionHint =
+    region?.state && region?.city
+      ? t("address.searchInState", { city: region.city, state: region.state })
+      : region?.state
+        ? t("address.searchInStateOnly", { state: region.state })
+        : t("address.selectDestinationFirst");
+
   return (
-    <div ref={containerRef} className={cn("relative w-full", className)}>
+    <div ref={containerRef} className={cn("relative w-full space-y-1.5", className)}>
       <div ref={anchorRef} className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
@@ -106,8 +137,8 @@ export function AddressAutocomplete({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
+          placeholder={isDisabled && !disabled ? regionHint : placeholder}
+          disabled={isDisabled}
           className="pl-9 pr-9 h-11"
           autoComplete="off"
         />
@@ -115,6 +146,14 @@ export function AddressAutocomplete({
           <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
+
+      {regionReady && (
+        <p className="text-xs text-muted-foreground">{regionHint}</p>
+      )}
+
+      {!regionReady && !disabled && (
+        <p className="text-xs text-amber-700">{t("address.selectDestinationFirst")}</p>
+      )}
 
       <DropdownPortal anchorRef={anchorRef} open={open && suggestions.length > 0}>
         <ul
@@ -143,13 +182,13 @@ export function AddressAutocomplete({
 
       <DropdownPortal
         anchorRef={anchorRef}
-        open={query.length >= 3 && !loading && suggestions.length === 0 && open}
+        open={query.length >= 3 && !loading && suggestions.length === 0 && open && regionReady}
       >
         <div
           data-dropdown-portal
           className="w-full rounded-lg border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg"
         >
-          No addresses found. Try adding city and state.
+          {t("address.noResultsInState")}
         </div>
       </DropdownPortal>
     </div>

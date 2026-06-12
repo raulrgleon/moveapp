@@ -427,6 +427,10 @@ export const es = {
   },
   address: {
     placeholder: "Empieza a escribir tu nueva dirección…",
+    selectDestinationFirst: "Primero elige la ciudad de destino — luego buscaremos direcciones solo en ese estado.",
+    searchInState: "Buscando solo en {city}, {state}",
+    searchInStateOnly: "Buscando solo en {state}",
+    noResultsInState: "Sin resultados en este estado. Prueba número + calle.",
   },
   dashboard: {
     title: "Panel",

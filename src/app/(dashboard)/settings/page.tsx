@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocomplete } from "@/components/address/address-autocomplete";
+import { parseCityStateLabel } from "@/lib/geo/address-region";
 import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -88,6 +89,16 @@ export default function SettingsPage() {
   const household = formatHousehold(adults, children);
   const petDetails = formatPetDetails(petCount);
   const pets = petCount > 0;
+
+  const destRegion = useMemo(() => {
+    const parsed = parseCityStateLabel(destCity);
+    return {
+      city: parsed.city,
+      state: parsed.state,
+      lat: profile.destinationLat,
+      lon: profile.destinationLon,
+    };
+  }, [destCity, profile.destinationLat, profile.destinationLon]);
 
   const saveProfile = async () => {
     if (!canEditProfile) return;
@@ -177,6 +188,7 @@ export default function SettingsPage() {
                   onSelect={confirmAddress}
                   initialValue={isAddressConfirmed ? destinationAddress : ""}
                   placeholder={t("address.placeholder")}
+                  region={destRegion}
                 />
               </div>
               <MoveDatePicker
@@ -202,7 +214,7 @@ export default function SettingsPage() {
                 description={t("onboarding.adultsHint")}
                 value={adults}
                 onChange={setAdults}
-                min={1}
+                min={0}
                 max={20}
               />
               <NumberStepper

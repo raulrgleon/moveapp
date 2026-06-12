@@ -14,7 +14,6 @@ import { invalidateUserData, loadUserData } from "@/lib/data-cache";
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { formatDestinationLabel } from "@/lib/geo/nominatim";
 import { dispatchProfileUpdated } from "@/lib/move/profile-events";
-import { MOCK_USER } from "@/lib/mock-data";
 import {
   DEFAULT_PROFILE,
   geocodeQuery,
@@ -25,18 +24,6 @@ import {
 } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import { createEmptyVehicle, createVehicleId, ensureVehicleId } from "@/lib/vehicles/types";
-import { formatVehicleLabel } from "@/lib/vehicles/nhtsa";
-
-const DEFAULT_VEHICLE: VehicleInfo = {
-  id: "default-atlas",
-  year: "2019",
-  makeId: 482,
-  make: "VOLKSWAGEN",
-  modelId: 1861,
-  model: "Atlas",
-  trim: "V6 4Motion",
-  displayLabel: "2019 Volkswagen Atlas V6 4Motion",
-};
 
 export interface ConfirmedAddress {
   displayName: string;
@@ -87,23 +74,6 @@ interface MoveContextValue {
 }
 
 const MoveContext = createContext<MoveContextValue | null>(null);
-
-function vehicleFromMockLabel(): VehicleInfo {
-  const label = MOCK_USER.vehicles[0] ?? DEFAULT_VEHICLE.displayLabel;
-  const match = label.match(/^(\d{4})\s+(.+?)\s+([^\s]+)(?:\s+(.*))?$/);
-  if (!match) return { ...DEFAULT_VEHICLE, id: createVehicleId() };
-  const [, year, make, model, trim] = match;
-  return {
-    id: createVehicleId(),
-    year,
-    makeId: DEFAULT_VEHICLE.makeId,
-    make,
-    modelId: DEFAULT_VEHICLE.modelId,
-    model,
-    trim: trim?.trim() || undefined,
-    displayLabel: formatVehicleLabel(year, make, model, trim),
-  };
-}
 
 function defaultVehicles(): VehicleInfo[] {
   return [];

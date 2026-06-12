@@ -18,6 +18,7 @@ import {
   AddressAutocomplete,
   AddressConfirmedBadge,
 } from "@/components/address/address-autocomplete";
+import { parseCityStateLabel } from "@/lib/geo/address-region";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -68,6 +69,7 @@ export default function UtilitiesPage() {
   const [loadError, setLoadError] = useState(false);
   const [contractedIds, setContractedIds] = useState<Set<string>>(new Set());
   const {
+    profile,
     isAddressConfirmed,
     isHydrated,
     destinationAddress,
@@ -79,6 +81,16 @@ export default function UtilitiesPage() {
     canEditProfile,
     canEdit,
   } = useMove();
+
+  const destRegion = useMemo(() => {
+    const parsed = parseCityStateLabel(profile.destination);
+    return {
+      city: parsed.city,
+      state: parsed.state,
+      lat: profile.destinationLat,
+      lon: profile.destinationLon,
+    };
+  }, [profile.destination, profile.destinationLat, profile.destinationLon]);
 
   useEffect(() => {
     if (!isAddressConfirmed || lat == null || lon == null) {
@@ -182,6 +194,7 @@ export default function UtilitiesPage() {
               placeholder={t("address.placeholder")}
               initialValue={isAddressConfirmed ? destinationAddress : ""}
               disabled={!canEditProfile}
+              region={destRegion}
             />
             {isAddressConfirmed ? (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">

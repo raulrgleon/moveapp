@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { AddressAutocomplete } from "@/components/address/address-autocomplete";
 import { CityAutocomplete } from "@/components/address/city-autocomplete";
+import {
+  parseCityStateLabel,
+  type AddressSearchRegion,
+} from "@/lib/geo/address-region";
 import { MoveDatePicker } from "@/components/onboarding/move-date-picker";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
 import { AuthBrandPanel } from "@/components/brand/auth-brand-panel";
@@ -13,8 +17,8 @@ import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { useAuth } from "@/contexts/auth-context";
+import type { VehicleInfo } from "@/lib/vehicles/types";
 import { householdWithPets, useMove } from "@/contexts/move-context";
-import { parseHouseholdCounts } from "@/lib/move/household";
 import {
   formatHousehold,
   formatPetDetails,
@@ -49,19 +53,17 @@ export default function OnboardingPage() {
     confirmAddress,
     isAddressConfirmed,
     destinationAddress,
-    vehicles,
-    setVehicles,
   } = useMove();
   const [step, setStep] = useState(1);
+  const [onboardingVehicles, setOnboardingVehicles] = useState<VehicleInfo[]>([]);
 
-  const initialCounts = useMemo(() => parseHouseholdCounts(profile), [profile]);
-
-  const [origin, setOrigin] = useState(profile.origin);
-  const [destination, setDestination] = useState(profile.destination);
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [destRegion, setDestRegion] = useState<AddressSearchRegion>({});
   const [moveDate, setMoveDate] = useState(profile.moveDate);
-  const [adults, setAdults] = useState(initialCounts.adults);
-  const [children, setChildren] = useState(initialCounts.children);
-  const [petCount, setPetCount] = useState(initialCounts.petCount);
+  const [adults, setAdults] = useState(0);
+  const [children, setChildren] = useState(0);
+  const [petCount, setPetCount] = useState(0);
   const [rentalKey, setRentalKey] = useState("trailer");
   const [needsVehicleTransport, setNeedsVehicleTransport] = useState(
     profile.needsVehicleTransport
@@ -90,15 +92,24 @@ export default function OnboardingPage() {
 
   const progressPercent = Math.round((step / STEPS.length) * 100);
 
+  useEffect(() => {
+    const parsed = parseCityStateLabel(destination);
+    setDestRegion((prev) => ({
+      ...prev,
+      city: parsed.city ?? prev.city,
+      state: parsed.state ?? prev.state,
+    }));
+  }, [destination]);
+
   const vehiclePreview =
-    vehicles.length === 0
+    onboardingVehicles.length === 0
       ? t("onboarding.noVehicleSelected")
-      : vehicles.length > 1
-        ? vehicles
+      : onboardingVehicles.length > 1
+        ? onboardingVehicles
             .map((v) => v.displayLabel)
             .filter(Boolean)
             .join(" + ")
-        : vehicles[0]?.displayLabel || t("onboarding.noVehicleSelected");
+        : onboardingVehicles[0]?.displayLabel || t("onboarding.noVehicleSelected");
 
   const saveStepData = async () => {
     await updateProfile({
@@ -150,7 +161,7 @@ export default function OnboardingPage() {
         password: accountPassword,
         name: fullProfile.name,
         profile: fullProfile,
-        vehicles: vehicles.filter((v) => v.make?.trim() && v.model?.trim()),
+        vehicles: onboardingVehicles.filter((v) => v.make?.trim() && v.model?.trim()),
         destinationAddress: isAddressConfirmed ? destinationAddress : undefined,
         destinationLat: profile.destinationLat,
         destinationLon: profile.destinationLon,
@@ -267,6 +278,12 @@ export default function OnboardingPage() {
                   onChange={setDestination}
                   onSelect={(city) => {
                     setDestination(city.label);
+                    setDestRegion({
+                      city: city.city ?? parseCityStateLabel(city.label).city,
+                      state: city.state ?? parseCityStateLabel(city.label).state,
+                      lat: city.lat,
+                      lon: city.lon,
+                    });
                     void updateProfile(
                       {
                         destination: city.label,
@@ -284,6 +301,7 @@ export default function OnboardingPage() {
                     onSelect={confirmAddress}
                     initialValue={isAddressConfirmed ? destinationAddress : ""}
                     placeholder={t("onboarding.addressPlaceholder")}
+                    region={destRegion}
                   />
                   {isAddressConfirmed && (
                     <p className="text-xs text-emerald-600">{t("onboarding.addressSaved")}</p>
@@ -310,7 +328,7 @@ export default function OnboardingPage() {
                   description={t("onboarding.adultsHint")}
                   value={adults}
                   onChange={setAdults}
-                  min={1}
+                  min={0}
                   max={20}
                 />
                 <NumberStepper
@@ -338,8 +356,8 @@ export default function OnboardingPage() {
                   <Label>{t("onboarding.yourVehicles")}</Label>
                   <p className="text-xs text-muted-foreground">{t("onboarding.vehiclesHint")}</p>
                   <VehicleListEditor
-                    vehicles={vehicles}
-                    onChange={setVehicles}
+                    vehicles={onboardingVehicles}
+                    onChange={setOnboardingVehicles}
                     showTips
                     allowEmpty
                   />

@@ -71,7 +71,11 @@ export function householdWithPets(profile: MoveProfile): string {
 }
 
 export function formatHousehold(adults: number, children: number): string {
-  const parts: string[] = [`${adults} adult${adults === 1 ? "" : "s"}`];
+  if (adults <= 0 && children <= 0) return "";
+  const parts: string[] = [];
+  if (adults > 0) {
+    parts.push(`${adults} adult${adults === 1 ? "" : "s"}`);
+  }
   if (children > 0) {
     parts.push(`${children} child${children === 1 ? "" : "ren"}`);
   }
