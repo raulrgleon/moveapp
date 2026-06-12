@@ -8,6 +8,7 @@ import { InventoryProvider } from "@/contexts/inventory-context";
 import { LocaleProvider } from "@/contexts/locale-context";
 import { MoveProvider } from "@/contexts/move-context";
 import { MovingPlanProvider } from "@/contexts/moving-plan-context";
+import { FloatingPilotLauncher } from "@/components/marketing/floating-pilot-launcher";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -18,7 +19,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             <ChecklistProvider>
               <DocumentsProvider>
                 <MovingPlanProvider>
-                  <AiChatProvider>{children}</AiChatProvider>
+                  <AiChatProvider>
+                    {children}
+                    <FloatingPilotLauncher />
+                  </AiChatProvider>
                 </MovingPlanProvider>
               </DocumentsProvider>
             </ChecklistProvider>

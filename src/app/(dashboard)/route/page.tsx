@@ -31,6 +31,17 @@ const RouteMap = dynamic(
   }
 );
 
+function buildStopMapsUrl(stop: { name: string; location: string; lat?: number; lon?: number }): string {
+  if (stop.lat != null && stop.lon != null) {
+    return `https://www.google.com/maps/search/?api=1&query=${stop.lat},${stop.lon}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${stop.name}, ${stop.location}`)}`;
+}
+
+function stopTypeLabel(t: (key: string) => string, type: keyof typeof stopIcons): string {
+  return t(`routePage.stopType.${type}`);
+}
+
 const stopIcons = {
   gas: Fuel,
   hotel: Hotel,
@@ -180,22 +191,36 @@ export default function RoutePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {stats.stops.map((stop) => {
                   const Icon = stopIcons[stop.type];
+                  const mapsUrl = buildStopMapsUrl(stop);
                   return (
                     <div key={stop.id} className="flex gap-3 rounded-lg border p-4">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
                         <Icon className="h-4 w-4 text-primary" />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm">{stop.name}</p>
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {stop.type.replace("_", " ")}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start gap-2">
+                          <p className="font-medium text-sm leading-snug">{stop.name}</p>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {stopTypeLabel(t, stop.type)}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{stop.location}</p>
+                        {stop.location && (
+                          <p className="text-sm text-foreground/80 mt-1.5 leading-snug break-words">
+                            {stop.location}
+                          </p>
+                        )}
                         {stop.notes && (
                           <p className="text-xs text-muted-foreground mt-1">{stop.notes}</p>
                         )}
+                        <a
+                          href={mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {t("routePage.openStopInMaps")}
+                        </a>
                       </div>
                     </div>
                   );

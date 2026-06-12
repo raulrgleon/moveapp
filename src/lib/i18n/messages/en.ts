@@ -417,6 +417,25 @@ export const en = {
         "Set up electricity, water, gas (if applicable), and internet. Confirm your address in Utilities to see providers ranked for your location and mark providers as contracted in your checklist.",
     },
   },
+  guestChat: {
+    title: "Chat with Pilot",
+    subtitle: "Questions about MovePilotAi? Ask anytime.",
+    open: "Chat with Pilot",
+    close: "Close chat",
+    welcome:
+      "Hi! I'm Pilot. Ask me about MovePilotAi, how we help with your move, or how to get started — free.",
+    placeholder: "Ask about MovePilotAi…",
+    error: "Sorry, I couldn't connect right now. Try again or email our team.",
+    talkToHuman: "Talk to a human",
+    startFree: "Start free",
+    humanEmailSubject: "MovePilotAi — I'd like to speak with someone",
+    quickQ: {
+      pricing: "Is it free to start?",
+      features: "What can MovePilotAi do?",
+      start: "How do I get started?",
+      human: "I'd like to talk to a person",
+    },
+  },
   aiPanel: {
     title: "Pilot",
     subtitle: "Your MovePilotAi co-pilot",
@@ -888,7 +907,14 @@ export const en = {
     stopsSubtext: "Gas, hotels, rest",
     openGoogleMaps: "Open in Google Maps",
     openAppleMaps: "Open in Apple Maps",
+    openStopInMaps: "Open in maps",
     exportRoute: "Export route",
+    stopType: {
+      gas: "Gas station",
+      hotel: "Hotel",
+      rest: "Rest stop",
+      pet_hotel: "Pet-friendly hotel",
+    },
   },
   movingPlanPage: {
     title: "Moving Plan",

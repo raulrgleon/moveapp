@@ -420,6 +420,25 @@ export const es = {
         "Contrata electricidad, agua, gas (si aplica) e internet. Confirma tu dirección en Servicios para ver proveedores y marca los contratados en tu checklist.",
     },
   },
+  guestChat: {
+    title: "Chatea con Pilot",
+    subtitle: "¿Dudas sobre MovePilotAi? Pregunta cuando quieras.",
+    open: "Chatear con Pilot",
+    close: "Cerrar chat",
+    welcome:
+      "¡Hola! Soy Pilot. Pregúntame sobre MovePilotAi, cómo te ayudamos con tu mudanza o cómo empezar — es gratis.",
+    placeholder: "Pregunta sobre MovePilotAi…",
+    error: "No pude conectar ahora. Intenta de nuevo o escríbenos por email.",
+    talkToHuman: "Hablar con una persona",
+    startFree: "Empezar gratis",
+    humanEmailSubject: "MovePilotAi — Quiero hablar con alguien",
+    quickQ: {
+      pricing: "¿Es gratis empezar?",
+      features: "¿Qué hace MovePilotAi?",
+      start: "¿Cómo empiezo?",
+      human: "Quiero hablar con una persona",
+    },
+  },
   aiPanel: {
     title: "Pilot",
     subtitle: "Tu copiloto MovePilotAi",
@@ -891,7 +910,14 @@ export const es = {
     stopsSubtext: "Gasolina, hoteles, descanso",
     openGoogleMaps: "Abrir en Google Maps",
     openAppleMaps: "Abrir en Apple Maps",
+    openStopInMaps: "Abrir en mapas",
     exportRoute: "Exportar ruta",
+    stopType: {
+      gas: "Gasolinera",
+      hotel: "Hotel",
+      rest: "Parada de descanso",
+      pet_hotel: "Hotel pet-friendly",
+    },
   },
   movingPlanPage: {
     title: "Plan de mudanza",

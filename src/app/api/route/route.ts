@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateRouteStops } from "@/lib/geo/route-stops";
+import { fetchRouteStops } from "@/lib/geo/route-stops";
 import { computeRouteStats, resolveRoutePoints } from "@/lib/geo/route-service";
 
 function parseCoord(value: string | null): number | undefined {
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Could not compute route" }, { status: 502 });
     }
 
-    const stops = generateRouteStops(stats, {
+    const stops = await fetchRouteStops(stats, {
       name: "",
       email: "",
       origin,

@@ -54,6 +54,7 @@ interface ChatInputBarProps {
   onSend: () => void;
   isLoading?: boolean;
   compact?: boolean;
+  placeholder?: string;
 }
 
 export function ChatInputBar({
@@ -62,13 +63,14 @@ export function ChatInputBar({
   onSend,
   isLoading,
   compact,
+  placeholder,
 }: ChatInputBarProps) {
   const t = useT();
 
   return (
     <div className="flex gap-2">
       <Input
-        placeholder={t("chat.placeholder")}
+        placeholder={placeholder ?? t("chat.placeholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && !isLoading && onSend()}

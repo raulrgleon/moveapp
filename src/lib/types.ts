@@ -91,6 +91,8 @@ export interface RouteStop {
   type: "gas" | "hotel" | "rest" | "pet_hotel";
   location: string;
   notes?: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface CityMetric {
