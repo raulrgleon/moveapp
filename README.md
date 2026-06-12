@@ -10,8 +10,16 @@ Professional MVP dashboard prototype built with Next.js 14, TypeScript, Tailwind
 
 ```bash
 npm install
-cp .env.example .env.local   # add your OPENAI_API_KEY
+cp .env.example .env.local   # configure keys (see below)
+npx prisma db push
 npm run dev
+```
+
+Production:
+
+```bash
+npm run build
+pm2 start ecosystem.config.cjs
 ```
 
 ### Environment variables
@@ -19,20 +27,25 @@ npm run dev
 | Variable | Description |
 |----------|-------------|
 | `OPENAI_API_KEY` | OpenAI API key (server-side only) |
-| `OPENAI_MODEL` | Model name (default: `gpt-4o-mini` for speed) |
+| `OPENAI_MODEL` | Model name (default: `gpt-4o-mini`) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `AUTH_SECRET` | Session signing secret (min 32 chars) |
+| `WEATHERAPI_KEY` | Weather along route (optional) |
+| `RENTCAST_API_KEY` | Housing market data (optional) |
+| `CRON_SECRET` | Protects `/api/cron/reminders` |
+| `ADMIN_PASSWORD` | Used by `npm run seed:admin` only |
 
 Maps use **OpenStreetMap** tiles and **OSRM** routing — no API key required.
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Demo user
+## Auth
 
-- **Name:** Raul Garcia
-- **Route:** Austin, TX → Huntington, WV
-- **Move date:** September 15, 2026
-- **Household:** 2 adults, 1 child, 1 dog
-- **Vehicle:** 2019 Volkswagen Atlas V6 4Motion
-- **Budget:** $4,000
+Users register via `/onboarding` or `/login`. Admins use `/admin` after running:
+
+```bash
+ADMIN_PASSWORD='your-secure-password' npm run seed:admin
+```
 
 ## Routes
 
@@ -55,6 +68,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `/marketplace` | Services marketplace |
 | `/assistant` | Full-page AI assistant |
 | `/settings` | Account settings |
+| `/admin` | Admin user management (admin role only) |
 
 ## Tech stack
 
@@ -63,7 +77,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - Tailwind CSS
 - shadcn/ui components
 - Lucide icons
-- Mock data (PostgreSQL-ready structure in `src/lib/types.ts`)
+- PostgreSQL + Prisma (persistent user and move data)
 
 ## Project structure
 
@@ -83,4 +97,4 @@ src/
 
 ## Notes
 
-This is an MVP prototype. All data is mocked. Backend and database integration are planned for future phases.
+Persistent data lives in PostgreSQL. Mock data in `src/lib/mock-data.ts` is still used for demo fallbacks and UI seeds.

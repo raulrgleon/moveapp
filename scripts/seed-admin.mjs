@@ -4,9 +4,15 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  const username = "admin";
-  const email = "admin@movepilot.local";
-  const password = "Clave2026/";
+  const username = process.env.ADMIN_USERNAME?.trim() || "admin";
+  const email = process.env.ADMIN_EMAIL?.trim() || "admin@movepilot.local";
+  const password = process.env.ADMIN_PASSWORD?.trim();
+
+  if (!password || password.length < 8) {
+    console.error("Set ADMIN_PASSWORD (min 8 chars) before running seed:admin");
+    process.exit(1);
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
 
   const existing = await prisma.user.findFirst({
@@ -26,7 +32,7 @@ async function main() {
     console.log("Admin user created:", user.id);
   }
 
-  console.log("Login with username: admin / password: Clave2026/");
+  console.log(`Admin ready: username "${username}", email "${email}"`);
 }
 
 main()

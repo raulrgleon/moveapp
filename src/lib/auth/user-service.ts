@@ -126,44 +126,6 @@ export async function registerUserWithPassword(
   };
 }
 
-export async function ensureAdminUser() {
-  const username = "admin";
-  const email = "admin@movepilot.local";
-  const password = "Clave2026/";
-
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ username }, { email }] },
-  });
-
-  const passwordHash = await hashPassword(password);
-
-  if (existing) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: {
-        username,
-        email,
-        name: "Admin",
-        role: "admin",
-        passwordHash,
-      },
-    });
-    return existing.id;
-  }
-
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      name: "Admin",
-      role: "admin",
-      passwordHash,
-    },
-  });
-
-  return user.id;
-}
-
 export async function listAllUsers() {
   return prisma.user.findMany({
     orderBy: { createdAt: "desc" },
