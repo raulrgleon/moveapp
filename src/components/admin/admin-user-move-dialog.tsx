@@ -318,7 +318,30 @@ export function AdminUserMoveDialog({ user, onClose, onSaved }: AdminUserMoveDia
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {moveId && !loading && (
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="destructive"
+              className="sm:mr-auto"
+              disabled={saving}
+              onClick={async () => {
+                if (!moveId || !window.confirm(t("adminConsole.deleteMoveConfirm", {
+                  route: `${origin} → ${destination}`,
+                  owner: user?.name ?? "",
+                }))) return;
+                setSaving(true);
+                try {
+                  await apiFetch(`/api/admin/moves/${moveId}`, { method: "DELETE" });
+                  onSaved();
+                  onClose();
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : t("admin.moveSaveError"));
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              {t("adminConsole.deleteMove")}
+            </Button>
             <Button variant="outline" onClick={onClose}>
               {t("common.cancel")}
             </Button>

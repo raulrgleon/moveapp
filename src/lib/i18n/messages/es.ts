@@ -619,6 +619,9 @@ export const es = {
     deactivate: "Desactivar",
     activate: "Activar",
     inactive: "Inactivo",
+    deleteMove: "Eliminar mudanza",
+    deleteMoveConfirm: "¿Eliminar la mudanza {route} de {owner}? Se borrarán permanentemente checklist, inventario, documentos y presupuesto.",
+    moveDeleted: "Mudanza eliminada correctamente",
   },
   checklistPage: {
     title: "Checklist",

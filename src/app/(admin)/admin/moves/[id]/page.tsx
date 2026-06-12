@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { PageContainer } from "@/components/dashboard/page-container";
@@ -10,6 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useT } from "@/contexts/locale-context";
 import { useLocale } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
@@ -17,11 +26,14 @@ import { formatDate } from "@/lib/utils";
 
 export default function AdminMoveDetailPage({ params }: { params: { id: string } }) {
   const t = useT();
+  const router = useRouter();
   const { locale } = useLocale();
   const [move, setMove] = useState<Record<string, unknown> | null>(null);
   const [newOwnerId, setNewOwnerId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -137,7 +149,52 @@ export default function AdminMoveDetailPage({ params }: { params: { id: string }
             </Button>
           </CardContent>
         </Card>
+
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">{t("adminConsole.deleteMove")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button variant="destructive" onClick={() => setShowDelete(true)}>
+              {t("adminConsole.deleteMove")}
+            </Button>
+          </CardContent>
+        </Card>
       </PageContainer>
+
+      <Dialog open={showDelete} onOpenChange={setShowDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("adminConsole.deleteMove")}</DialogTitle>
+            <DialogDescription>
+              {t("adminConsole.deleteMoveConfirm", {
+                route: `${String(move.origin)} → ${String(move.destination)}`,
+                owner: user.name,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDelete(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await apiFetch(`/api/admin/moves/${params.id}`, { method: "DELETE" });
+                  router.push("/admin/moves");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? t("common.loading") : t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

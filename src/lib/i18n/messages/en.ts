@@ -616,6 +616,9 @@ export const en = {
     deactivate: "Deactivate",
     activate: "Activate",
     inactive: "Inactive",
+    deleteMove: "Delete move",
+    deleteMoveConfirm: "Delete move {route} owned by {owner}? All checklist, inventory, documents and budget data will be permanently removed.",
+    moveDeleted: "Move deleted successfully",
   },
   checklistPage: {
     title: "Checklist",

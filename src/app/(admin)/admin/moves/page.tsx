@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -17,6 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useT } from "@/contexts/locale-context";
 import { useLocale } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
@@ -37,27 +45,50 @@ export default function AdminMovesPage() {
   const [moves, setMoves] = useState<MoveRow[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<MoveRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [success, setSuccess] = useState("");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/admin/moves${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+      const data = (await res.json()) as { moves: MoveRow[] };
+      setMoves(data.moves);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await apiFetch(`/api/admin/moves${q ? `?q=${encodeURIComponent(q)}` : ""}`);
-        const data = (await res.json()) as { moves: MoveRow[] };
-        setMoves(data.moves);
-      } finally {
-        setLoading(false);
-      }
-    }
     const timer = setTimeout(() => void load(), 300);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiFetch(`/api/admin/moves/${deleteTarget.id}`, { method: "DELETE" });
+      setSuccess(t("adminConsole.moveDeleted"));
+      setDeleteTarget(null);
+      await load();
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <>
       <AdminHeader title={t("adminConsole.moves")} />
       <PageContainer>
         <PageHeader title={t("adminConsole.moves")} />
+        {success && (
+          <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 mb-4">
+            {success}
+          </p>
+        )}
         <Input
           placeholder={t("adminConsole.searchMoves")}
           value={q}
@@ -96,9 +127,20 @@ export default function AdminMovesPage() {
                       {move._count.checklistTasks} / {move._count.documents}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/moves/${move.id}`}>{t("adminConsole.viewDetails")}</Link>
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/moves/${move.id}`}>{t("adminConsole.viewDetails")}</Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          title={t("adminConsole.deleteMove")}
+                          onClick={() => setDeleteTarget(move)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -107,6 +149,29 @@ export default function AdminMovesPage() {
           </TableScroll>
         )}
       </PageContainer>
+
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("adminConsole.deleteMove")}</DialogTitle>
+            <DialogDescription>
+              {deleteTarget &&
+                t("adminConsole.deleteMoveConfirm", {
+                  route: `${deleteTarget.origin} → ${deleteTarget.destination}`,
+                  owner: deleteTarget.user.name,
+                })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+              {deleting ? t("common.loading") : t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
