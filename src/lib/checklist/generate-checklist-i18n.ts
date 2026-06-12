@@ -1,16 +1,15 @@
 import type { Locale } from "@/lib/i18n";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { ChecklistTask } from "@/lib/types";
+import {
+  addDaysLocal,
+  daysBetweenLocal,
+  formatLocalISO,
+  parseLocalDate,
+  startOfDay,
+} from "@/lib/dates/local-date";
 
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function fmt(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+const IDEAL_PLAN_DAYS = 56;
 
 interface TaskTemplate {
   title: string;
@@ -119,7 +118,9 @@ export function generateChecklistFromProfileI18n(
   profile: MoveProfile,
   locale: Locale = "en"
 ): Omit<ChecklistTask, "id">[] {
-  const moveDate = new Date(profile.moveDate);
+  const moveDate = parseLocalDate(profile.moveDate);
+  const today = startOfDay(new Date());
+  const daysUntilMove = Math.max(0, daysBetweenLocal(today, moveDate));
   const t = templatesForLocale(locale);
   const templates = [...t.base];
 
@@ -138,13 +139,27 @@ export function generateChecklistFromProfileI18n(
     priority: "medium",
   });
 
-  return templates.map((task) => ({
-    title: task.title,
-    category: task.category,
-    status: "pending" as const,
-    dueDate: fmt(addDays(moveDate, -task.daysBeforeMove)),
-    priority: task.priority,
-  }));
+  return templates.map((task) => {
+    let daysBefore = task.daysBeforeMove;
+
+    if (daysBefore > 0 && daysUntilMove > 0 && daysBefore > daysUntilMove) {
+      const scale = daysUntilMove / IDEAL_PLAN_DAYS;
+      daysBefore = Math.max(1, Math.round(task.daysBeforeMove * scale));
+    }
+
+    let due = addDaysLocal(moveDate, -daysBefore);
+    if (daysBefore > 0 && due < today) {
+      due = today;
+    }
+
+    return {
+      title: task.title,
+      category: task.category,
+      status: "pending" as const,
+      dueDate: formatLocalISO(due),
+      priority: task.priority,
+    };
+  });
 }
 
 const EN_STARTER_DOCS = [

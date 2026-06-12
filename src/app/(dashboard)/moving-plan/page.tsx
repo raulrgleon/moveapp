@@ -65,21 +65,36 @@ export default function MovingPlanPage() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
-              <h3 className="font-semibold">{t("movingPlanPage.timeline")}</h3>
+              <div>
+                <h3 className="font-semibold">{t("movingPlanPage.timeline")}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t("movingPlanPage.timelineHint", {
+                    date: formatDate(profile.moveDate, locale),
+                  })}
+                </p>
+              </div>
               {weeks.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("movingPlanPage.noTimeline")}</p>
               ) : (
                 weeks.map((week) => (
                   <Card
-                    key={`${week.week}-${week.label}`}
+                    key={`${week.week}-${week.label}-${week.startDate ?? week.label}`}
                     className={cn(
                       week.status === "current" && "border-primary shadow-sm",
-                      week.status === "completed" && "opacity-80"
+                      week.status === "completed" && "opacity-80",
+                      week.kind === "move_day" && "border-primary/60 bg-primary/5"
                     )}
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">{week.label}</CardTitle>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base">{week.label}</CardTitle>
+                          {week.dateRange && (
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {week.dateRange}
+                            </p>
+                          )}
+                        </div>
                         <Badge
                           variant={
                             week.status === "completed"

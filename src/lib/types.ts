@@ -105,6 +105,10 @@ export interface CityMetric {
 export interface MovingPlanWeek {
   week: number;
   label: string;
+  dateRange?: string;
+  startDate?: string;
+  endDate?: string;
+  kind?: "before" | "move_day" | "after";
   tasks: string[];
   status: "completed" | "current" | "upcoming";
 }
