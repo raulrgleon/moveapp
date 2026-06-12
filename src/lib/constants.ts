@@ -31,6 +31,7 @@ export const NAV_ITEMS = [
   { href: "/checklist", labelKey: "nav.checklist", icon: CheckSquare },
   { href: "/inventory", labelKey: "nav.inventory", icon: Package },
   { href: "/documents", labelKey: "nav.documents", icon: FileText },
+  { href: "/collaboration", labelKey: "nav.collaboration", icon: Users },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/api-auth";
+import { acceptMoveInviteByToken, InviteAcceptError } from "@/lib/move/accept-invite";
 import { prisma } from "@/lib/prisma";
-import { setActiveMove } from "@/lib/db/move-access";
 import {
   COOKIE_NAME,
   createSession,
@@ -15,17 +16,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Token required" }, { status: 400 });
     }
 
-    const collab = await prisma.moveCollaborator.findUnique({
-      where: { inviteToken: token.trim() },
-      include: { move: { include: { user: true } } },
-    });
-
-    if (!collab) {
-      return NextResponse.json({ error: "Invalid invitation" }, { status: 404 });
-    }
-
-    let user = await prisma.user.findUnique({ where: { email: collab.email } });
+    let user = await getSessionUser(req);
     if (!user) {
+      const collab = await prisma.moveCollaborator.findUnique({
+        where: { inviteToken: token.trim() },
+      });
+      if (!collab) {
+        return NextResponse.json({ error: "Invalid invitation" }, { status: 404 });
+      }
       return NextResponse.json({
         error: "Account required",
         needsRegister: true,
@@ -33,12 +31,7 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    await prisma.moveCollaborator.update({
-      where: { id: collab.id },
-      data: { userId: user.id, acceptedAt: new Date(), inviteToken: null },
-    });
-
-    await setActiveMove(user.id, collab.moveId);
+    const result = await acceptMoveInviteByToken(token, user.id);
 
     const { token: sessionToken, expiresAt } = await createSession(
       user.id,
@@ -48,15 +41,22 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({
       ok: true,
+      alreadyAccepted: result.alreadyAccepted,
       move: {
-        origin: collab.move.origin,
-        destination: collab.move.destination,
-        owner: collab.move.user.name,
+        origin: result.origin,
+        destination: result.destination,
+        owner: result.ownerName,
       },
     });
     res.cookies.set(COOKIE_NAME, sessionToken, sessionCookieOptions(expiresAt, isSecureRequest(req)));
     return res;
   } catch (error) {
+    if (error instanceof InviteAcceptError) {
+      if (error.code === "needs_register") {
+        return NextResponse.json({ error: error.message, needsRegister: true }, { status: 403 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Accept invite error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }

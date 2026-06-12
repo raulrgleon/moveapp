@@ -22,6 +22,8 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { DashboardUtilitiesCard } from "@/components/dashboard/dashboard-utilities-card";
 import { DashboardHousingCard } from "@/components/dashboard/dashboard-housing-card";
 import { MoveActivityFeed } from "@/components/dashboard/move-activity-feed";
+import { CollaboratorsDashboardCard } from "@/components/collaboration/collaborators-dashboard-card";
+import { PendingInvitesBanner } from "@/components/collaboration/pending-invites-banner";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,6 +93,8 @@ export default function DashboardPage() {
         description={t("common.welcomeBack", { name: profile.name.split(" ")[0] })}
       />
       <PageContainer>
+        <PendingInvitesBanner />
+
         <PageHeader
           title={t("dashboardPage.overview")}
           description={t("dashboardPage.overviewDesc")}
@@ -199,6 +203,8 @@ export default function DashboardPage() {
             ))}
           </CardContent>
         </Card>
+
+        <CollaboratorsDashboardCard />
 
         <DashboardHousingCard />
 

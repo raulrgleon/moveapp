@@ -136,6 +136,42 @@ export async function registerUserWithPassword(
   };
 }
 
+/** Register a collaborator account without creating their own move. */
+export async function registerUserWithoutMove(
+  email: string,
+  name: string,
+  password: string,
+  locale: "en" | "es" = "en"
+): Promise<AuthSessionUser> {
+  const normalizedEmail = normalizeIdentifier(email);
+  if (!normalizedEmail.includes("@")) {
+    throw new Error("Valid email required");
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) throw new Error("User already exists");
+
+  const passwordHash = await hashPassword(password);
+
+  const user = await prisma.user.create({
+    data: {
+      email: normalizedEmail,
+      name: name.trim() || normalizedEmail.split("@")[0],
+      passwordHash,
+      role: "user",
+      locale,
+    },
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: "user",
+    username: user.username,
+  };
+}
+
 export async function listAllUsers() {
   return prisma.user.findMany({
     orderBy: { createdAt: "desc" },

@@ -41,6 +41,7 @@ interface AuthContextValue {
     destinationLat?: number;
     destinationLon?: number;
     isAddressConfirmed?: boolean;
+    inviteToken?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       destinationLat?: number;
       destinationLon?: number;
       isAddressConfirmed?: boolean;
+      inviteToken?: string;
     }) => {
       const res = await fetch("/api/auth/register", {
         method: "POST",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { registerUserWithPassword } from "@/lib/auth/user-service";
+import { registerUserWithPassword, registerUserWithoutMove } from "@/lib/auth/user-service";
+import { acceptMoveInviteByToken } from "@/lib/move/accept-invite";
 import {
   COOKIE_NAME,
   createSession,
@@ -31,29 +32,33 @@ export async function POST(req: NextRequest) {
       destinationLat?: number;
       destinationLon?: number;
       isAddressConfirmed?: boolean;
+      inviteToken?: string;
     };
 
     const email = body.email?.trim();
     const password = body.password?.trim();
     const name = body.name?.trim() || email?.split("@")[0] || "User";
     const userLocale: Locale = body.locale === "es" ? "es" : locale;
+    const inviteToken = body.inviteToken?.trim();
 
     if (!email || !password || password.length < 6) {
       return jsonError("passwordTooShort", 400, userLocale);
     }
 
-    const user = await registerUserWithPassword(
-      email,
-      name,
-      password,
-      "user",
-      null,
-      body.profile,
-      completeVehicles(body.vehicles),
-      userLocale
-    );
+    const user = inviteToken
+      ? await registerUserWithoutMove(email, name, password, userLocale)
+      : await registerUserWithPassword(
+          email,
+          name,
+          password,
+          "user",
+          null,
+          body.profile,
+          completeVehicles(body.vehicles),
+          userLocale
+        );
 
-    if (body.destinationAddress || body.isAddressConfirmed) {
+    if (!inviteToken && (body.destinationAddress || body.isAddressConfirmed)) {
       const move = await prisma.move.findFirst({
         where: { userId: user.id },
         orderBy: { updatedAt: "desc" },
@@ -70,10 +75,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { token, expiresAt } = await createSession(user.id, user.email, user.role);
-    void sendWelcomeEmail(user.email, user.name, userLocale);
+    if (inviteToken) {
+      await acceptMoveInviteByToken(inviteToken, user.id);
+    }
 
-    const res = NextResponse.json({ user, moveId: user.role === "admin" ? null : "created" });
+    const { token, expiresAt } = await createSession(user.id, user.email, user.role);
+    if (!inviteToken) {
+      void sendWelcomeEmail(user.email, user.name, userLocale);
+    }
+
+    const res = NextResponse.json({
+      user,
+      moveId: inviteToken ? "joined" : user.role === "admin" ? null : "created",
+    });
     res.cookies.set(COOKIE_NAME, token, sessionCookieOptions(expiresAt, isSecureRequest(req)));
     return res;
   } catch (error) {

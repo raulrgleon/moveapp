@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { TaskAssigneeField } from "@/components/collaboration/task-assignee-field";
 import {
   Select,
   SelectContent,
@@ -318,14 +319,10 @@ export default function ChecklistPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>{t("checklistPage.taskAssignee")}</Label>
-              <Input
-                type="email"
-                value={newTask.assigneeEmail}
-                onChange={(e) => setNewTask((p) => ({ ...p, assigneeEmail: e.target.value }))}
-              />
-            </div>
+            <TaskAssigneeField
+              value={newTask.assigneeEmail}
+              onChange={(email) => setNewTask((p) => ({ ...p, assigneeEmail: email }))}
+            />
             <div className="space-y-2">
               <Label>{t("checklistPage.taskNotes")}</Label>
               <Textarea

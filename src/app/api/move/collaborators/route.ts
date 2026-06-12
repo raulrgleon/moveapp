@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { requireMoveAccess } from "@/lib/api-auth";
+import { logMoveActivity } from "@/lib/db/activity";
 import { canManageCollaborators } from "@/lib/db/move-access";
 import { prisma } from "@/lib/prisma";
 import { sendMoveInviteEmail } from "@/lib/notifications/email";
@@ -8,13 +9,11 @@ import { sendMoveInviteEmail } from "@/lib/notifications/email";
 export async function GET(req: NextRequest) {
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
-  if (!canManageCollaborators(result.access.role)) {
-    return NextResponse.json({ collaborators: [] });
-  }
 
   const move = await prisma.move.findUnique({
     where: { id: result.access.moveId },
     include: {
+      user: { select: { name: true, email: true } },
       collaborators: {
         orderBy: { createdAt: "asc" },
         include: { user: { select: { name: true, email: true } } },
@@ -22,8 +21,19 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  if (!move) return NextResponse.json({ collaborators: [] });
-  return NextResponse.json({ collaborators: move.collaborators });
+  if (!move) {
+    return NextResponse.json({ owner: null, collaborators: [], canManage: false });
+  }
+
+  return NextResponse.json({
+    owner: {
+      name: move.user.name,
+      email: move.user.email,
+      role: "owner",
+    },
+    collaborators: move.collaborators,
+    canManage: canManageCollaborators(result.access.role),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -64,6 +74,10 @@ export async function POST(req: NextRequest) {
 
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   await sendMoveInviteEmail(inviteEmail, session.name, `${base}/invite/${inviteToken}`);
+  await logMoveActivity(moveId, session.id, "invite_sent", {
+    email: inviteEmail,
+    role: collab.role,
+  });
 
   return NextResponse.json({ collaborator: collab }, { status: 201 });
 }
@@ -77,6 +91,15 @@ export async function DELETE(req: NextRequest) {
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const collab = await prisma.moveCollaborator.findFirst({
+    where: { id, moveId: result.access.moveId },
+  });
+  if (collab) {
+    await logMoveActivity(result.access.moveId, result.user.id, "invite_removed", {
+      email: collab.email,
+    });
+  }
 
   await prisma.moveCollaborator.deleteMany({
     where: { id, moveId: result.access.moveId },

@@ -100,8 +100,8 @@ export async function sendMoveInviteEmail(to: string, inviterName: string, invit
     body: JSON.stringify({
       from,
       to: [to],
-      subject: `${inviterName} invited you to collaborate on a move`,
-      html: `<p>${inviterName} invited you to help plan a move on MovePilot.</p><p><a href="${inviteUrl}">Accept invitation</a></p>`,
+      subject: `${inviterName} invited you to collaborate on MovePilotAi`,
+      html: `<p>${inviterName} invited you to help plan a move on <strong>MovePilotAi</strong>.</p><p><a href="${inviteUrl}">Accept invitation</a></p><p>You can update the checklist, track budget, and stay in sync with your move team.</p>`,
     }),
   });
 }
