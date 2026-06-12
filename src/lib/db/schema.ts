@@ -1,8 +1,6 @@
 /**
- * PostgreSQL-ready schema definitions.
- * Not connected yet — mock data in mock-data.ts is used for the MVP prototype.
- *
- * Future: use Prisma, Drizzle, or raw SQL with these table shapes.
+ * PostgreSQL schema reference (implemented via Prisma — see prisma/schema.prisma).
+ * Static demo content in mock-data.ts seeds new users on first login.
  */
 
 export const DB_TABLES = {

@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String               @id @default(uuid())
+  email          String               @unique
+  username       String?              @unique
+  name           String
+  passwordHash   String?              @map("password_hash")
+  role           String               @default("user")
+  phone          String?
+  googleId       String?              @unique @map("google_id")
+  emailReminders Boolean              @default(true) @map("email_reminders")
+  smsReminders   Boolean              @default(false) @map("sms_reminders")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  moves          Move[]
+  sessions       Session[]
+  passwordResets PasswordResetToken[]
+  collaborations MoveCollaborator[]   @relation("CollaboratorUser")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("password_reset_tokens")
+}
+
+model Move {
+  id                    String             @id @default(uuid())
+  userId                String             @map("user_id")
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  origin                String
+  destination           String
+  destinationAddress    String?            @map("destination_address")
+  destinationLat        Float?             @map("destination_lat")
+  destinationLon        Float?             @map("destination_lon")
+  originLat             Float?             @map("origin_lat")
+  originLon             Float?             @map("origin_lon")
+  moveDate              DateTime           @map("move_date") @db.Date
+  household             String
+  petDetails            String?            @map("pet_details")
+  pets                  Boolean            @default(false)
+  budget                Int                @default(4000)
+  rentalPreference      String             @map("rental_preference")
+  needsHousingHelp      Boolean            @default(false) @map("needs_housing_help")
+  needsVehicleTransport Boolean            @default(false) @map("needs_vehicle_transport")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+  vehicles              Vehicle[]
+  inventoryBoxes        InventoryBox[]
+  checklistTasks        ChecklistTask[]
+  documents             Document[]
+  budgetItems           BudgetItem[]
+  collaborators         MoveCollaborator[]
+
+  @@index([userId])
+  @@map("moves")
+}
+
+model MoveCollaborator {
+  id          String    @id @default(uuid())
+  moveId      String    @map("move_id")
+  move        Move      @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  userId      String?   @map("user_id")
+  user        User?     @relation("CollaboratorUser", fields: [userId], references: [id], onDelete: SetNull)
+  email       String
+  role        String    @default("editor")
+  inviteToken String?   @unique @map("invite_token")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([moveId, email])
+  @@index([moveId])
+  @@map("move_collaborators")
+}
+
+model BudgetItem {
+  id             String @id @default(uuid())
+  moveId         String @map("move_id")
+  move           Move   @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  category       String
+  estimated      Int
+  actual         Int    @default(0)
+  cheapestOption String? @map("cheapest_option")
+  notes          String?
+  sortOrder      Int    @default(0) @map("sort_order")
+
+  @@index([moveId])
+  @@map("budget_items")
+}
+
+model ReminderLog {
+  id     String   @id @default(uuid())
+  userId String   @map("user_id")
+  taskId String?  @map("task_id")
+  channel String
+  sentAt DateTime @default(now()) @map("sent_at")
+
+  @@index([userId, taskId, channel])
+  @@map("reminder_logs")
+}
+
+model Vehicle {
+  id           String @id @default(uuid())
+  moveId       String @map("move_id")
+  move         Move   @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  year         String
+  makeId       Int?   @map("make_id")
+  make         String
+  modelId      Int?   @map("model_id")
+  model        String
+  trim         String?
+  displayLabel String @map("display_label")
+
+  @@index([moveId])
+  @@map("vehicles")
+}
+
+model InventoryBox {
+  id        String   @id @default(uuid())
+  moveId    String   @map("move_id")
+  move      Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  boxNumber Int      @map("box_number")
+  room      String
+  contents  String
+  photoUrl  String?  @map("photo_url") @db.Text
+  fragile   Boolean  @default(false)
+  status    String   @default("packed")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([moveId])
+  @@map("inventory_boxes")
+}
+
+model ChecklistTask {
+  id       String    @id @default(uuid())
+  moveId   String    @map("move_id")
+  move     Move      @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  title    String
+  category String
+  status   String    @default("pending")
+  dueDate  DateTime? @map("due_date") @db.Date
+  priority String    @default("medium")
+
+  @@index([moveId])
+  @@map("checklist_tasks")
+}
+
+model Document {
+  id         String    @id @default(uuid())
+  moveId     String    @map("move_id")
+  move       Move      @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  name       String
+  category   String
+  status     String    @default("pending")
+  fileName   String?   @map("file_name")
+  uploadedAt DateTime? @map("uploaded_at")
+
+  @@index([moveId])
+  @@map("documents")
+}

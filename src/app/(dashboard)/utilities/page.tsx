@@ -23,7 +23,6 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { UtilityProviderCard } from "@/components/dashboard/utility-provider-card";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UTILITY_CATEGORIES } from "@/lib/constants";
@@ -32,6 +31,10 @@ import {
   DESTINATION_UTILITIES,
   UTILITY_AI_SUMMARY,
 } from "@/lib/mock-data";
+import {
+  getUtilityBestPicks,
+  sumUtilityMonthlyEstimate,
+} from "@/lib/utilities/recommendations";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -87,12 +90,18 @@ export default function UtilitiesPage() {
           )
         : providers.filter((p) => p.category === filter);
 
-  const bestPicks = providers.filter(
-    (p) => p.isBestPick && p.availableAtAddress
+  const bestPicks = useMemo(
+    () => getUtilityBestPicks(providers),
+    [providers]
+  );
+
+  const estimatedMonthlyTotal = useMemo(
+    () => sumUtilityMonthlyEstimate(bestPicks),
+    [bestPicks]
   );
 
   const utilityNote = isAddressConfirmed
-    ? `Providers ranked for ${destinationAddress.split(",").slice(0, 2).join(",")}. Fiber and internet availability confirmed via OpenStreetMap geocoding. Schedule transfers before move-in.`
+    ? t("utilities.addressConfirmedNote")
     : UTILITY_AI_SUMMARY.note;
 
   if (!isHydrated) {
@@ -186,9 +195,9 @@ export default function UtilitiesPage() {
                   </div>
                   <div className="flex flex-wrap gap-3 shrink-0">
                     <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-[120px]">
-                      <p className="text-xs text-muted-foreground">Est. monthly</p>
+                      <p className="text-xs text-muted-foreground">{t("utilities.estMonthlyTotal")}</p>
                       <p className="text-xl font-bold text-primary">
-                        {formatCurrency(UTILITY_AI_SUMMARY.estimatedMonthlyTotal)}
+                        {formatCurrency(estimatedMonthlyTotal)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-[120px]">
@@ -204,23 +213,30 @@ export default function UtilitiesPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                  AI recommendations for your address
+                  {t("utilities.aiRecommendations")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">{utilityNote}</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {UTILITY_AI_SUMMARY.bestPicks.map((pick) => (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {bestPicks.map((pick) => (
                     <div
-                      key={pick.category}
-                      className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2.5"
+                      key={pick.id}
+                      className="rounded-lg border bg-muted/30 px-3 py-3 space-y-1"
                     >
-                      <span className="text-xs sm:text-sm text-muted-foreground truncate">
-                        {pick.category}
-                      </span>
-                      <Badge variant="default" className="shrink-0 text-xs">
-                        {pick.provider}
-                      </Badge>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {pick.categoryLabel}
+                      </p>
+                      <p className="text-sm font-semibold leading-snug">{pick.name}</p>
+                      <p className="text-base font-bold text-primary">
+                        {formatCurrency(pick.estimatedMonthlyPrice)}
+                        <span className="text-xs font-normal text-muted-foreground ml-1">
+                          {pick.priceUnit}
+                        </span>
+                      </p>
+                      {pick.speedOrCapacity && (
+                        <p className="text-xs text-muted-foreground">{pick.speedOrCapacity}</p>
+                      )}
                     </div>
                   ))}
                 </div>

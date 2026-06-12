@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Map,
   Wallet,
   Route,
   Truck,
@@ -9,11 +8,10 @@ import {
   CheckSquare,
   Package,
   FileText,
-  Store,
-  Bot,
   Settings,
   ClipboardList,
   Zap,
+  Shield,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -28,17 +26,21 @@ export const NAV_ITEMS = [
   { href: "/checklist", labelKey: "nav.checklist", icon: CheckSquare },
   { href: "/inventory", labelKey: "nav.inventory", icon: Package },
   { href: "/documents", labelKey: "nav.documents", icon: FileText },
-  { href: "/marketplace", labelKey: "nav.marketplace", icon: Store },
-  { href: "/assistant", labelKey: "nav.assistant", icon: Bot },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 
+export const ADMIN_NAV_ITEM = {
+  href: "/admin",
+  labelKey: "nav.admin",
+  icon: Shield,
+} as const;
+
 export const MOBILE_NAV_ITEMS = [
   { href: "/dashboard", labelKey: "mobileNav.home", icon: LayoutDashboard },
-  { href: "/utilities", labelKey: "mobileNav.utilities", icon: Zap },
+  { href: "/moving-plan", labelKey: "mobileNav.plan", icon: ClipboardList },
   { href: "/checklist", labelKey: "mobileNav.tasks", icon: CheckSquare },
-  { href: "/marketplace", labelKey: "mobileNav.services", icon: Store },
-  { href: "/assistant", labelKey: "mobileNav.ai", icon: Bot },
+  { href: "/budget", labelKey: "mobileNav.budget", icon: Wallet },
+  { href: "/settings", labelKey: "mobileNav.settings", icon: Settings },
 ] as const;
 
 export const UTILITY_CATEGORIES = [

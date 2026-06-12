@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Car, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
 import type { VehicleInfo, VehicleMake, VehicleModel, VehicleTip } from "@/lib/vehicles/types";
 import { createVehicleId } from "@/lib/vehicles/types";
 import { formatVehicleLabel } from "@/lib/vehicles/nhtsa";
+import { modelOptionKey, parseModelOptionKey } from "@/lib/vehicles/us-vehicle-makes";
 import { getVehicleTips } from "@/lib/vehicles/recommendations";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
@@ -26,14 +27,6 @@ interface VehicleSelectorProps {
   layout?: "default" | "compact";
 }
 
-const DEFAULT_YEAR = "2019";
-const DEFAULT_MAKE = "VOLKSWAGEN";
-const DEFAULT_MODEL = "Atlas";
-
-function modelKey(m: VehicleModel): string {
-  return m.modelName;
-}
-
 function sameVehicle(a: VehicleInfo | null | undefined, b: VehicleInfo): boolean {
   if (!a) return false;
   return (
@@ -44,6 +37,10 @@ function sameVehicle(a: VehicleInfo | null | undefined, b: VehicleInfo): boolean
     a.makeId === b.makeId &&
     a.modelId === b.modelId
   );
+}
+
+function isCompleteVehicle(vehicle: VehicleInfo | null | undefined): boolean {
+  return Boolean(vehicle?.year && vehicle?.make?.trim() && vehicle?.model?.trim());
 }
 
 const tipStyles = {
@@ -61,35 +58,49 @@ export function VehicleSelector({
 }: VehicleSelectorProps) {
   const t = useT();
   const { locale } = useLocale();
+  const vehicleId = value?.id ?? createVehicleId();
+  const modelsRequestRef = useRef(0);
+
   const [years, setYears] = useState<string[]>([]);
   const [makes, setMakes] = useState<VehicleMake[]>([]);
   const [models, setModels] = useState<VehicleModel[]>([]);
-  const [year, setYear] = useState(value?.year ?? DEFAULT_YEAR);
+  const [year, setYear] = useState(value?.year ?? "");
   const [makeId, setMakeId] = useState(value?.makeId ? String(value.makeId) : "");
   const [makeName, setMakeName] = useState(value?.make ?? "");
-  const [modelId, setModelId] = useState(value?.modelId ? String(value.modelId) : "");
-  const [modelName, setModelName] = useState(value?.model ?? "");
+  const [modelKey, setModelKey] = useState(
+    value?.model ? modelOptionKey(value.modelId ?? 0, value.model) : ""
+  );
   const [trim, setTrim] = useState(value?.trim ?? "");
   const [loadingMakes, setLoadingMakes] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   const [tips, setTips] = useState<VehicleTip[]>([]);
-  const [defaultsApplied, setDefaultsApplied] = useState(Boolean(value?.make));
+
+  const selectedModel = useMemo(() => {
+    if (!modelKey) return null;
+    const parsed = parseModelOptionKey(modelKey);
+    return models.find(
+      (m) =>
+        m.modelName === parsed.modelName &&
+        (m.modelId === parsed.modelId || parsed.modelId === 0)
+    );
+  }, [modelKey, models]);
+
+  const modelName = selectedModel?.modelName ?? "";
+  const modelId = selectedModel ? String(selectedModel.modelId) : "";
 
   useEffect(() => {
-    if (!value) return;
-    setYear(value.year || DEFAULT_YEAR);
+    if (!value?.make && !value?.model) return;
+    setYear(value.year ?? "");
     setMakeId(value.makeId ? String(value.makeId) : "");
     setMakeName(value.make ?? "");
-    setModelId(value.modelId ? String(value.modelId) : "");
-    setModelName(value.model ?? "");
+    setModelKey(value.model ? modelOptionKey(value.modelId ?? 0, value.model) : "");
     setTrim(value.trim ?? "");
-    if (value.make) setDefaultsApplied(true);
-  }, [value?.id]);
+  }, [value?.id, value?.year, value?.make, value?.model, value?.makeId, value?.modelId, value?.trim]);
 
   useEffect(() => {
     fetch("/api/vehicles/years")
       .then((r) => r.json())
-      .then((data) => setYears(data))
+      .then((data) => setYears(Array.isArray(data) ? data : []))
       .catch(() => setYears([]));
   }, []);
 
@@ -97,57 +108,54 @@ export function VehicleSelector({
     setLoadingMakes(true);
     fetch("/api/vehicles/makes")
       .then((r) => r.json())
-      .then((data) => {
-        const list: VehicleMake[] = Array.isArray(data) ? data : [];
-        setMakes(list);
-        if (!defaultsApplied && !value?.make && list.length) {
-          const vw = list.find(
-            (m) => m.makeName.toUpperCase() === DEFAULT_MAKE.toUpperCase()
-          );
-          if (vw) {
-            setMakeId(String(vw.makeId));
-            setMakeName(vw.makeName);
-          }
-        }
-      })
+      .then((data) => setMakes(Array.isArray(data) ? data : []))
       .catch(() => setMakes([]))
       .finally(() => setLoadingMakes(false));
-  }, [defaultsApplied, value?.make]);
+  }, []);
+
+  const loadModels = useCallback(async (targetYear: string, targetMakeId: string) => {
+    if (!targetYear || !targetMakeId) {
+      setModels([]);
+      return [];
+    }
+
+    const requestId = ++modelsRequestRef.current;
+    setLoadingModels(true);
+
+    try {
+      const res = await fetch(
+        `/api/vehicles/models?year=${targetYear}&makeId=${targetMakeId}`
+      );
+      const data = (await res.json()) as VehicleModel[];
+      const list = Array.isArray(data) ? data : [];
+
+      if (requestId !== modelsRequestRef.current) return [];
+
+      setModels(list);
+      setModelKey((current) => {
+        if (!current) return "";
+        const parsed = parseModelOptionKey(current);
+        const stillValid = list.some((m) => m.modelName === parsed.modelName);
+        return stillValid ? current : "";
+      });
+
+      return list;
+    } catch {
+      if (requestId === modelsRequestRef.current) setModels([]);
+      return [];
+    } finally {
+      if (requestId === modelsRequestRef.current) setLoadingModels(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!year || !makeId) {
-      setModels([]);
-      return;
-    }
-    setLoadingModels(true);
-    fetch(`/api/vehicles/models?year=${year}&makeId=${makeId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list: VehicleModel[] = Array.isArray(data) ? data : [];
-        setModels(list);
-        if (modelName) {
-          const match = list.find((m) => m.modelName === modelName);
-          if (match) {
-            setModelId(String(match.modelId || 0));
-          }
-        } else if (!defaultsApplied && list.length) {
-          const atlas = list.find((m) => m.modelName === DEFAULT_MODEL);
-          if (atlas) {
-            setModelId(String(atlas.modelId || 0));
-            setModelName(atlas.modelName);
-            setTrim("V6 4Motion");
-            setDefaultsApplied(true);
-          }
-        }
-      })
-      .catch(() => setModels([]))
-      .finally(() => setLoadingModels(false));
-  }, [year, makeId, modelName, defaultsApplied]);
+    void loadModels(year, makeId);
+  }, [year, makeId, loadModels]);
 
   const buildVehicle = useCallback((): VehicleInfo | null => {
-    if (!year || !makeName || !modelName) return null;
+    if (!year || !makeName.trim() || !modelName.trim()) return null;
     return {
-      id: value?.id ?? createVehicleId(),
+      id: vehicleId,
       year,
       makeId: Number(makeId) || 0,
       make: makeName,
@@ -156,11 +164,14 @@ export function VehicleSelector({
       trim: trim || undefined,
       displayLabel: formatVehicleLabel(year, makeName, modelName, trim),
     };
-  }, [year, makeId, makeName, modelId, modelName, trim, value?.id]);
+  }, [year, makeId, makeName, modelId, modelName, trim, vehicleId]);
 
   useEffect(() => {
     const vehicle = buildVehicle();
-    if (!vehicle) return;
+    if (!vehicle) {
+      setTips([]);
+      return;
+    }
     if (showTips) setTips(getVehicleTips(vehicle, locale));
   }, [buildVehicle, showTips, locale]);
 
@@ -170,31 +181,65 @@ export function VehicleSelector({
     onChange(vehicle);
   }, [buildVehicle, onChange, value]);
 
+  const notifyPartial = useCallback(
+    (patch: Partial<VehicleInfo>) => {
+      onChange({
+        id: vehicleId,
+        year: patch.year ?? year,
+        makeId: (patch.makeId ?? Number(makeId)) || 0,
+        make: patch.make ?? makeName,
+        modelId: patch.modelId ?? 0,
+        model: patch.model ?? "",
+        trim: (patch.trim ?? trim) || undefined,
+        displayLabel: patch.displayLabel ?? "",
+      });
+    },
+    [onChange, vehicleId, year, makeId, makeName, trim]
+  );
+
+  const handleYearChange = (nextYear: string) => {
+    setYear(nextYear);
+    setModelKey("");
+    setModels([]);
+    notifyPartial({
+      year: nextYear,
+      model: "",
+      modelId: 0,
+      displayLabel: "",
+    });
+  };
+
   const handleMakeChange = (id: string) => {
     const selected = makes.find((m) => String(m.makeId) === id);
     setMakeId(id);
     setMakeName(selected?.makeName ?? "");
-    setModelId("");
-    setModelName("");
+    setModelKey("");
     setModels([]);
+    notifyPartial({
+      makeId: Number(id) || 0,
+      make: selected?.makeName ?? "",
+      model: "",
+      modelId: 0,
+      displayLabel: "",
+    });
   };
 
-  const handleModelChange = (name: string) => {
-    const selected = models.find((m) => m.modelName === name);
-    setModelName(name);
-    setModelId(String(selected?.modelId ?? 0));
+  const handleModelChange = (key: string) => {
+    setModelKey(key);
   };
 
   const makeSelectValue =
     makeId && makes.some((m) => String(m.makeId) === makeId) ? makeId : undefined;
 
   const modelSelectValue =
-    modelName && models.some((m) => m.modelName === modelName) ? modelName : undefined;
+    modelKey && models.some((m) => modelOptionKey(m.modelId, m.modelName) === modelKey)
+      ? modelKey
+      : undefined;
 
   const built = buildVehicle();
   const gridClass =
     layout === "compact"
-      ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       : "grid gap-4 sm:grid-cols-2";
 
   return (
@@ -209,7 +254,7 @@ export function VehicleSelector({
       <div className={gridClass}>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">{t("vehicleSelector.year")}</Label>
-          <Select value={year} onValueChange={setYear}>
+          <Select value={year || undefined} onValueChange={handleYearChange}>
             <SelectTrigger className="h-10">
               <SelectValue placeholder={t("vehicleSelector.selectYear")} />
             </SelectTrigger>
@@ -226,14 +271,20 @@ export function VehicleSelector({
           <Select
             value={makeSelectValue}
             onValueChange={handleMakeChange}
-            disabled={loadingMakes}
+            disabled={loadingMakes || !year}
           >
             <SelectTrigger className="h-10">
               <SelectValue
-                placeholder={loadingMakes ? t("common.loading") : t("vehicleSelector.selectMake")}
+                placeholder={
+                  !year
+                    ? t("vehicleSelector.selectYearFirst")
+                    : loadingMakes
+                      ? t("common.loading")
+                      : t("vehicleSelector.selectMake")
+                }
               />
             </SelectTrigger>
-            <SelectContent className="max-h-60">
+            <SelectContent className="max-h-72">
               {makes.map((m) => (
                 <SelectItem key={m.makeId} value={String(m.makeId)}>
                   {m.makeName}
@@ -248,25 +299,32 @@ export function VehicleSelector({
           <Select
             value={modelSelectValue}
             onValueChange={handleModelChange}
-            disabled={loadingModels || !models.length || !makeSelectValue}
+            disabled={loadingModels || !makeSelectValue || !year}
           >
             <SelectTrigger className="h-10">
               <SelectValue
                 placeholder={
-                  loadingModels
-                    ? t("common.loading")
-                    : models.length
-                      ? t("vehicleSelector.selectModel")
-                      : t("vehicleSelector.noModels")
+                  !year
+                    ? t("vehicleSelector.selectYearFirst")
+                    : !makeSelectValue
+                      ? t("vehicleSelector.selectMakeFirst")
+                      : loadingModels
+                        ? t("common.loading")
+                        : models.length
+                          ? t("vehicleSelector.selectModel")
+                          : t("vehicleSelector.noModels")
                 }
               />
             </SelectTrigger>
             <SelectContent className="max-h-60">
-              {models.map((m) => (
-                <SelectItem key={modelKey(m)} value={m.modelName}>
-                  {m.modelName}
-                </SelectItem>
-              ))}
+              {models.map((m) => {
+                const key = modelOptionKey(m.modelId, m.modelName);
+                return (
+                  <SelectItem key={key} value={key}>
+                    {m.modelName}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -278,6 +336,7 @@ export function VehicleSelector({
             value={trim}
             onChange={(e) => setTrim(e.target.value)}
             placeholder={t("vehicleSelector.trimPlaceholder")}
+            disabled={!isCompleteVehicle(built)}
           />
         </div>
       </div>
@@ -287,6 +346,10 @@ export function VehicleSelector({
           <Car className="h-4 w-4 shrink-0 text-primary" />
           <span className="font-medium">{built.displayLabel}</span>
         </div>
+      )}
+
+      {!built && layout === "default" && (
+        <p className="text-xs text-muted-foreground">{t("vehicleSelector.helper")}</p>
       )}
 
       {showTips && tips.length > 0 && (
@@ -327,7 +390,7 @@ export function VehicleSelector({
       {!loadingMakes && !loadingModels && layout === "default" && (
         <p className="text-[11px] text-muted-foreground flex items-center gap-1">
           <Info className="h-3 w-3 shrink-0" />
-          NHTSA
+          {t("vehicleSelector.dataSource")}
         </p>
       )}
     </div>

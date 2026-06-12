@@ -8,6 +8,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { apiFetch } from "@/lib/api-client";
+import { loadUserData } from "@/lib/data-cache";
 import { INVENTORY_BOXES } from "@/lib/mock-data";
 import {
   createInventoryBox,
@@ -18,8 +21,6 @@ import {
   type InventoryBoxStatus,
   type InventoryRoomKey,
 } from "@/lib/inventory/types";
-
-const STORAGE_KEY = "movepilot_inventory";
 
 interface InventoryContextValue {
   boxes: InventoryBox[];
@@ -34,10 +35,7 @@ interface InventoryContextValue {
 
 const InventoryContext = createContext<InventoryContextValue | null>(null);
 
-function legacyToBox(
-  item: (typeof INVENTORY_BOXES)[number],
-  index: number
-): InventoryBox {
+function legacyToBox(item: (typeof INVENTORY_BOXES)[number], index: number): InventoryBox {
   const roomMap: Record<string, InventoryRoomKey> = {
     Kitchen: "kitchen",
     "Living Room": "livingRoom",
@@ -64,37 +62,46 @@ function seedDemoBoxes(): InventoryBox[] {
   return INVENTORY_BOXES.map(legacyToBox);
 }
 
-function loadStored(): InventoryBox[] | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as InventoryBox[];
-    if (!Array.isArray(parsed)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function saveStored(boxes: InventoryBox[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(boxes));
-}
-
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isHydrated: authHydrated } = useAuth();
   const [boxes, setBoxes] = useState<InventoryBox[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  useEffect(() => {
-    setBoxes(loadStored() ?? seedDemoBoxes());
-    setIsHydrated(true);
-  }, []);
+  const saveToDb = useCallback(async (next: InventoryBox[]) => {
+    if (!isAuthenticated || !user?.email) return;
+    await apiFetch("/api/inventory", {
+      method: "PUT",
+      body: JSON.stringify({ boxes: next }),
+    });
+  }, [isAuthenticated, user?.email]);
 
-  const persist = useCallback((next: InventoryBox[]) => {
-    setBoxes(next);
-    saveStored(next);
-  }, []);
+  useEffect(() => {
+    if (!authHydrated) return;
+
+    async function load() {
+      if (isAuthenticated && user?.email) {
+        try {
+          const data = await loadUserData(user.email);
+          setBoxes(data.inventory);
+        } catch {
+          setBoxes([]);
+        }
+      } else {
+        setBoxes([]);
+      }
+      setIsHydrated(true);
+    }
+
+    load();
+  }, [authHydrated, isAuthenticated, user?.email]);
+
+  const persist = useCallback(
+    (next: InventoryBox[]) => {
+      setBoxes(next);
+      void saveToDb(next);
+    },
+    [saveToDb]
+  );
 
   const addBox = useCallback(
     (input: InventoryBoxInput) => {
@@ -163,16 +170,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       getBoxByNumber,
       resetToDemo,
     }),
-    [
-      boxes,
-      isHydrated,
-      addBox,
-      updateBox,
-      removeBox,
-      setBoxStatus,
-      getBoxByNumber,
-      resetToDemo,
-    ]
+    [boxes, isHydrated, addBox, updateBox, removeBox, setBoxStatus, getBoxByNumber, resetToDemo]
   );
 
   return (

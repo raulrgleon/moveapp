@@ -110,7 +110,7 @@ export function InventoryPageContent() {
           }
         />
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <Package className="h-5 w-5 text-primary" />

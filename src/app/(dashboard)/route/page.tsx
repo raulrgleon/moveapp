@@ -1,7 +1,17 @@
+"use client";
+
 import dynamic from "next/dynamic";
-import { CloudRain, Fuel, Hotel, MapPin, PawPrint, Route as RouteIcon } from "lucide-react";
+import { Fuel, Hotel, Loader2, MapPin, PawPrint, Route as RouteIcon } from "lucide-react";
+import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
+import { useMove } from "@/contexts/move-context";
+import { useT } from "@/contexts/locale-context";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouteStats } from "@/hooks/use-route-stats";
 
 const RouteMap = dynamic(
   () => import("@/components/dashboard/route-map-wrapper").then((m) => m.RouteMapWrapper),
@@ -14,11 +24,6 @@ const RouteMap = dynamic(
     ),
   }
 );
-import { PageHeader } from "@/components/dashboard/page-header";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_USER, MOVE_STATS, ROUTE_STOPS } from "@/lib/mock-data";
 
 const stopIcons = {
   gas: Fuel,
@@ -28,30 +33,49 @@ const stopIcons = {
 };
 
 export default function RoutePage() {
+  const t = useT();
+  const { profile } = useMove();
+  const { stats, loading } = useRouteStats();
+
+  const distanceLabel = stats
+    ? `${stats.distanceMiles.toLocaleString()} miles`
+    : loading
+      ? "…"
+      : "—";
+  const driveTimeLabel = stats?.driveTimeLabel ?? (loading ? "…" : "—");
+  const stopCount = stats?.stops.length ?? stats?.stopCount ?? 0;
+  const driveDays =
+    stats && stats.durationHours > 10
+      ? t("routePage.multiDayRoute")
+      : t("routePage.twoDayRoute");
+
   return (
     <>
-      <DashboardHeader title="Route" description="Plan your drive with stops and alerts" />
+      <DashboardHeader title={t("routePage.title")} description={t("routePage.subtitle")} />
       <PageContainer>
         <PageHeader
-          title="Route Planner"
-          description={`${MOCK_USER.origin} to ${MOCK_USER.destination}`}
+          title={t("routePage.pageTitle")}
+          description={t("routePage.pageDesc", {
+            origin: profile.origin,
+            destination: profile.destination,
+          })}
         />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
-            label="Total distance"
-            value={`${MOVE_STATS.totalMiles} miles`}
+            label={t("routePage.totalDistance")}
+            value={distanceLabel}
             icon={RouteIcon}
           />
           <StatCard
-            label="Est. drive time"
-            value={MOVE_STATS.estimatedDriveTime}
-            subtext="2-day route recommended"
+            label={t("routePage.estDriveTime")}
+            value={driveTimeLabel}
+            subtext={driveDays}
             icon={RouteIcon}
           />
           <StatCard
-            label="Suggested stops"
-            value={`${ROUTE_STOPS.length}`}
+            label={t("routePage.recommendedStops")}
+            value={`${stopCount}`}
             subtext="Gas, hotels, rest"
             icon={MapPin}
           />
@@ -61,39 +85,20 @@ export default function RoutePage() {
           <RouteMap className="min-h-[280px] sm:min-h-[360px]" showNewHome />
 
           <div className="space-y-4">
-            <Card className="border-amber-200 bg-amber-50/50">
-              <CardContent className="p-4 flex gap-3">
-                <CloudRain className="h-5 w-5 text-amber-600 shrink-0" />
-                <div>
-                  <p className="font-medium text-sm">Weather alerts</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Possible thunderstorms in Nashville area on Sep 14–15. Monitor forecasts
-                    before departure. No severe weather expected along primary route.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <RouteWeatherPanel />
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Route summary</CardTitle>
+                <CardTitle className="text-base">{t("routePage.pageTitle")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Origin</span>
-                  <span className="font-medium">{MOCK_USER.origin}</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-start">
+                  <span className="text-muted-foreground shrink-0">{t("routePage.origin")}</span>
+                  <span className="font-medium sm:text-right break-words min-w-0">{profile.origin}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Destination</span>
-                  <span className="font-medium">{MOCK_USER.destination}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Overnight stop</span>
-                  <span className="font-medium">Nashville, TN</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pet-friendly hotels</span>
-                  <span className="font-medium">2 recommended</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-start">
+                  <span className="text-muted-foreground shrink-0">{t("routePage.destination")}</span>
+                  <span className="font-medium sm:text-right break-words min-w-0">{profile.destination}</span>
                 </div>
               </CardContent>
             </Card>
@@ -102,36 +107,42 @@ export default function RoutePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Suggested stops</CardTitle>
+            <CardTitle className="text-base">{t("routePage.recommendedStops")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {ROUTE_STOPS.map((stop) => {
-                const Icon = stopIcons[stop.type];
-                return (
-                  <div
-                    key={stop.id}
-                    className="flex gap-3 rounded-lg border p-4"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
-                      <Icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{stop.name}</p>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {stop.type.replace("_", " ")}
-                        </Badge>
+            {loading && !stats ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("common.loading")}
+              </div>
+            ) : stats?.stops.length ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {stats.stops.map((stop) => {
+                  const Icon = stopIcons[stop.type];
+                  return (
+                    <div key={stop.id} className="flex gap-3 rounded-lg border p-4">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
+                        <Icon className="h-4 w-4 text-primary" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">{stop.location}</p>
-                      {stop.notes && (
-                        <p className="text-xs text-muted-foreground mt-1">{stop.notes}</p>
-                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{stop.name}</p>
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {stop.type.replace("_", " ")}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{stop.location}</p>
+                        {stop.notes && (
+                          <p className="text-xs text-muted-foreground mt-1">{stop.notes}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("weather.configureRouteHint")}</p>
+            )}
           </CardContent>
         </Card>
       </PageContainer>

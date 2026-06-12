@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Loader2, MapPin, Search } from "lucide-react";
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
+import { DropdownPortal } from "@/components/ui/dropdown-portal";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ export function AddressAutocomplete({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const search = useCallback(async (text: string) => {
@@ -62,9 +64,10 @@ export function AddressAutocomplete({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if ((target as Element).closest?.("[data-dropdown-portal]")) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -96,7 +99,7 @@ export function AddressAutocomplete({
 
   return (
     <div ref={containerRef} className={cn("relative w-full", className)}>
-      <div className="relative">
+      <div ref={anchorRef} className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
           value={query}
@@ -113,9 +116,10 @@ export function AddressAutocomplete({
         )}
       </div>
 
-      {open && suggestions.length > 0 && (
+      <DropdownPortal anchorRef={anchorRef} open={open && suggestions.length > 0}>
         <ul
-          className="absolute z-50 mt-1 w-full rounded-lg border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+          data-dropdown-portal
+          className="w-full rounded-lg border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 max-h-60 overflow-y-auto"
           role="listbox"
         >
           {suggestions.map((s, i) => (
@@ -135,13 +139,19 @@ export function AddressAutocomplete({
             </li>
           ))}
         </ul>
-      )}
+      </DropdownPortal>
 
-      {query.length >= 3 && !loading && suggestions.length === 0 && open && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg">
+      <DropdownPortal
+        anchorRef={anchorRef}
+        open={query.length >= 3 && !loading && suggestions.length === 0 && open}
+      >
+        <div
+          data-dropdown-portal
+          className="w-full rounded-lg border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg"
+        >
           No addresses found. Try adding city and state.
         </div>
-      )}
+      </DropdownPortal>
     </div>
   );
 }

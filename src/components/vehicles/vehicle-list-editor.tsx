@@ -19,6 +19,8 @@ interface VehicleListEditorProps {
   showTips?: boolean;
   /** Fleet layout: compact rows with expand/collapse. Default: stacked cards for onboarding. */
   variant?: "stacked" | "fleet";
+  /** Allow zero vehicles (onboarding). Shows empty state until user adds one. */
+  allowEmpty?: boolean;
 }
 
 export function VehicleListEditor({
@@ -26,6 +28,7 @@ export function VehicleListEditor({
   onChange,
   showTips = true,
   variant = "stacked",
+  allowEmpty = false,
 }: VehicleListEditorProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -40,7 +43,7 @@ export function VehicleListEditor({
   };
 
   const removeAt = (index: number) => {
-    if (vehicles.length <= 1) return;
+    if (vehicles.length <= 1 && !allowEmpty) return;
     const removed = vehicles[index];
     onChange(vehicles.filter((_, i) => i !== index));
     if (expandedId === removed.id) {
@@ -56,6 +59,21 @@ export function VehicleListEditor({
   };
 
   if (variant === "stacked") {
+    if (allowEmpty && vehicles.length === 0) {
+      return (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center space-y-3">
+            <Car className="h-8 w-8 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t("vehicleList.noVehicleYet")}</p>
+            <Button type="button" variant="default" onClick={addVehicle}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("vehicleList.addVehicle")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-4">
         {vehicles.map((vehicle, index) => (
@@ -69,7 +87,7 @@ export function VehicleListEditor({
                   ? t("vehicleList.primary")
                   : t("vehicleList.vehicleN", { n: index + 1 })}
               </p>
-              {vehicles.length > 1 && (
+              {(vehicles.length > 1 || allowEmpty) && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -78,7 +96,9 @@ export function VehicleListEditor({
                   onClick={() => removeAt(index)}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
-                  {t("vehicleList.remove")}
+                  {allowEmpty && vehicles.length === 1
+                    ? t("vehicleList.noVehicle")
+                    : t("vehicleList.remove")}
                 </Button>
               )}
             </div>

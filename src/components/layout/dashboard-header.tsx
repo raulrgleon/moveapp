@@ -1,13 +1,12 @@
 "use client";
 
 import { Bell, Search } from "lucide-react";
-import { MOCK_USER } from "@/lib/mock-data";
 import { useT } from "@/contexts/locale-context";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LanguageToggle } from "./language-toggle";
 import { MobileNav } from "./mobile-nav";
+import { UserAccountMenu } from "./user-account-menu";
 
 interface DashboardHeaderProps {
   title: string;
@@ -16,14 +15,10 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ title, description }: DashboardHeaderProps) {
   const t = useT();
-  const initials = MOCK_USER.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("");
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-top">
-      <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-4 px-3 sm:px-4 lg:px-8">
+    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-top overflow-visible">
+      <div className="flex h-14 sm:h-16 items-center gap-1.5 sm:gap-3 px-3 sm:px-4 lg:px-8 min-w-0">
         <MobileNav />
         <div className="flex-1 min-w-0">
           <h1 className="text-base sm:text-lg font-semibold tracking-tight truncate">{title}</h1>
@@ -39,16 +34,12 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
             <Input placeholder={t("common.search")} className="pl-9 h-9" />
           </div>
         </div>
-        <LanguageToggle />
-        <Button variant="ghost" size="icon" className="shrink-0">
+        <LanguageToggle showLabel={false} className="shrink-0" />
+        <Button variant="ghost" size="icon" className="shrink-0 hidden sm:inline-flex">
           <Bell className="h-4 w-4" />
           <span className="sr-only">{t("common.notifications")}</span>
         </Button>
-        <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
+        <UserAccountMenu />
       </div>
     </header>
   );

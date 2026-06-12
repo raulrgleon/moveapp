@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS } from "@/lib/constants";
-import { MOCK_USER } from "@/lib/mock-data";
+import { ADMIN_NAV_ITEM, NAV_ITEMS } from "@/lib/constants";
+import { useAuth } from "@/contexts/auth-context";
+import { useMove } from "@/contexts/move-context";
+import { useLocale } from "@/contexts/locale-context";
 import { daysUntil, formatDate } from "@/lib/utils";
 import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 export function Sidebar() {
   const pathname = usePathname();
   const t = useT();
-  const daysLeft = daysUntil(MOCK_USER.moveDate);
+  const { locale } = useLocale();
+  const { isAdmin, user } = useAuth();
+  const { profile } = useMove();
+  const daysLeft = daysUntil(profile.moveDate);
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <aside className="hidden lg:flex lg:w-60 xl:w-64 lg:flex-col lg:border-r lg:bg-card shrink-0">
@@ -20,7 +27,7 @@ export function Sidebar() {
         <Logo />
       </div>
       <nav className="flex-1 space-y-1 p-4">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
           return (
@@ -40,15 +47,23 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-3">
         <div className="rounded-lg bg-muted/50 p-3">
           <p className="text-xs font-medium text-foreground">
             {t("sidebar.moveInDays", { days: daysLeft })}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatDate(MOCK_USER.moveDate)}
+            {formatDate(profile.moveDate, locale)}
           </p>
         </div>
+        {user && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground truncate" title={user.email}>
+              {user.name}
+            </p>
+            <LogoutButton variant="outline" size="sm" className="w-full" />
+          </div>
+        )}
       </div>
     </aside>
   );

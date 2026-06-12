@@ -1,37 +1,116 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { AddressAutocomplete } from "@/components/address/address-autocomplete";
+import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { useMove } from "@/contexts/move-context";
+import { householdWithPets, useMove } from "@/contexts/move-context";
+import { useAuth } from "@/contexts/auth-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoveDatePicker } from "@/components/onboarding/move-date-picker";
+import { NumberStepper } from "@/components/ui/number-stepper";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ShareMoveCard } from "@/components/settings/share-move-card";
+import { ReminderPreferencesCard } from "@/components/settings/reminder-preferences-card";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Separator } from "@/components/ui/separator";
-import { MOCK_USER } from "@/lib/mock-data";
+import { parseHouseholdCounts } from "@/lib/move/household";
+import {
+  formatHousehold,
+  formatPetDetails,
+  rentalPreferenceFromKey,
+} from "@/lib/move-profile";
 import { formatCurrency, formatDate } from "@/lib/utils";
+
+function rentalKeyFromProfile(preference: string): string {
+  if (/mover|profesional/i.test(preference)) return "movers";
+  if (/combo|remolque.*suv|trailer.*vehicle/i.test(preference)) return "combo";
+  if (/truck|camión|u-haul/i.test(preference)) return "truck";
+  return "trailer";
+}
 
 export default function SettingsPage() {
   const t = useT();
   const { locale, setLocale } = useLocale();
+  const { user } = useAuth();
   const {
+    profile,
+    updateProfile,
     confirmAddress,
     isAddressConfirmed,
     destinationAddress,
-    destination,
     vehicles,
     setVehicles,
   } = useMove();
+
+  const initialCounts = useMemo(() => parseHouseholdCounts(profile), [profile]);
+
+  const [name, setName] = useState(profile.name);
+  const [email, setEmail] = useState(profile.email);
+  const [origin, setOrigin] = useState(profile.origin);
+  const [destCity, setDestCity] = useState(profile.destination);
+  const [moveDate, setMoveDate] = useState(profile.moveDate);
+  const [adults, setAdults] = useState(initialCounts.adults);
+  const [children, setChildren] = useState(initialCounts.children);
+  const [petCount, setPetCount] = useState(initialCounts.petCount);
+  const [rentalKey, setRentalKey] = useState(() => rentalKeyFromProfile(profile.rentalPreference));
+  const [needsVehicleTransport, setNeedsVehicleTransport] = useState(profile.needsVehicleTransport);
+  const [needsHousingHelp, setNeedsHousingHelp] = useState(profile.needsHousingHelp);
+  const [budget, setBudget] = useState(String(profile.budget));
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const household = formatHousehold(adults, children);
+  const petDetails = formatPetDetails(petCount);
+  const pets = petCount > 0;
+
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({
+        name,
+        email,
+        origin,
+        destination: destCity,
+        moveDate,
+        household,
+        pets,
+        petDetails,
+        budget: Number(budget) || profile.budget,
+        rentalPreference: rentalPreferenceFromKey(rentalKey),
+        needsHousingHelp,
+        needsVehicleTransport,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
       <DashboardHeader title={t("settings.title")} description={t("settings.subtitle")} />
       <PageContainer className="max-w-3xl">
         <PageHeader title={t("settings.title")} description={t("settings.pageTitle")} />
+
+        {saved && (
+          <p className="text-sm text-emerald-600 mb-4">{t("common.saved")}</p>
+        )}
 
         <Card>
           <CardHeader>
@@ -42,14 +121,18 @@ export default function SettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">{t("settings.fullName")}</Label>
-                <Input id="name" defaultValue={MOCK_USER.name} />
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">{t("settings.email")}</Label>
-                <Input id="email" type="email" defaultValue={MOCK_USER.email} />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
             </div>
-            <Button>{t("settings.saveProfile")}</Button>
           </CardContent>
         </Card>
 
@@ -58,16 +141,24 @@ export default function SettingsPage() {
             <CardTitle className="text-base">{t("settings.moveDetails")}</CardTitle>
             <CardDescription>{t("settings.moveDetailsDesc")}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="origin">{t("settings.movingFrom")}</Label>
-                <Input id="origin" defaultValue={MOCK_USER.origin} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="destination">{t("settings.movingTo")}</Label>
-                <Input id="destination" defaultValue={destination} />
-              </div>
+              <CityAutocomplete
+                id="settings-origin"
+                label={t("settings.movingFrom")}
+                value={origin}
+                onChange={setOrigin}
+                onSelect={(city) => setOrigin(city.label)}
+                placeholder={t("onboarding.cityPlaceholder")}
+              />
+              <CityAutocomplete
+                id="settings-destination"
+                label={t("settings.movingTo")}
+                value={destCity}
+                onChange={setDestCity}
+                onSelect={(city) => setDestCity(city.label)}
+                placeholder={t("onboarding.cityPlaceholder")}
+              />
               <div className="space-y-2 sm:col-span-2">
                 <Label>{t("settings.newHomeAddress")}</Label>
                 <AddressAutocomplete
@@ -76,14 +167,48 @@ export default function SettingsPage() {
                   placeholder={t("address.placeholder")}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="moveDate">{t("settings.moveDate")}</Label>
-                <Input id="moveDate" type="date" defaultValue={MOCK_USER.moveDate} />
-              </div>
+              <MoveDatePicker
+                label={t("settings.moveDate")}
+                value={moveDate}
+                onChange={setMoveDate}
+              />
               <div className="space-y-2">
                 <Label htmlFor="budget">{t("settings.budget")}</Label>
-                <Input id="budget" type="number" defaultValue={MOCK_USER.budget} />
+                <Input
+                  id="budget"
+                  type="number"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                />
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label>{t("settings.household")}</Label>
+              <NumberStepper
+                label={t("onboarding.adults")}
+                description={t("onboarding.adultsHint")}
+                value={adults}
+                onChange={setAdults}
+                min={1}
+                max={20}
+              />
+              <NumberStepper
+                label={t("onboarding.children")}
+                description={t("onboarding.childrenHint")}
+                value={children}
+                onChange={setChildren}
+                min={0}
+                max={20}
+              />
+              <NumberStepper
+                label={t("onboarding.petsCount")}
+                description={t("onboarding.petsHint")}
+                value={petCount}
+                onChange={setPetCount}
+                min={0}
+                max={20}
+              />
             </div>
 
             <div className="space-y-2">
@@ -92,40 +217,69 @@ export default function SettingsPage() {
               <VehicleListEditor vehicles={vehicles} onChange={setVehicles} showTips={false} />
             </div>
 
+            <div className="space-y-2">
+              <Label>{t("onboarding.rentalPreference")}</Label>
+              <Select value={rentalKey} onValueChange={setRentalKey}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("onboarding.selectOption")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="truck">{t("onboarding.rentTruck")}</SelectItem>
+                  <SelectItem value="trailer">{t("onboarding.rentTrailer")}</SelectItem>
+                  <SelectItem value="movers">{t("onboarding.hireMovers")}</SelectItem>
+                  <SelectItem value="combo">{t("onboarding.trailerCombo")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="housingHelp"
+                  checked={needsHousingHelp}
+                  onCheckedChange={(v) => setNeedsHousingHelp(Boolean(v))}
+                />
+                <Label htmlFor="housingHelp" className="font-normal">
+                  {t("onboarding.needHousing")}
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="vehicleTransport"
+                  checked={needsVehicleTransport}
+                  onCheckedChange={(v) => setNeedsVehicleTransport(Boolean(v))}
+                />
+                <Label htmlFor="vehicleTransport" className="font-normal">
+                  {t("onboarding.needTransport")}
+                </Label>
+              </div>
+            </div>
+
             <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
-              <p><strong>{t("settings.household")}:</strong> {MOCK_USER.household}</p>
+              <p><strong>{t("settings.household")}:</strong> {householdWithPets({ ...profile, household, pets, petDetails })}</p>
               <p>
                 <strong>{t("settings.vehicles")}:</strong>{" "}
-                {vehicles.map((v) => v.displayLabel).join(" · ")}
+                {vehicles.length
+                  ? vehicles.map((v) => v.displayLabel).join(" · ")
+                  : t("onboarding.noVehicleSelected")}
               </p>
-              <p><strong>{t("settings.preference")}:</strong> {MOCK_USER.rentalPreference}</p>
-              <p><strong>{t("settings.date")}:</strong> {formatDate(MOCK_USER.moveDate)}</p>
-              <p><strong>{t("settings.budget")}:</strong> {formatCurrency(MOCK_USER.budget)}</p>
+              <p><strong>{t("settings.preference")}:</strong> {rentalPreferenceFromKey(rentalKey)}</p>
+              <p><strong>{t("settings.date")}:</strong> {formatDate(moveDate, locale)}</p>
+              <p><strong>{t("settings.budget")}:</strong> {formatCurrency(Number(budget) || profile.budget, locale)}</p>
+              {user && (
+                <p><strong>{t("settings.email")}:</strong> {user.email}</p>
+              )}
             </div>
-            <Button>{t("settings.updateMove")}</Button>
+
+            <Button onClick={saveProfile} disabled={saving}>
+              {saving ? t("common.loading") : t("settings.updateMove")}
+            </Button>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("settings.notifications")}</CardTitle>
-            <CardDescription>{t("settings.notificationsDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              t("settings.notifTasks"),
-              t("settings.notifBudget"),
-              t("settings.notifDocs"),
-              t("settings.notifAi"),
-              t("settings.notifWeekly"),
-            ].map((item) => (
-              <div key={item} className="flex items-center justify-between">
-                <span className="text-sm">{item}</span>
-                <Button variant="outline" size="sm">{t("common.enabled")}</Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <ShareMoveCard />
+
+        <ReminderPreferencesCard />
 
         <Card>
           <CardHeader>
@@ -156,6 +310,7 @@ export default function SettingsPage() {
         <Separator />
 
         <div className="flex flex-col sm:flex-row gap-4">
+          <LogoutButton variant="outline" className="w-full sm:w-auto" />
           <Button variant="outline" className="w-full sm:w-auto">
             {t("common.export")}
           </Button>

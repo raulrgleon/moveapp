@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
+import { useAuth } from "@/contexts/auth-context";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,13 +14,39 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
+  const router = useRouter();
   const t = useT();
+  const { login } = useAuth();
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!identifier.trim() || !password) {
+      setError(t("auth.signInRequired"));
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await login(identifier.trim(), password);
+      const meRes = await fetch("/api/auth/me", { credentials: "include" });
+      const me = meRes.ok ? ((await meRes.json()) as { user?: { role?: string } }) : {};
+      router.push(me.user?.role === "admin" ? "/admin" : "/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.invalidCredentials"));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
-      <header className="flex items-center justify-between p-6">
+      <header className="flex items-center justify-between p-4 sm:p-6 safe-top">
         <Logo />
-        <LanguageToggle />
+        <LanguageToggle showLabel={false} />
       </header>
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg">
@@ -26,30 +55,48 @@ export default function LoginPage() {
             <CardDescription>{t("login.subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{t("login.email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@email.com"
-                defaultValue="raul.garcia@email.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">{t("login.password")}</Label>
-              <Input id="password" type="password" placeholder="••••••••" />
-            </div>
-            <Button className="w-full" asChild>
-              <Link href="/dashboard">{t("login.signIn")}</Link>
-            </Button>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="identifier">{t("login.identifier")}</Label>
+                <Input
+                  id="identifier"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="you@email.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">{t("login.password")}</Label>
+                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                    {t("login.forgotPassword")}
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button className="w-full" type="submit" disabled={loading}>
+                {loading ? t("auth.signingIn") : t("login.signIn")}
+              </Button>
+            </form>
             <div className="relative">
               <Separator />
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
                 {t("common.or")}
               </span>
             </div>
-            <Button variant="outline" className="w-full" disabled>
-              {t("login.google")}
+            <Button variant="outline" className="w-full" asChild>
+              <a href="/api/auth/google">{t("login.google")}</a>
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               {t("login.noAccount")}{" "}

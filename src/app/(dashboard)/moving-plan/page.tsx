@@ -1,4 +1,9 @@
-import { Download, RefreshCw, Sparkles } from "lucide-react";
+"use client";
+
+import { Download } from "lucide-react";
+import { useMovingPlan } from "@/contexts/moving-plan-context";
+import { householdWithPets, useMove } from "@/contexts/move-context";
+import { useLocale, useT } from "@/contexts/locale-context";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -6,136 +11,119 @@ import { PriorityBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  AI_PLAN_NOTES,
-  MOVING_PLAN_WEEKS,
-  PLAN_PRIORITY_TASKS,
-} from "@/lib/mock-data";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default function MovingPlanPage() {
+  const t = useT();
+  const { locale } = useLocale();
+  const { profile } = useMove();
+  const { weeks, priorityTasks, exportPlan } = useMovingPlan();
+
   return (
     <>
-      <DashboardHeader title="Moving Plan" description="AI-generated week-by-week timeline" />
+      <DashboardHeader title={t("movingPlanPage.title")} description={t("movingPlanPage.subtitle")} />
       <PageContainer>
         <PageHeader
-          title="AI Moving Plan"
-          description="Personalized timeline for your Austin → Huntington move"
+          title={t("movingPlanPage.pageTitle")}
+          description={t("movingPlanPage.pageDesc", {
+            origin: profile.origin,
+            destination: profile.destination,
+          })}
           action={
-            <>
-              <Button variant="outline" size="sm">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Regenerate plan
-              </Button>
-              <Button size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export plan
-              </Button>
-            </>
+            <Button size="sm" onClick={exportPlan}>
+              <Download className="mr-2 h-4 w-4" />
+              {t("movingPlanPage.export")}
+            </Button>
           }
         />
 
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="p-6 flex items-start gap-4">
-            <Sparkles className="h-6 w-6 text-primary shrink-0" />
-            <div>
-              <p className="font-medium">AI-generated plan</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Based on your move date of September 15, 2026, household of 2 adults, 1 child,
-                and 1 dog, with a $4,000 budget and trailer rental preference.
-              </p>
-            </div>
+        <Card>
+          <CardContent className="p-6">
+            <p className="font-medium">{t("movingPlanPage.planSummary")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("movingPlanPage.planSummaryDesc", {
+                date: formatDate(profile.moveDate, locale),
+                household: householdWithPets(profile),
+                budget: formatCurrency(profile.budget, locale),
+                rental: profile.rentalPreference,
+              })}
+            </p>
           </CardContent>
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="font-semibold">Week-by-week timeline</h3>
-            {MOVING_PLAN_WEEKS.map((week) => (
-              <Card
-                key={week.week}
-                className={cn(
-                  week.status === "current" && "border-primary shadow-sm",
-                  week.status === "completed" && "opacity-80"
-                )}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{week.label}</CardTitle>
-                    <Badge
-                      variant={
-                        week.status === "completed"
-                          ? "success"
+            <h3 className="font-semibold">{t("movingPlanPage.timeline")}</h3>
+            {weeks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("movingPlanPage.noTimeline")}</p>
+            ) : (
+              weeks.map((week) => (
+                <Card
+                  key={week.week}
+                  className={cn(
+                    week.status === "current" && "border-primary shadow-sm",
+                    week.status === "completed" && "opacity-80"
+                  )}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{week.label}</CardTitle>
+                      <Badge
+                        variant={
+                          week.status === "completed"
+                            ? "success"
+                            : week.status === "current"
+                              ? "default"
+                              : "secondary"
+                        }
+                      >
+                        {week.status === "completed"
+                          ? t("movingPlanPage.completed")
                           : week.status === "current"
-                            ? "default"
-                            : "secondary"
-                      }
-                    >
-                      {week.status === "completed"
-                        ? "Completed"
-                        : week.status === "current"
-                          ? "Current"
-                          : "Upcoming"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {week.tasks.map((task, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                        {task}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
+                            ? t("movingPlanPage.current")
+                            : t("movingPlanPage.upcoming")}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {week.tasks.map((task, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                          {task}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
 
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Priority tasks</CardTitle>
+                <CardTitle className="text-base">{t("movingPlanPage.priorityTasks")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {PLAN_PRIORITY_TASKS.map((task) => (
-                  <div key={task.id} className="border-b pb-4 last:border-0 last:pb-0">
-                    <p className="text-sm font-medium">{task.title}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <PriorityBadge priority={task.priority} />
-                      <span className="text-xs text-muted-foreground">
-                        Due {formatDate(task.due)}
-                      </span>
+                {priorityTasks.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("movingPlanPage.noPriority")}</p>
+                ) : (
+                  priorityTasks.map((task) => (
+                    <div key={task.id} className="border-b pb-4 last:border-0 last:pb-0">
+                      <p className="text-sm font-medium">{task.title}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <PriorityBadge priority={task.priority} />
+                        {task.dueDate && (
+                          <span className="text-xs text-muted-foreground">
+                            {t("checklistPage.due", { date: formatDate(task.dueDate, locale) })}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Recommended next actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p>1. Reserve U-Haul 6x12 trailer — availability tightening</p>
-                <p>2. Book La Quinta Nashville — pet-friendly overnight</p>
-                <p>3. Submit school enrollment by August 1</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  AI notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {AI_PLAN_NOTES.map((note, i) => (
-                  <p key={i} className="text-sm text-muted-foreground">{note}</p>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>

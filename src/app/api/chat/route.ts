@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
 import { buildMoveSystemPrompt, type MoveContextInput } from "@/lib/ai/move-context";
+import { rateLimit } from "@/lib/rate-limit";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,6 +10,21 @@ const openai = new OpenAI({
 export async function POST(req: NextRequest) {
   if (!process.env.OPENAI_API_KEY) {
     return new Response("OpenAI API key not configured", { status: 500 });
+  }
+
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  const limit = rateLimit(`chat:${ip}`, 30, 60_000);
+  if (!limit.ok) {
+    return new Response("Too many requests. Please try again later.", {
+      status: 429,
+      headers: limit.retryAfterSec
+        ? { "Retry-After": String(limit.retryAfterSec) }
+        : undefined,
+    });
   }
 
   try {

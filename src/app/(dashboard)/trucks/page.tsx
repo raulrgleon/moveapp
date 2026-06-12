@@ -1,4 +1,6 @@
-import { ExternalLink, Sparkles, Truck } from "lucide-react";
+"use client";
+
+import { ExternalLink, Loader2, Sparkles, Truck } from "lucide-react";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -6,12 +8,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TRAILER_RECOMMENDATION, TRUCK_OPTIONS } from "@/lib/mock-data";
+import { useMove } from "@/contexts/move-context";
+import { useRouteStats } from "@/hooks/use-route-stats";
+import {
+  buildTrailerRecommendation,
+  estimateTruckOptions,
+} from "@/lib/trucks/recommendations";
+import type { TruckOption } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export default function TrucksPage() {
-  const trucks = TRUCK_OPTIONS.filter((o) => o.type === "truck");
-  const trailers = TRUCK_OPTIONS.filter((o) => o.type === "trailer");
+  const { profile, vehicles } = useMove();
+  const { stats, loading } = useRouteStats();
+  const miles = stats?.distanceMiles ?? 800;
+  const options = estimateTruckOptions(profile, miles);
+  const trucks = options.filter((o) => o.type === "truck");
+  const trailers = options.filter((o) => o.type === "trailer");
+  const recommendation = buildTrailerRecommendation(profile, miles, vehicles);
 
   return (
     <>
@@ -19,7 +32,9 @@ export default function TrucksPage() {
       <PageContainer>
         <PageHeader
           title="Moving Truck & Trailer Finder"
-          description="Compare providers for your Austin → Huntington move"
+          description={`Compare providers for your ${profile.origin} → ${profile.destination} move${
+            stats ? ` (~${stats.distanceMiles.toLocaleString()} mi)` : ""
+          }`}
         />
 
         <Card className="border-primary/30 bg-primary/5">
@@ -27,13 +42,20 @@ export default function TrucksPage() {
             <Sparkles className="h-6 w-6 text-primary shrink-0" />
             <div>
               <p className="font-medium">AI recommendation</p>
-              <p className="mt-1 text-sm text-muted-foreground">{TRAILER_RECOMMENDATION}</p>
+              {loading && !stats ? (
+                <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculating route-based pricing…
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">{recommendation}</p>
+              )}
             </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="trailers">
-          <TabsList>
+          <TabsList className="flex h-auto w-full flex-wrap gap-1">
             <TabsTrigger value="trailers">Trailers</TabsTrigger>
             <TabsTrigger value="trucks">Trucks</TabsTrigger>
             <TabsTrigger value="all">All options</TabsTrigger>
@@ -46,7 +68,7 @@ export default function TrucksPage() {
             <OptionGrid options={trucks} />
           </TabsContent>
           <TabsContent value="all" className="mt-6">
-            <OptionGrid options={TRUCK_OPTIONS} />
+            <OptionGrid options={options} />
           </TabsContent>
         </Tabs>
       </PageContainer>
@@ -54,7 +76,7 @@ export default function TrucksPage() {
   );
 }
 
-function OptionGrid({ options }: { options: typeof TRUCK_OPTIONS }) {
+function OptionGrid({ options }: { options: TruckOption[] }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {options.map((option) => (

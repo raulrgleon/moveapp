@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/constants";
+import { Menu, X } from "lucide-react";
+import { ADMIN_NAV_ITEM, NAV_ITEMS } from "@/lib/constants";
+import { useAuth } from "@/contexts/auth-context";
 import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "./logo";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 export function MobileNav() {
   const pathname = usePathname();
   const t = useT();
+  const { isAdmin } = useAuth();
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <Sheet>
@@ -22,14 +26,20 @@ export function MobileNav() {
           <span className="sr-only">Menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
-        <SheetHeader className="border-b p-6">
+      <SheetContent side="left" className="w-72 p-0 flex flex-col [&>button]:hidden">
+        <SheetHeader className="border-b p-6 flex-row items-center justify-between space-y-0">
           <SheetTitle className="text-left">
             <Logo />
           </SheetTitle>
+          <SheetClose asChild>
+            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </SheetClose>
         </SheetHeader>
-        <nav className="space-y-1 p-4">
-          {NAV_ITEMS.map((item) => {
+        <nav className="space-y-1 p-4 flex-1">
+          {navItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
@@ -49,6 +59,9 @@ export function MobileNav() {
             );
           })}
         </nav>
+        <div className="border-t p-4 mt-auto">
+          <LogoutButton variant="outline" size="sm" className="w-full" />
+        </div>
       </SheetContent>
     </Sheet>
   );

@@ -27,10 +27,9 @@ export function createVehicleId(): string {
 }
 
 export function createEmptyVehicle(): VehicleInfo {
-  const year = String(new Date().getFullYear());
   return {
     id: createVehicleId(),
-    year,
+    year: "",
     makeId: 0,
     make: "",
     modelId: 0,

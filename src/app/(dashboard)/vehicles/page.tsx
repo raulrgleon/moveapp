@@ -52,7 +52,7 @@ export default function VehiclesPage() {
           description={getMultiVehicleSummary(vehicles, locale)}
         />
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="sm:col-span-1">
             <CardContent className="flex items-center gap-3 p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -185,7 +185,7 @@ export default function VehiclesPage() {
                     <p className="text-sm text-muted-foreground flex-1">
                       {option.description}
                     </p>
-                    <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3">
                       <div>
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                           {t("vehicles.estCost")}
