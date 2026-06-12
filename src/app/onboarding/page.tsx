@@ -8,6 +8,7 @@ import { AddressAutocomplete } from "@/components/address/address-autocomplete";
 import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { MoveDatePicker } from "@/components/onboarding/move-date-picker";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
+import { AuthBrandPanel } from "@/components/brand/auth-brand-panel";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -176,23 +177,28 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="border-b bg-background p-4 sm:p-6 safe-top">
-        <div className="mx-auto max-w-2xl flex items-center justify-between gap-2 min-w-0">
-          <Logo />
-          <div className="flex items-center gap-1 shrink-0">
-            <LanguageToggle showLabel={false} />
-            <Button variant="ghost" size="sm" asChild className="px-2 sm:px-3">
-              <Link href="/">
-                <ArrowLeft className="sm:mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{t("common.back")}</span>
-              </Link>
-            </Button>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      <AuthBrandPanel />
+      <div className="flex flex-1 flex-col min-h-screen min-w-0">
+        <header className="border-b bg-background/95 backdrop-blur p-4 sm:p-6 safe-top lg:sticky lg:top-0 lg:z-10">
+          <div className="mx-auto max-w-2xl flex items-center justify-between gap-2 min-w-0">
+            <div className="lg:hidden">
+              <Logo />
+            </div>
+            <div className="hidden lg:block flex-1" />
+            <div className="flex items-center gap-1 shrink-0">
+              <LanguageToggle showLabel={false} />
+              <Button variant="ghost" size="sm" asChild className="px-2 sm:px-3">
+                <Link href="/">
+                  <ArrowLeft className="sm:mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">{t("common.back")}</span>
+                </Link>
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-6 sm:py-12 sm:px-6 pb-8">
+        <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10 sm:px-6 pb-8 flex-1">
         <div className="mb-8 space-y-4">
           <div>
             <div className="flex justify-between text-sm mb-2">
@@ -232,7 +238,7 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        <Card className="shadow-lg">
+        <Card className="shadow-xl border-border/60">
           <CardHeader>
             <CardTitle>{STEPS[step - 1].title}</CardTitle>
             <CardDescription>{t("onboarding.personalize")}</CardDescription>
@@ -501,6 +507,7 @@ export default function OnboardingPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

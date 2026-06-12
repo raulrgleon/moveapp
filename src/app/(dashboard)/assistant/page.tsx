@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
 import {
   ChatInputBar,
   ChatMessages,
   ChatScrollArea,
   QuickQuestions,
 } from "@/components/ai/chat-ui";
+import { PilotBadge } from "@/components/brand/pilot-badge";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { useAiChat } from "@/hooks/use-ai-chat";
@@ -31,20 +31,18 @@ export default function AssistantPage() {
     <>
       <DashboardHeader title={t("assistant.title")} description={t("assistant.subtitle")} />
       <PageContainer className="flex flex-col min-h-[calc(100dvh-8rem)] max-w-3xl mx-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">{t("aiPanel.title")}</p>
-            <p className="text-xs text-muted-foreground">{t("aiPanel.subtitle")}</p>
-          </div>
+        <div className="rounded-xl border bg-gradient-to-r from-brand-accent-soft/40 via-background to-brand-blue/5 p-4 mb-4">
+          <PilotBadge
+            title={t("brand.pilotName")}
+            subtitle={t("brand.pilotIntro")}
+            size="md"
+          />
         </div>
-        <div className="flex flex-1 flex-col rounded-xl border bg-card min-h-0">
+        <div className="flex flex-1 flex-col rounded-xl border bg-card min-h-0 shadow-sm">
           <ChatScrollArea className="min-h-[50vh]">
             <ChatMessages messages={messages} isLoading={isLoading} />
           </ChatScrollArea>
-          <div className="border-t p-4 space-y-3 shrink-0">
+          <div className="border-t p-4 space-y-3 shrink-0 bg-muted/20">
             <QuickQuestions
               questions={quickQuestions}
               onSelect={(q) => void sendMessage(q)}

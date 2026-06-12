@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -8,10 +8,17 @@ const inter = Inter({
   variable: "--font-geist-sans",
 });
 
+const display = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["600", "700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "MovePilot AI — Your AI co-pilot for moving anywhere",
+  title: "MovePilotAi — Your AI co-pilot for moving anywhere",
   description:
-    "Plan, budget, and execute your move with AI-powered guidance. Route planning, checklists, inventory, and more.",
+    "Plan, budget, and execute your move with MovePilotAi. Smart checklists, route planning, inventory, documents, and your AI co-pilot Pilot.",
+  applicationName: "MovePilotAi",
 };
 
 export default function RootLayout({
@@ -21,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${display.variable} font-sans antialiased`}>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

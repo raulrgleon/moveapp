@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bot, Sparkles } from "lucide-react";
+import { Bot } from "lucide-react";
 import {
   ChatInputBar,
   ChatMessages,
   ChatScrollArea,
   QuickQuestions,
 } from "@/components/ai/chat-ui";
+import { PilotBadge } from "@/components/brand/pilot-badge";
 import { useAiChat, useAiQuickQuestions } from "@/contexts/ai-chat-context";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export function AIAssistantPanel() {
       <ChatScrollArea>
         <ChatMessages messages={messages} isLoading={isLoading} compact />
       </ChatScrollArea>
-      <div className="border-t p-4 space-y-3 shrink-0">
+      <div className="border-t p-4 space-y-3 shrink-0 bg-muted/20">
         <QuickQuestions
           questions={quickQuestions}
           onSelect={handleQuick}
@@ -66,14 +67,12 @@ export function AIAssistantPanel() {
   return (
     <>
       <aside className="hidden xl:flex xl:w-80 xl:flex-col xl:border-l xl:bg-card shrink-0">
-        <div className="flex items-center gap-2 border-b p-4 shrink-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">{t("aiPanel.title")}</p>
-            <p className="text-xs text-muted-foreground">{t("aiPanel.subtitle")}</p>
-          </div>
+        <div className="border-b p-4 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent">
+          <PilotBadge
+            title={t("brand.pilotName")}
+            subtitle={t("aiPanel.subtitle")}
+            size="sm"
+          />
         </div>
         <div className="flex flex-1 flex-col min-h-0">{panelBody}</div>
       </aside>
@@ -82,7 +81,7 @@ export function AIAssistantPanel() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button
-              className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg mobile-nav-offset lg:bottom-6"
+              className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg shadow-brand-blue/30 bg-gradient-to-br from-brand-navy to-brand-blue hover:opacity-90 mobile-nav-offset lg:bottom-6"
               size="icon"
             >
               <Bot className="h-6 w-6" />
@@ -90,10 +89,13 @@ export function AIAssistantPanel() {
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
-            <SheetHeader className="border-b p-4 shrink-0">
-              <SheetTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                {t("assistant.title")}
+            <SheetHeader className="border-b p-4 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent">
+              <SheetTitle asChild>
+                <PilotBadge
+                  title={t("brand.pilotName")}
+                  subtitle={t("aiPanel.subtitle")}
+                  size="sm"
+                />
               </SheetTitle>
             </SheetHeader>
             {panelBody}

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AuthBrandPanel } from "@/components/brand/auth-brand-panel";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { useAuth } from "@/contexts/auth-context";
@@ -53,9 +54,9 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-lg">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
+    <Card className="w-full max-w-md shadow-xl border-border/60">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl font-display">{t("login.title")}</CardTitle>
         <CardDescription>{t("login.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -89,7 +90,7 @@ function LoginForm() {
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button className="w-full" type="submit" disabled={loading}>
+          <Button className="w-full h-11 shadow-md shadow-primary/20" type="submit" disabled={loading}>
             {loading ? t("auth.signingIn") : t("login.signIn")}
           </Button>
         </form>
@@ -117,24 +118,30 @@ export default function LoginPage() {
   const t = useT();
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/30">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       <SystemAnnouncementBanner />
-      <header className="flex items-center justify-between p-4 sm:p-6 safe-top">
-        <Logo />
-        <LanguageToggle showLabel={false} />
-      </header>
-      <div className="flex flex-1 items-center justify-center p-4">
-        <Suspense
-          fallback={
-            <Card className="w-full max-w-md shadow-lg">
-              <CardContent className="py-12 text-center text-muted-foreground">
-                {t("common.loading")}
-              </CardContent>
-            </Card>
-          }
-        >
-          <LoginForm />
-        </Suspense>
+      <AuthBrandPanel />
+      <div className="flex flex-1 flex-col min-h-screen">
+        <header className="flex items-center justify-between p-4 sm:p-6 safe-top lg:hidden">
+          <Logo />
+          <LanguageToggle showLabel={false} />
+        </header>
+        <div className="hidden lg:flex items-center justify-end p-6 safe-top">
+          <LanguageToggle showLabel={false} />
+        </div>
+        <div className="flex flex-1 items-center justify-center p-4 sm:p-8 pb-10">
+          <Suspense
+            fallback={
+              <Card className="w-full max-w-md shadow-xl">
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  {t("common.loading")}
+                </CardContent>
+              </Card>
+            }
+          >
+            <LoginForm />
+          </Suspense>
+        </div>
       </div>
     </div>
   );

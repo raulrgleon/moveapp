@@ -6,26 +6,32 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    /* MovePilotAi — trust blue + action orange */
+    --background: 220 33% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 173 80% 32%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 96%;
+    --secondary: 220 25% 96%;
     --secondary-foreground: 222 47% 11%;
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 173 58% 95%;
-    --accent-foreground: 173 80% 28%;
+    --muted: 220 20% 96%;
+    --muted-foreground: 215 16% 46%;
+    --accent: 221 100% 97%;
+    --accent-foreground: 221 83% 40%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 173 80% 32%;
-    --radius: 0.625rem;
+    --border: 220 20% 90%;
+    --input: 220 20% 90%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+
+    --brand-navy: 222 47% 14%;
+    --brand-blue: 221 83% 53%;
+    --brand-accent: 24 95% 53%;
+    --brand-accent-soft: 24 100% 97%;
   }
 
   * {
@@ -34,6 +40,68 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  .brand-ai {
+    @apply font-bold;
+    background: linear-gradient(135deg, hsl(var(--brand-blue)) 0%, hsl(var(--brand-accent)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .brand-hero-bg {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -20%, hsl(var(--brand-blue) / 0.18), transparent),
+      radial-gradient(ellipse 50% 40% at 100% 0%, hsl(var(--brand-accent) / 0.12), transparent),
+      hsl(var(--background));
+  }
+
+  .brand-auth-panel {
+    background: linear-gradient(
+      145deg,
+      hsl(var(--brand-navy)) 0%,
+      hsl(221 70% 28%) 45%,
+      hsl(221 83% 38%) 100%
+    );
+  }
+
+  .brand-auth-glow {
+    background:
+      radial-gradient(circle at 20% 80%, hsl(var(--brand-accent) / 0.25), transparent 45%),
+      radial-gradient(circle at 80% 20%, hsl(var(--brand-blue) / 0.3), transparent 40%);
+  }
+
+  .brand-cta-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-blue)) 0%,
+      hsl(221 70% 45%) 50%,
+      hsl(var(--brand-navy)) 100%
+    );
+  }
+
+  .brand-card-shine {
+    @apply relative overflow-hidden;
+  }
+
+  .brand-card-shine::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      hsl(var(--brand-blue) / 0.04) 50%,
+      transparent 60%
+    );
+    pointer-events: none;
+  }
+
+  .brand-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary;
   }
 }
 
@@ -50,12 +118,10 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
 
-  /* Mobile bottom nav (~56px) + safe area */
   .mobile-nav-offset {
     bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Page content clearance: bottom nav + FAB on phones */
   .page-bottom-pad {
     padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
   }

@@ -44,9 +44,10 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
         brand: {
-          DEFAULT: "#0D9488",
-          light: "#14B8A6",
-          dark: "#0F766E",
+          navy: "hsl(var(--brand-navy))",
+          blue: "hsl(var(--brand-blue))",
+          accent: "hsl(var(--brand-accent))",
+          "accent-soft": "hsl(var(--brand-accent-soft))",
         },
       },
       borderRadius: {
@@ -56,6 +57,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "fade-in": {
