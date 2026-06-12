@@ -19,13 +19,31 @@ model User {
   emailReminders Boolean              @default(true) @map("email_reminders")
   smsReminders   Boolean              @default(false) @map("sms_reminders")
   activeMoveId   String?              @map("active_move_id")
+  suspendedAt    DateTime?            @map("suspended_at")
   createdAt      DateTime             @default(now()) @map("created_at")
   moves          Move[]
   sessions       Session[]
   passwordResets PasswordResetToken[]
   collaborations MoveCollaborator[]   @relation("CollaboratorUser")
+  adminAuditLogs AdminAuditLog[]      @relation("AdminAuditActor")
 
   @@map("users")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String   @map("admin_id")
+  admin      User     @relation("AdminAuditActor", fields: [adminId], references: [id], onDelete: Cascade)
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }
 
 model Session {

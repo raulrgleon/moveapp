@@ -2,33 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS } from "@/lib/constants";
+import { ADMIN_CONSOLE_NAV } from "@/lib/constants";
 import { useAuth } from "@/contexts/auth-context";
-import { useMove } from "@/contexts/move-context";
-import { useLocale } from "@/contexts/locale-context";
-import { daysUntil, formatDate } from "@/lib/utils";
 import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
-import { Logo } from "./logo";
+import { Logo } from "@/components/layout/logo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { Shield } from "lucide-react";
 
-export function Sidebar() {
+export function AdminSidebar() {
   const pathname = usePathname();
   const t = useT();
-  const { locale } = useLocale();
-  const { isAdmin, user } = useAuth();
-  const { profile } = useMove();
-  const daysLeft = daysUntil(profile.moveDate);
-  const navItems = NAV_ITEMS;
+  const { user } = useAuth();
 
   return (
     <aside className="hidden lg:flex lg:w-60 xl:w-64 lg:flex-col lg:border-r lg:bg-card shrink-0">
-      <div className="flex h-16 items-center border-b px-6">
+      <div className="flex h-16 items-center gap-2 border-b px-6">
+        <Shield className="h-5 w-5 text-primary" />
         <Logo />
       </div>
+      <p className="px-4 pt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {t("adminConsole.consoleTitle")}
+      </p>
       <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
+        {ADMIN_CONSOLE_NAV.map((item) => {
+          const isActive =
+            "exact" in item && item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link
@@ -48,18 +49,11 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t p-4 space-y-3">
-        <div className="rounded-lg bg-muted/50 p-3">
-          <p className="text-xs font-medium text-foreground">
-            {t("sidebar.moveInDays", { days: daysLeft })}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {formatDate(profile.moveDate, locale)}
-          </p>
-        </div>
         {user && (
           <div className="space-y-2">
+            <p className="text-xs font-medium text-foreground truncate">{user.name}</p>
             <p className="text-xs text-muted-foreground truncate" title={user.email}>
-              {user.name}
+              {user.email}
             </p>
             <LogoutButton variant="outline" size="sm" className="w-full" />
           </div>

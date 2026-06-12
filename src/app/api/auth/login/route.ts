@@ -26,17 +26,14 @@ export async function POST(req: NextRequest) {
     if (!result) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
+    if ("suspended" in result && result.suspended) {
+      return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+    }
 
-    const { token, expiresAt } = await createSession(
-      result.user.id,
-      result.user.email,
-      result.user.role
-    );
+    const { user, moveId } = result as { user: { id: string; email: string; role: string }; moveId: string | null };
+    const { token, expiresAt } = await createSession(user.id, user.email, user.role);
 
-    const res = NextResponse.json({
-      user: result.user,
-      moveId: result.moveId,
-    });
+    const res = NextResponse.json({ user, moveId });
     res.cookies.set(COOKIE_NAME, token, sessionCookieOptions(expiresAt, isSecureRequest(req)));
     return res;
   } catch (error) {

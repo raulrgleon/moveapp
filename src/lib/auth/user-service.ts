@@ -36,9 +36,17 @@ export async function findUserByIdentifier(identifier: string) {
 export async function authenticateUser(
   identifier: string,
   password?: string
-): Promise<{ user: AuthSessionUser; moveId: string | null } | null> {
+): Promise<
+  | { user: AuthSessionUser; moveId: string | null }
+  | { suspended: true }
+  | null
+> {
   const user = await findUserByIdentifier(identifier);
   if (!user) return null;
+
+  if (user.suspendedAt) {
+    return { suspended: true };
+  }
 
   if (!user.passwordHash || !password || !(await verifyPassword(password, user.passwordHash))) {
     return null;
@@ -157,6 +165,7 @@ export interface AdminUserUpdate {
   username?: string | null;
   role?: UserRole;
   password?: string;
+  suspended?: boolean;
 }
 
 const userSelect = {
@@ -165,8 +174,9 @@ const userSelect = {
   username: true,
   name: true,
   role: true,
+  suspendedAt: true,
   createdAt: true,
-  _count: { select: { moves: true } },
+  _count: { select: { moves: true, sessions: true } },
 } as const;
 
 export async function updateUserByAdmin(
@@ -208,6 +218,7 @@ export async function updateUserByAdmin(
     username?: string | null;
     role?: string;
     passwordHash?: string;
+    suspendedAt?: Date | null;
   } = {};
 
   if (data.name !== undefined) updateData.name = data.name.trim() || target.name;
@@ -219,10 +230,13 @@ export async function updateUserByAdmin(
   if (data.password?.trim()) {
     updateData.passwordHash = await hashPassword(data.password);
   }
+  if (data.suspended !== undefined) {
+    updateData.suspendedAt = data.suspended ? new Date() : null;
+  }
 
   return prisma.user.update({
     where: { id: userId },
-    data: updateData,
+    data: updateData as Parameters<typeof prisma.user.update>[0]["data"],
     select: userSelect,
   });
 }

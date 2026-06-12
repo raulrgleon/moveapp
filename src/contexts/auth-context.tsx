@@ -27,6 +27,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isImpersonating: boolean;
   isHydrated: boolean;
   login: (identifier: string, password: string, name?: string) => Promise<void>;
   register: (payload: {
@@ -48,6 +49,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   const refreshUser = useCallback(async () => {
@@ -55,12 +57,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/auth/me", { credentials: "include" });
       if (!res.ok) {
         setUser(null);
+        setIsImpersonating(false);
         return;
       }
-      const data = (await res.json()) as { user: AuthUser };
+      const data = (await res.json()) as {
+        user: AuthUser;
+        isImpersonating?: boolean;
+      };
       setUser(data.user);
+      setIsImpersonating(Boolean(data.isImpersonating));
     } catch {
       setUser(null);
+      setIsImpersonating(false);
     }
   }, []);
 
@@ -89,8 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!meRes.ok) {
       throw new Error("Session could not be established. Try again or contact support.");
     }
-    const data = (await meRes.json()) as { user: AuthUser };
+    const data = (await meRes.json()) as { user: AuthUser; isImpersonating?: boolean };
     setUser(data.user);
+    setIsImpersonating(Boolean(data.isImpersonating));
   }, []);
 
   const register = useCallback(
@@ -127,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     invalidateUserData();
     setUser(null);
+    setIsImpersonating(false);
   }, []);
 
   const value = useMemo(
@@ -134,13 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isAuthenticated: Boolean(user),
       isAdmin: user?.role === "admin",
+      isImpersonating,
       isHydrated,
       login,
       register,
       logout,
       refreshUser,
     }),
-    [user, isHydrated, login, register, logout, refreshUser]
+    [user, isImpersonating, isHydrated, login, register, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

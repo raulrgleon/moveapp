@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { forbidden, requireAdmin, unauthorized } from "@/lib/api-auth";
+import { getClientIp, logAdminAction } from "@/lib/admin/audit-log";
 import { listAllUsers, registerUserWithPassword } from "@/lib/auth/user-service";
 
 export async function GET(req: NextRequest) {
@@ -38,6 +39,15 @@ export async function POST(req: NextRequest) {
       role === "admin" ? "admin" : "user",
       username
     );
+
+    await logAdminAction({
+      adminId: admin.id,
+      action: "user.create",
+      targetType: "user",
+      targetId: user.id,
+      details: { email: user.email, role: user.role },
+      ipAddress: getClientIp(req),
+    });
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {

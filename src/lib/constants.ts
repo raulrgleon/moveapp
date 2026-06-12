@@ -12,6 +12,11 @@ import {
   ClipboardList,
   Zap,
   Shield,
+  Users,
+  MapPin,
+  UserPlus,
+  Activity,
+  Wrench,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -34,6 +39,17 @@ export const ADMIN_NAV_ITEM = {
   labelKey: "nav.admin",
   icon: Shield,
 } as const;
+
+export const ADMIN_CONSOLE_NAV = [
+  { href: "/admin", labelKey: "adminConsole.dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/users", labelKey: "adminConsole.users", icon: Users },
+  { href: "/admin/moves", labelKey: "adminConsole.moves", icon: MapPin },
+  { href: "/admin/invites", labelKey: "adminConsole.invites", icon: UserPlus },
+  { href: "/admin/documents", labelKey: "adminConsole.documents", icon: FileText },
+  { href: "/admin/activity", labelKey: "adminConsole.activity", icon: Activity },
+  { href: "/admin/settings", labelKey: "adminConsole.settings", icon: Settings },
+  { href: "/admin/maintenance", labelKey: "adminConsole.maintenance", icon: Wrench },
+] as const;
 
 export const MOBILE_NAV_ITEMS = [
   { href: "/dashboard", labelKey: "mobileNav.home", icon: LayoutDashboard },

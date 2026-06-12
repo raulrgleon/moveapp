@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  Eye,
   KeyRound,
   Loader2,
   MapPin,
@@ -11,11 +12,12 @@ import {
   Trash2,
   UserPlus,
   Users,
+  Ban,
+  LogOut,
 } from "lucide-react";
 import { AdminUserMoveDialog } from "@/components/admin/admin-user-move-dialog";
-import { AdminGuard } from "@/components/auth/admin-guard";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { useAuth } from "@/contexts/auth-context";
-import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,7 @@ import {
 } from "@/components/ui/table";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
+import { invalidateUserData } from "@/lib/data-cache";
 
 interface AdminUserRow {
   id: string;
@@ -57,12 +60,14 @@ interface AdminUserRow {
   name: string;
   role: string;
   createdAt: string;
-  _count: { moves: number };
+  suspendedAt: string | null;
+  _count: { moves: number; sessions: number };
 }
 
-function AdminPageContent() {
+function AdminUsersPage() {
   const t = useT();
-  const { user: currentUser } = useAuth();
+  const router = useRouter();
+  const { user: currentUser, refreshUser } = useAuth();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -196,13 +201,61 @@ function AdminPageContent() {
     }
   }
 
+  async function toggleSuspend(user: AdminUserRow) {
+    setSaving(true);
+    setError("");
+    try {
+      await apiFetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ suspended: !user.suspendedAt }),
+      });
+      setSuccess(t("admin.userUpdated"));
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("admin.updateError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function impersonate(user: AdminUserRow) {
+    if (user.role === "admin") return;
+    setSaving(true);
+    try {
+      await apiFetch("/api/admin/impersonate", {
+        method: "POST",
+        body: JSON.stringify({ userId: user.id }),
+      });
+      invalidateUserData();
+      await refreshUser();
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("admin.updateError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function revokeSessions(user: AdminUserRow) {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/admin/sessions?userId=${user.id}`, { method: "DELETE" });
+      setSuccess(t("admin.userUpdated"));
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("admin.updateError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const isSelf = (user: AdminUserRow) => user.id === currentUser?.id;
 
   return (
     <>
-      <DashboardHeader title={t("admin.title")} description={t("admin.subtitle")} />
+      <AdminHeader title={t("adminConsole.users")} description={t("admin.pageDescFull")} />
       <PageContainer>
-        <PageHeader title={t("admin.title")} description={t("admin.pageDescFull")} />
+        <PageHeader title={t("adminConsole.users")} description={t("admin.pageDescFull")} />
 
         {success && (
           <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
@@ -300,6 +353,7 @@ function AdminPageContent() {
                         <TableHead>{t("admin.userName")}</TableHead>
                         <TableHead>{t("login.email")}</TableHead>
                         <TableHead>{t("admin.role")}</TableHead>
+                        <TableHead>{t("admin.status")}</TableHead>
                         <TableHead>{t("admin.moves")}</TableHead>
                         <TableHead className="text-right">{t("admin.actions")}</TableHead>
                       </TableRow>
@@ -326,6 +380,13 @@ function AdminPageContent() {
                               {user.role === "admin" ? t("admin.roleAdmin") : t("admin.roleUser")}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            {user.suspendedAt ? (
+                              <Badge variant="destructive">{t("admin.suspended")}</Badge>
+                            ) : (
+                              <Badge variant="secondary">{t("admin.active")}</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{user._count.moves}</TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1">
@@ -338,6 +399,38 @@ function AdminPageContent() {
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
+                              {user.role !== "admin" && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title={t("admin.impersonateUser")}
+                                    onClick={() => void impersonate(user)}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title={user.suspendedAt ? t("admin.reactivateUser") : t("admin.suspendUser")}
+                                    disabled={isSelf(user)}
+                                    onClick={() => void toggleSuspend(user)}
+                                  >
+                                    <Ban className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title={t("admin.revokeSessions")}
+                                    onClick={() => void revokeSessions(user)}
+                                  >
+                                    <LogOut className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -387,12 +480,6 @@ function AdminPageContent() {
             </CardContent>
           </Card>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          <Link href="/dashboard" className="text-primary hover:underline">
-            {t("admin.backToDashboard")}
-          </Link>
-        </p>
       </PageContainer>
 
       <Dialog open={Boolean(editUser)} onOpenChange={(open) => !open && setEditUser(null)}>
@@ -519,10 +606,6 @@ function AdminPageContent() {
   );
 }
 
-export default function AdminPage() {
-  return (
-    <AdminGuard>
-      <AdminPageContent />
-    </AdminGuard>
-  );
+export default function AdminUsersPageRoute() {
+  return <AdminUsersPage />;
 }

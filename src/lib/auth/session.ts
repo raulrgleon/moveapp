@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = "movepilot_session";
+export const ADMIN_BACKUP_COOKIE = "movepilot_admin_backup";
 const SESSION_DAYS = 30;
 
 function getSecret() {
@@ -24,9 +25,15 @@ export interface SessionPayload {
   sessionId: string;
   email: string;
   role: string;
+  impersonatedBy?: string;
 }
 
-export async function createSession(userId: string, email: string, role: string) {
+export async function createSession(
+  userId: string,
+  email: string,
+  role: string,
+  options?: { impersonatedBy?: string }
+) {
   const sessionId = randomUUID();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
@@ -35,18 +42,23 @@ export async function createSession(userId: string, email: string, role: string)
     data: { userId, token: sessionId, expiresAt },
   });
 
-  const token = await new SignJWT({
+  const jwtPayload: Record<string, string> = {
     sub: userId,
     sid: sessionId,
     email,
     role,
-  })
+  };
+  if (options?.impersonatedBy) {
+    jwtPayload.imp = options.impersonatedBy;
+  }
+
+  const token = await new SignJWT(jwtPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DAYS}d`)
     .sign(getSecret());
 
-  return { token, expiresAt };
+  return { token, expiresAt, sessionId };
 }
 
 export async function validateSessionToken(token: string): Promise<SessionPayload | null> {
@@ -65,11 +77,16 @@ export async function validateSessionToken(token: string): Promise<SessionPayloa
       return null;
     }
 
+    if (session.user.suspendedAt) {
+      return null;
+    }
+
     return {
       userId,
       sessionId,
       email: session.user.email,
       role: session.user.role,
+      impersonatedBy: (payload.imp as string | undefined) ?? undefined,
     };
   } catch {
     return null;

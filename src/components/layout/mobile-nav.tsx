@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { ADMIN_NAV_ITEM, NAV_ITEMS } from "@/lib/constants";
-import { useAuth } from "@/contexts/auth-context";
+import { NAV_ITEMS } from "@/lib/constants";
 import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,8 +14,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 export function MobileNav() {
   const pathname = usePathname();
   const t = useT();
-  const { isAdmin } = useAuth();
-  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const navItems = NAV_ITEMS;
 
   return (
     <Sheet>
