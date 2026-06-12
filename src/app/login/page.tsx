@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { SystemAnnouncementBanner } from "@/components/layout/system-announcement-banner";
 
 function LoginForm() {
   const router = useRouter();
@@ -115,6 +116,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
+      <SystemAnnouncementBanner />
       <header className="flex items-center justify-between p-4 sm:p-6 safe-top">
         <Logo />
         <LanguageToggle showLabel={false} />

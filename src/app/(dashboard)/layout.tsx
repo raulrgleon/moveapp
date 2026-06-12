@@ -3,6 +3,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 import { DashboardAuthGuard } from "@/components/auth/dashboard-auth-guard";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
+import { SystemAnnouncementBanner } from "@/components/layout/system-announcement-banner";
 
 export default function DashboardLayout({
   children,
@@ -12,6 +13,7 @@ export default function DashboardLayout({
   return (
     <DashboardAuthGuard>
       <div className="flex h-[100dvh] overflow-hidden bg-background flex-col">
+        <SystemAnnouncementBanner />
         <ImpersonationBanner />
         <div className="flex flex-1 overflow-hidden min-h-0">
           <Sidebar />
