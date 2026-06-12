@@ -22,6 +22,13 @@ npm run build
 pm2 start ecosystem.config.cjs
 ```
 
+Set `NEXT_PUBLIC_APP_URL` to your public HTTPS URL. Daily task reminders run via:
+
+```bash
+# crontab (08:00 UTC): scripts/cron-reminders.sh
+# Requires CRON_SECRET in .env.local
+```
+
 ### Environment variables
 
 | Variable | Description |
