@@ -17,11 +17,12 @@ export async function GET(req: NextRequest) {
       phone: true,
       emailReminders: true,
       smsReminders: true,
+      locale: true,
     },
   });
 
   return NextResponse.json({
-    user,
+    user: user ? { ...user, locale: user.locale ?? "en" } : user,
     impersonatedBy: session.impersonatedBy ?? null,
     isImpersonating: Boolean(session.impersonatedBy),
   });

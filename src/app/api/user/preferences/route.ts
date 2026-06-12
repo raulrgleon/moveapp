@@ -10,17 +10,20 @@ export async function PATCH(req: NextRequest) {
     phone?: string;
     emailReminders?: boolean;
     smsReminders?: boolean;
+    locale?: string;
   };
 
   const data: {
     phone?: string | null;
     emailReminders?: boolean;
     smsReminders?: boolean;
+    locale?: string;
   } = {};
 
   if (body.phone !== undefined) data.phone = body.phone.trim() || null;
   if (body.emailReminders !== undefined) data.emailReminders = body.emailReminders;
   if (body.smsReminders !== undefined) data.smsReminders = body.smsReminders;
+  if (body.locale === "en" || body.locale === "es") data.locale = body.locale;
 
   const user = await prisma.user.update({
     where: { id: session.id },
@@ -32,6 +35,7 @@ export async function PATCH(req: NextRequest) {
       phone: true,
       emailReminders: true,
       smsReminders: true,
+      locale: true,
     },
   });
 

@@ -21,6 +21,7 @@ export interface AuthUser {
   phone?: string | null;
   emailReminders?: boolean;
   smsReminders?: boolean;
+  locale?: string;
 }
 
 interface AuthContextValue {

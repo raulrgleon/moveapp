@@ -11,10 +11,10 @@ import {
 import { useInventory } from "@/contexts/inventory-context";
 import { useMove } from "@/contexts/move-context";
 import { useChecklist } from "@/contexts/checklist-context";
-import { useLocale } from "@/contexts/locale-context";
+import { useLocale, useT } from "@/contexts/locale-context";
 import { useRouteStats } from "@/hooks/use-route-stats";
-import { AI_QUICK_QUESTIONS } from "@/lib/mock-data";
 import { translate } from "@/lib/i18n";
+import type { AIQuickQuestion } from "@/lib/types";
 
 export interface ChatMessage {
   id: string;
@@ -30,9 +30,20 @@ interface AiChatContextValue {
 
 const AiChatContext = createContext<AiChatContextValue | null>(null);
 
-function findCannedResponse(text: string): string | undefined {
+const QUICK_QUESTION_IDS = ["1", "2", "3", "4", "5"] as const;
+
+export function useAiQuickQuestions(): AIQuickQuestion[] {
+  const t = useT();
+  return QUICK_QUESTION_IDS.map((id) => ({
+    id,
+    question: t(`chat.quickQ${id}.question`),
+    response: t(`chat.quickQ${id}.response`),
+  }));
+}
+
+function findCannedResponse(text: string, questions: AIQuickQuestion[]): string | undefined {
   const trimmed = text.trim();
-  return AI_QUICK_QUESTIONS.find((q) => q.question === trimmed)?.response;
+  return questions.find((q) => q.question === trimmed)?.response;
 }
 
 export function AiChatProvider({ children }: { children: React.ReactNode }) {
@@ -41,8 +52,10 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
   const { tasks } = useChecklist();
   const { stats } = useRouteStats();
   const { locale } = useLocale();
+  const quickQuestions = useAiQuickQuestions();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
     setMessages((prev) => {
@@ -56,12 +69,43 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
     });
   }, [locale]);
 
+  useEffect(() => {
+    if (historyLoaded) return;
+    let cancelled = false;
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/chat", { credentials: "include" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          messages: { id: string; role: "user" | "assistant"; content: string }[];
+        };
+        if (cancelled || data.messages.length === 0) return;
+        setMessages([
+          { id: "welcome", role: "assistant", content: translate(locale, "chat.welcome") },
+          ...data.messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+          })),
+        ]);
+      } catch {
+        /* keep welcome */
+      } finally {
+        if (!cancelled) setHistoryLoaded(true);
+      }
+    }
+    void loadHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [historyLoaded, locale]);
+
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
 
-      const canned = findCannedResponse(trimmed);
+      const canned = findCannedResponse(trimmed, quickQuestions);
 
       const userMsg: ChatMessage = {
         id: `u-${Date.now()}`,
@@ -149,7 +193,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        const fallback = findCannedResponse(trimmed);
+        const fallback = findCannedResponse(trimmed, quickQuestions);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -165,7 +209,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [messages, isLoading, getMoveContextForApi, boxes, tasks, stats, locale]
+    [messages, isLoading, getMoveContextForApi, boxes, tasks, stats, locale, quickQuestions]
   );
 
   const value = useMemo(

@@ -1,1 +1,5 @@
-export { useAiChat, type ChatMessage } from "@/contexts/ai-chat-context";
+export {
+  useAiChat,
+  useAiQuickQuestions,
+  type ChatMessage,
+} from "@/contexts/ai-chat-context";

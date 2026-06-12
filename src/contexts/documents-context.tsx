@@ -25,7 +25,13 @@ interface DocumentsContextValue {
   isHydrated: boolean;
   canEdit: boolean;
   addDocument: (input: { name: string; category: string; fileName: string }) => void;
-  uploadDocument: (file: File, name: string, category: string) => Promise<void>;
+  uploadDocument: (
+    file: File,
+    name: string,
+    category: string,
+    expiresAt?: string
+  ) => Promise<void>;
+  deleteDocument: (id: string) => Promise<void>;
   setDocumentStatus: (id: string, status: DocumentStatus) => void;
   refreshDocuments: () => Promise<void>;
 }
@@ -76,12 +82,13 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
   }, [authHydrated, isAuthenticated, user?.email]);
 
   const uploadDocument = useCallback(
-    async (file: File, name: string, category: string) => {
+    async (file: File, name: string, category: string, expiresAt?: string) => {
       if (!canEdit) throw new Error("Read-only access");
       const form = new FormData();
       form.append("file", file);
       form.append("name", name);
       form.append("category", category);
+      if (expiresAt) form.append("expiresAt", expiresAt);
       const res = await fetch("/api/documents/upload", {
         method: "POST",
         body: form,
@@ -95,6 +102,16 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
       await refreshDocuments();
     },
     [canEdit, refreshDocuments]
+  );
+
+  const deleteDocument = useCallback(
+    async (id: string) => {
+      if (!canEdit) return;
+      await apiFetch(`/api/documents/${id}`, { method: "DELETE" });
+      setDocuments((prev) => prev.filter((d) => d.id !== id));
+      invalidateUserData();
+    },
+    [canEdit]
   );
 
   const addDocument = useCallback(
@@ -134,10 +151,20 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
       canEdit,
       addDocument,
       uploadDocument,
+      deleteDocument,
       setDocumentStatus,
       refreshDocuments,
     }),
-    [documents, isHydrated, canEdit, addDocument, uploadDocument, setDocumentStatus, refreshDocuments]
+    [
+      documents,
+      isHydrated,
+      canEdit,
+      addDocument,
+      uploadDocument,
+      deleteDocument,
+      setDocumentStatus,
+      refreshDocuments,
+    ]
   );
 
   return (

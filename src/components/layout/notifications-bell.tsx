@@ -13,6 +13,7 @@ interface NotificationItem {
   title: string;
   message: string;
   href: string;
+  read?: boolean;
 }
 
 export function NotificationsBell() {
@@ -38,6 +39,17 @@ export function NotificationsBell() {
     }
   };
 
+  const markAllRead = async () => {
+    await fetch("/api/notifications/read", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    });
+    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    setCount(0);
+  };
+
   useEffect(() => {
     void load();
     const id = setInterval(() => void load(), 60_000);
@@ -53,7 +65,7 @@ export function NotificationsBell() {
   }, []);
 
   return (
-    <div ref={wrapRef} className="relative shrink-0 hidden sm:block">
+    <div ref={wrapRef} className="relative shrink-0">
       <Button
         variant="ghost"
         size="icon"
@@ -73,7 +85,18 @@ export function NotificationsBell() {
       </Button>
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-md border bg-popover shadow-md">
-          <div className="border-b px-3 py-2 text-sm font-medium">{t("common.notifications")}</div>
+          <div className="flex items-center justify-between border-b px-3 py-2">
+            <span className="text-sm font-medium">{t("common.notifications")}</span>
+            {count > 0 && (
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => void markAllRead()}
+              >
+                {t("notifications.markAllRead")}
+              </button>
+            )}
+          </div>
           {items.length === 0 ? (
             <p className="px-3 py-4 text-sm text-muted-foreground">{t("notifications.empty")}</p>
           ) : (
@@ -82,10 +105,17 @@ export function NotificationsBell() {
                 <li key={n.id}>
                   <Link
                     href={n.href}
-                    className="block px-3 py-2 hover:bg-muted"
+                    className={`block px-3 py-2 hover:bg-muted ${n.read ? "opacity-60" : ""}`}
                     onClick={() => setOpen(false)}
                   >
-                    <p className="text-sm font-medium">{n.title}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium">{n.title}</p>
+                      {n.read && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {t("notifications.read")}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{n.message}</p>
                   </Link>
                 </li>

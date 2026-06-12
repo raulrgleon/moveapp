@@ -25,6 +25,8 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const email = searchParams.get("email");
+    if (email) setIdentifier(email);
     if (searchParams.get("error") === "oauth") {
       setError(t("auth.oauthNotConfigured"));
     }

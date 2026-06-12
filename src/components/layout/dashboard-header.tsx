@@ -24,7 +24,7 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
             </p>
           )}
         </div>
-        <div className="hidden lg:flex items-center gap-2 max-w-sm flex-1">
+        <div className="hidden md:flex items-center gap-2 max-w-sm flex-1 min-w-0">
           <DashboardSearch />
         </div>
         <LanguageToggle showLabel={false} className="shrink-0" />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
+import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
 import { saveDocumentFile } from "@/lib/storage/documents";
 
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest) {
     const file = form.get("file");
     const name = String(form.get("name") ?? "").trim();
     const category = String(form.get("category") ?? "Other").trim();
+    const expiresAtRaw = String(form.get("expiresAt") ?? "").trim();
+    const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "File required" }, { status: 400 });
@@ -32,7 +35,14 @@ export async function POST(req: NextRequest) {
         mimeType: saved.mimeType,
         sizeBytes: saved.sizeBytes,
         uploadedAt: new Date(),
+        expiresAt: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
       },
+    });
+
+    await logMoveActivity(result.access.moveId, result.user.id, "document_upload", {
+      documentId: doc.id,
+      name: doc.name,
+      category: doc.category,
     });
 
     return NextResponse.json({

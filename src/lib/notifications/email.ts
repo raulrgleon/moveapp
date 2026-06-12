@@ -1,3 +1,34 @@
+export async function sendWelcomeEmail(to: string, name: string, locale: "en" | "es" = "en") {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || "MovePilot <noreply@movepilot.ai>";
+  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const subject = locale === "es" ? "Bienvenido a MovePilot" : "Welcome to MovePilot";
+  const greeting = locale === "es" ? `Hola ${name},` : `Hi ${name},`;
+  const body =
+    locale === "es"
+      ? `<p>${greeting}</p><p>Tu cuenta está lista. Empieza a planificar tu mudanza:</p><p><a href="${base}/dashboard">${base}/dashboard</a></p>`
+      : `<p>${greeting}</p><p>Your account is ready. Start planning your move:</p><p><a href="${base}/dashboard">${base}/dashboard</a></p>`;
+
+  if (!apiKey) {
+    console.log(`[email] Welcome for ${to}: ${base}/dashboard`);
+    return;
+  }
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html: body,
+    }),
+  });
+}
+
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || "MovePilot <noreply@movepilot.ai>";

@@ -98,7 +98,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                 )}
                 {error && <p className="text-sm text-destructive">{error}</p>}
                 <Button variant="outline" className="w-full" asChild>
-                  <Link href="/login">{t("login.signIn")}</Link>
+                  <Link href={`/login?email=${encodeURIComponent(info.email)}`}>{t("login.signIn")}</Link>
+                </Button>
+                <Button variant="ghost" className="w-full" asChild>
+                  <Link href={`/onboarding?email=${encodeURIComponent(info.email)}&invite=${encodeURIComponent(params.token)}`}>
+                    {t("invite.createAccount")}
+                  </Link>
                 </Button>
               </>
             )}

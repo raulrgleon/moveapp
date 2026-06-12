@@ -19,6 +19,8 @@ export async function PATCH(req: NextRequest) {
       destinationLon?: number;
       destinationLabel?: string;
       vehicles?: VehicleInfo[];
+      truckChoice?: string | null;
+      vehicleTransportChoice?: string | null;
     };
     await updateMoveForUserId(result.user.id, body);
     return NextResponse.json({ ok: true });

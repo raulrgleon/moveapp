@@ -88,7 +88,8 @@ export async function registerUserWithPassword(
   role: UserRole = "user",
   username?: string | null,
   profile?: MoveProfile,
-  vehicles: VehicleInfo[] = []
+  vehicles: VehicleInfo[] = [],
+  locale: "en" | "es" = "en"
 ): Promise<AuthSessionUser> {
   const normalizedEmail = normalizeIdentifier(email);
   if (!normalizedEmail.includes("@")) {
@@ -114,12 +115,13 @@ export async function registerUserWithPassword(
       username: username?.trim().toLowerCase() || null,
       passwordHash,
       role,
+      locale,
       moves:
         role === "admin"
           ? undefined
           : {
               create: profile
-                ? await buildMoveDataFromProfile(profile, vehicles)
+                ? await buildMoveDataFromProfile(profile, vehicles, locale)
                 : await buildDefaultMoveData(),
             },
     },

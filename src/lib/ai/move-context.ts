@@ -1,15 +1,14 @@
 import {
-  DESTINATION_UTILITIES,
-} from "@/lib/mock-data";
-import {
   getUtilityBestPicks,
   sumUtilityMonthlyEstimate,
   formatUtilityPickPrice,
 } from "@/lib/utilities/recommendations";
+import { fetchUtilitiesForLocation } from "@/lib/utilities/fetch-utilities";
 import { householdWithPets, type MoveProfile } from "@/lib/move-profile";
 import { buildTrailerRecommendation } from "@/lib/trucks/recommendations";
 
 import type { Locale } from "@/lib/i18n";
+import type { DestinationUtilityProvider } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 
 export interface RouteContextStats {
@@ -33,7 +32,36 @@ export interface MoveContextInput {
   routeStats?: RouteContextStats;
 }
 
-export function buildMoveSystemPrompt(ctx?: MoveContextInput): string {
+async function resolveUtilityPicks(ctx?: MoveContextInput): Promise<{
+  picks: DestinationUtilityProvider[];
+  monthlyTotal: number;
+}> {
+  if (
+    ctx?.isAddressConfirmed &&
+    ctx.lat != null &&
+    ctx.lon != null &&
+    Number.isFinite(ctx.lat) &&
+    Number.isFinite(ctx.lon)
+  ) {
+    try {
+      const { providers } = await fetchUtilitiesForLocation({
+        lat: ctx.lat,
+        lon: ctx.lon,
+        address: ctx.destinationAddress,
+      });
+      const picks = getUtilityBestPicks(providers);
+      return {
+        picks,
+        monthlyTotal: sumUtilityMonthlyEstimate(picks),
+      };
+    } catch {
+      /* fall through */
+    }
+  }
+  return { picks: [], monthlyTotal: 0 };
+}
+
+export async function buildMoveSystemPromptAsync(ctx?: MoveContextInput): Promise<string> {
   const profile = ctx?.profile;
 
   const address =
@@ -49,11 +77,14 @@ export function buildMoveSystemPrompt(ctx?: MoveContextInput): string {
     ? `Coordinates: ${ctx.lat}, ${ctx.lon}`
     : "Address not yet confirmed by user — prompt them to set their new home address in Utilities.";
 
-  const utilityBestPicks = getUtilityBestPicks(DESTINATION_UTILITIES);
-  const utilityMonthlyTotal = sumUtilityMonthlyEstimate(utilityBestPicks);
-  const utilityPicks = utilityBestPicks
-    .map((p) => `${p.categoryLabel}: ${p.name} (${formatUtilityPickPrice(p)})`)
-    .join("; ");
+  const { picks: utilityBestPicks, monthlyTotal: utilityMonthlyTotal } =
+    await resolveUtilityPicks(ctx);
+  const utilityPicks =
+    utilityBestPicks.length > 0
+      ? utilityBestPicks
+          .map((p) => `${p.categoryLabel}: ${p.name} (${formatUtilityPickPrice(p)})`)
+          .join("; ")
+      : "Not loaded — confirm address in Utilities";
 
   const replyLanguage =
     ctx?.locale === "es"
@@ -105,3 +136,4 @@ INVENTORY BOXES: ${ctx?.inventorySummary ?? "not tracked yet — user can add bo
 
 Answer only about this move. If unsure, say what to verify. Prioritize actionable next steps.`;
 }
+

@@ -44,6 +44,8 @@ export interface ChecklistTask {
   status: TaskStatus;
   dueDate: string;
   priority: TaskPriority;
+  notes?: string;
+  assigneeEmail?: string;
 }
 
 export type {
@@ -58,6 +60,8 @@ export interface DocumentItem {
   category: string;
   status: DocumentStatus;
   uploadedAt?: string;
+  expiresAt?: string;
+  mimeType?: string;
 }
 
 export interface MarketplaceService {
@@ -143,4 +147,5 @@ export interface DestinationUtilityProvider {
   cons: string[];
   setupFee?: number;
   contractMonths?: number;
+  websiteUrl?: string;
 }

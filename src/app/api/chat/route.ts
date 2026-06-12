@@ -1,11 +1,46 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { buildMoveSystemPrompt, type MoveContextInput } from "@/lib/ai/move-context";
+import { buildMoveSystemPromptAsync, type MoveContextInput } from "@/lib/ai/move-context";
+import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
+import { requireMoveAccess } from "@/lib/api-auth";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+async function trimChatHistory(userId: string) {
+  const excess = await prisma.chatMessage.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    skip: 20,
+    select: { id: true },
+  });
+  if (excess.length > 0) {
+    await prisma.chatMessage.deleteMany({
+      where: { id: { in: excess.map((e) => e.id) } },
+    });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+
+  const rows = await prisma.chatMessage.findMany({
+    where: { userId: result.user.id },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+  });
+
+  return NextResponse.json({
+    messages: rows.map((r) => ({
+      id: r.id,
+      role: r.role as "user" | "assistant",
+      content: r.content,
+    })),
+  });
+}
 
 export async function POST(req: NextRequest) {
   if (!process.env.OPENAI_API_KEY) {
@@ -38,7 +73,23 @@ export async function POST(req: NextRequest) {
       return new Response("Messages required", { status: 400 });
     }
 
+    const accessResult = await requireMoveAccess(req);
+    const userId =
+      accessResult instanceof NextResponse ? null : accessResult.user.id;
+
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const systemPrompt = await buildMoveSystemPromptAsync({
+      ...moveContext,
+      locale: locale ?? moveContext?.locale,
+    });
+
+    const lastUser = messages.filter((m) => m.role === "user").pop();
+    if (userId && lastUser?.content) {
+      await prisma.chatMessage.create({
+        data: { userId, role: "user", content: lastUser.content },
+      });
+      await trimChatHistory(userId);
+    }
 
     const stream = await openai.chat.completions.create({
       model,
@@ -48,7 +99,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: buildMoveSystemPrompt({ ...moveContext, locale: locale ?? moveContext?.locale }),
+          content: systemPrompt,
         },
         ...messages.slice(-6).map((m) => ({
           role: m.role,
@@ -58,17 +109,27 @@ export async function POST(req: NextRequest) {
     });
 
     const encoder = new TextEncoder();
+    let assistantFull = "";
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of stream) {
             const text = chunk.choices[0]?.delta?.content ?? "";
-            if (text) controller.enqueue(encoder.encode(text));
+            if (text) {
+              assistantFull += text;
+              controller.enqueue(encoder.encode(text));
+            }
           }
         } catch (err) {
           controller.error(err);
         } finally {
+          if (userId && assistantFull.trim()) {
+            await prisma.chatMessage.create({
+              data: { userId, role: "assistant", content: assistantFull },
+            });
+            await trimChatHistory(userId);
+          }
           controller.close();
         }
       },

@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useAuth } from "@/contexts/auth-context";
 import {
   DEFAULT_LOCALE,
   detectDeviceLocale,
@@ -25,25 +26,47 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+async function persistLocale(locale: Locale) {
+  try {
+    await fetch("/api/user/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ locale }),
+    });
+  } catch {
+    /* offline or guest */
+  }
+}
+
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isHydrated: authHydrated } = useAuth();
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setLocaleState(detectDeviceLocale());
+    if (!authHydrated) return;
+
+    const stored = detectDeviceLocale();
+    const dbLocale = user?.locale === "es" || user?.locale === "en" ? user.locale : null;
+    setLocaleState(dbLocale ?? stored);
     setIsHydrated(true);
-  }, []);
+  }, [authHydrated, user?.locale]);
 
   useEffect(() => {
     if (!isHydrated) return;
     document.documentElement.lang = locale;
   }, [locale, isHydrated]);
 
-  const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
-    localStorage.setItem(LOCALE_STORAGE_KEY, next);
-    document.documentElement.lang = next;
-  }, []);
+  const setLocale = useCallback(
+    (next: Locale) => {
+      setLocaleState(next);
+      localStorage.setItem(LOCALE_STORAGE_KEY, next);
+      document.documentElement.lang = next;
+      if (isAuthenticated) void persistLocale(next);
+    },
+    [isAuthenticated]
+  );
 
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) =>

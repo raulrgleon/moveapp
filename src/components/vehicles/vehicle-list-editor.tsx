@@ -6,6 +6,8 @@ import { VehicleSelector } from "@/components/vehicles/vehicle-selector";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import { createEmptyVehicle } from "@/lib/vehicles/types";
 import { getVehicleSummaryLine } from "@/lib/vehicles/recommendations";
@@ -21,6 +23,8 @@ interface VehicleListEditorProps {
   variant?: "stacked" | "fleet";
   /** Allow zero vehicles (onboarding). Shows empty state until user adds one. */
   allowEmpty?: boolean;
+  /** Show per-vehicle needsTransport checkbox (fleet page). */
+  showTransportCheckbox?: boolean;
 }
 
 export function VehicleListEditor({
@@ -29,6 +33,7 @@ export function VehicleListEditor({
   showTips = true,
   variant = "stacked",
   allowEmpty = false,
+  showTransportCheckbox = false,
 }: VehicleListEditorProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -107,6 +112,20 @@ export function VehicleListEditor({
               onChange={(updated) => updateAt(index, { ...updated, id: vehicle.id })}
               showTips={showTips && index === 0}
             />
+            {showTransportCheckbox && (
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox
+                  id={`transport-${vehicle.id}`}
+                  checked={vehicle.needsTransport ?? false}
+                  onCheckedChange={(v) =>
+                    updateAt(index, { ...vehicle, needsTransport: Boolean(v) })
+                  }
+                />
+                <Label htmlFor={`transport-${vehicle.id}`} className="font-normal text-sm">
+                  {t("vehicleList.needsTransport")}
+                </Label>
+              </div>
+            )}
           </div>
         ))}
 
@@ -184,6 +203,20 @@ export function VehicleListEditor({
                   showTips={showTips && index === 0}
                   layout="compact"
                 />
+                {showTransportCheckbox && (
+                  <div className="mt-3 flex items-center space-x-2">
+                    <Checkbox
+                      id={`fleet-transport-${vehicle.id}`}
+                      checked={vehicle.needsTransport ?? false}
+                      onCheckedChange={(v) =>
+                        updateAt(index, { ...vehicle, needsTransport: Boolean(v) })
+                      }
+                    />
+                    <Label htmlFor={`fleet-transport-${vehicle.id}`} className="font-normal text-sm">
+                      {t("vehicleList.needsTransport")}
+                    </Label>
+                  </div>
+                )}
                 <div className="mt-3 flex items-center justify-between gap-2">
                   {vehicles.length > 1 ? (
                     <Button

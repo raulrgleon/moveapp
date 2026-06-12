@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Bot, Sparkles } from "lucide-react";
 import {
   ChatInputBar,
@@ -8,17 +9,20 @@ import {
   ChatScrollArea,
   QuickQuestions,
 } from "@/components/ai/chat-ui";
-import { useAiChat } from "@/hooks/use-ai-chat";
+import { useAiChat, useAiQuickQuestions } from "@/contexts/ai-chat-context";
 import { useT } from "@/contexts/locale-context";
-import { AI_QUICK_QUESTIONS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function AIAssistantPanel() {
   const t = useT();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useAiChat();
+  const quickQuestions = useAiQuickQuestions();
+
+  const onAssistantPage = pathname === "/assistant";
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -40,7 +44,7 @@ export function AIAssistantPanel() {
       </ChatScrollArea>
       <div className="border-t p-4 space-y-3 shrink-0">
         <QuickQuestions
-          questions={AI_QUICK_QUESTIONS}
+          questions={quickQuestions}
           onSelect={handleQuick}
           isLoading={isLoading}
         />
@@ -54,6 +58,10 @@ export function AIAssistantPanel() {
       </div>
     </>
   );
+
+  if (onAssistantPage) {
+    return null;
+  }
 
   return (
     <>

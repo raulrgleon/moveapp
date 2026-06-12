@@ -12,6 +12,29 @@ interface LocationContext {
   label: string;
 }
 
+const PROVIDER_WEBSITES: Record<string, string> = {
+  "appalachian power": "https://www.appalachianpower.com",
+  "aep": "https://www.appalachianpower.com",
+  "atmos energy": "https://www.atmosenergy.com",
+  "mountaineer gas": "https://www.mountaineergas.com",
+  "frontier": "https://frontier.com",
+  "xfinity": "https://www.xfinity.com",
+  "spectrum": "https://www.spectrum.com",
+  "att": "https://www.att.com",
+  "verizon": "https://www.verizon.com",
+  "pg&e": "https://www.pge.com",
+  "fpl": "https://www.fpl.com",
+  "con edison": "https://www.coned.com",
+};
+
+function lookupProviderWebsite(name: string): string | undefined {
+  const lower = name.toLowerCase();
+  for (const [key, url] of Object.entries(PROVIDER_WEBSITES)) {
+    if (lower.includes(key)) return url;
+  }
+  return undefined;
+}
+
 const STATE_UTILITIES: Record<
   string,
   { electricity: string; water: string; gas: string }
@@ -130,6 +153,7 @@ function buildBroadbandProviders(fcc: FccProvider[], location: LocationContext):
     providers.push({
       id: `bb-${seen.size}`,
       name,
+      websiteUrl: lookupProviderWebsite(name),
       category,
       categoryLabel:
         category === "fiber" ? "Fiber internet" : category === "cable" ? "Cable internet" : "Internet",
@@ -163,6 +187,7 @@ function buildStateUtilities(location: LocationContext): DestinationUtilityProvi
     {
       id: "elec-regional",
       name: defaults.electricity,
+      websiteUrl: lookupProviderWebsite(defaults.electricity),
       category: "electricity",
       categoryLabel: "Electricity",
       rank: 1,
@@ -180,6 +205,7 @@ function buildStateUtilities(location: LocationContext): DestinationUtilityProvi
     {
       id: "water-muni",
       name: defaults.water,
+      websiteUrl: lookupProviderWebsite(defaults.water),
       category: "water",
       categoryLabel: "Water & sewer",
       rank: 1,
@@ -196,6 +222,7 @@ function buildStateUtilities(location: LocationContext): DestinationUtilityProvi
     {
       id: "gas-local",
       name: defaults.gas,
+      websiteUrl: lookupProviderWebsite(defaults.gas),
       category: "gas",
       categoryLabel: "Natural gas",
       rank: 1,

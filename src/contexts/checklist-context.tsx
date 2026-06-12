@@ -11,7 +11,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
-import { loadUserData } from "@/lib/data-cache";
+import { loadUserData, invalidateUserData } from "@/lib/data-cache";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import type { ChecklistTask, TaskStatus } from "@/lib/types";
 
@@ -19,6 +19,9 @@ interface ChecklistContextValue {
   tasks: ChecklistTask[];
   isHydrated: boolean;
   setTaskStatus: (id: string, status: TaskStatus) => void;
+  addTask: (task: Omit<ChecklistTask, "id">) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  updateTask: (id: string, patch: Partial<ChecklistTask>) => Promise<void>;
 }
 
 const ChecklistContext = createContext<ChecklistContextValue | null>(null);
@@ -80,16 +83,57 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
     (id: string, status: TaskStatus) => {
       setTasks((prev) => {
         const next = prev.map((t) => (t.id === id ? { ...t, status } : t));
-        void saveToDb(next);
+        void apiFetch("/api/checklist", {
+          method: "PATCH",
+          body: JSON.stringify({ id, status }),
+        }).catch(() => saveToDb(next));
         return next;
       });
     },
     [saveToDb]
   );
 
+  const addTask = useCallback(
+    async (task: Omit<ChecklistTask, "id">) => {
+      if (!canEdit) return;
+      const res = await apiFetch("/api/checklist", {
+        method: "POST",
+        body: JSON.stringify(task),
+      });
+      const data = (await res.json()) as { task: ChecklistTask };
+      setTasks((prev) => [...prev, data.task]);
+      invalidateUserData();
+    },
+    [canEdit]
+  );
+
+  const deleteTask = useCallback(
+    async (id: string) => {
+      if (!canEdit) return;
+      await apiFetch(`/api/checklist?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      invalidateUserData();
+    },
+    [canEdit]
+  );
+
+  const updateTask = useCallback(
+    async (id: string, patch: Partial<ChecklistTask>) => {
+      if (!canEdit) return;
+      const res = await apiFetch("/api/checklist", {
+        method: "PATCH",
+        body: JSON.stringify({ id, ...patch }),
+      });
+      const data = (await res.json()) as { task: ChecklistTask };
+      setTasks((prev) => prev.map((t) => (t.id === id ? data.task : t)));
+      invalidateUserData();
+    },
+    [canEdit]
+  );
+
   const value = useMemo(
-    () => ({ tasks, isHydrated, setTaskStatus }),
-    [tasks, isHydrated, setTaskStatus]
+    () => ({ tasks, isHydrated, setTaskStatus, addTask, deleteTask, updateTask }),
+    [tasks, isHydrated, setTaskStatus, addTask, deleteTask, updateTask]
   );
 
   return (

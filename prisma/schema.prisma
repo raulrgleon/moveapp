@@ -19,6 +19,7 @@ model User {
   emailReminders Boolean              @default(true) @map("email_reminders")
   smsReminders   Boolean              @default(false) @map("sms_reminders")
   activeMoveId   String?              @map("active_move_id")
+  locale         String?              @default("en")
   suspendedAt    DateTime?            @map("suspended_at")
   createdAt      DateTime             @default(now()) @map("created_at")
   moves          Move[]
@@ -26,6 +27,9 @@ model User {
   passwordResets PasswordResetToken[]
   collaborations MoveCollaborator[]   @relation("CollaboratorUser")
   adminAuditLogs AdminAuditLog[]      @relation("AdminAuditActor")
+  notificationReads NotificationRead[]
+  moveActivities MoveActivity[]
+  chatMessages   ChatMessage[]
 
   @@map("users")
 }
@@ -102,6 +106,8 @@ model Move {
   rentalPreference      String             @map("rental_preference")
   needsHousingHelp      Boolean            @default(false) @map("needs_housing_help")
   needsVehicleTransport Boolean            @default(false) @map("needs_vehicle_transport")
+  truckChoice           String?            @map("truck_choice")
+  vehicleTransportChoice String?           @map("vehicle_transport_choice")
   createdAt             DateTime           @default(now()) @map("created_at")
   updatedAt             DateTime           @updatedAt @map("updated_at")
   vehicles              Vehicle[]
@@ -110,6 +116,7 @@ model Move {
   documents             Document[]
   budgetItems           BudgetItem[]
   collaborators         MoveCollaborator[]
+  activities            MoveActivity[]
 
   @@index([userId])
   @@map("moves")
@@ -167,8 +174,9 @@ model Vehicle {
   make         String
   modelId      Int?   @map("model_id")
   model        String
-  trim         String?
-  displayLabel String @map("display_label")
+  trim           String?
+  displayLabel   String  @map("display_label")
+  needsTransport Boolean @default(false) @map("needs_transport")
 
   @@index([moveId])
   @@map("vehicles")
@@ -192,14 +200,16 @@ model InventoryBox {
 }
 
 model ChecklistTask {
-  id       String    @id @default(uuid())
-  moveId   String    @map("move_id")
-  move     Move      @relation(fields: [moveId], references: [id], onDelete: Cascade)
-  title    String
-  category String
-  status   String    @default("pending")
-  dueDate  DateTime? @map("due_date") @db.Date
-  priority String    @default("medium")
+  id             String    @id @default(uuid())
+  moveId         String    @map("move_id")
+  move           Move      @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  title          String
+  category       String
+  status         String    @default("pending")
+  dueDate        DateTime? @map("due_date") @db.Date
+  priority       String    @default("medium")
+  notes          String?
+  assigneeEmail  String?   @map("assignee_email")
 
   @@index([moveId])
   @@map("checklist_tasks")
@@ -217,7 +227,47 @@ model Document {
   mimeType   String?   @map("mime_type")
   sizeBytes  Int?      @map("size_bytes")
   uploadedAt DateTime? @map("uploaded_at")
+  expiresAt  DateTime? @map("expires_at")
 
   @@index([moveId])
   @@map("documents")
+}
+
+model NotificationRead {
+  id     String   @id @default(uuid())
+  userId String   @map("user_id")
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  readAt DateTime @default(now()) @map("read_at")
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("notification_reads")
+}
+
+model MoveActivity {
+  id        String   @id @default(uuid())
+  moveId    String   @map("move_id")
+  move      Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([moveId])
+  @@index([userId])
+  @@map("move_activities")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("chat_messages")
 }

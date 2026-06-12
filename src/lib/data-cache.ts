@@ -15,6 +15,8 @@ export interface UserDataPayload {
   destinationLon?: number;
   isAddressConfirmed: boolean;
   vehicles: VehicleInfo[];
+  truckChoice?: string | null;
+  vehicleTransportChoice?: string | null;
   inventory: InventoryBox[];
   checklist: ChecklistTask[];
   documents: (DocumentItem & { fileName?: string; hasFile?: boolean })[];

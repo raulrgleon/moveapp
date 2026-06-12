@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import { PageContainer } from "@/components/dashboard/page-container";
@@ -10,6 +11,7 @@ import { TableScroll } from "@/components/dashboard/table-scroll";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
-import { DollarSign, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
+import { AlertTriangle, DollarSign, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
 
 interface BudgetItemRow {
   id: string;
@@ -39,15 +41,24 @@ interface BudgetResponse {
 
 export default function BudgetPage() {
   const t = useT();
+  const { truckChoice } = useMove();
   const [data, setData] = useState<BudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [draftActuals, setDraftActuals] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await apiFetch("/api/budget");
-      setData((await res.json()) as BudgetResponse);
+      const json = (await res.json()) as BudgetResponse;
+      setData(json);
+      const drafts: Record<string, string> = {};
+      json.items.forEach((item) => {
+        drafts[item.id] = item.actual > 0 ? String(item.actual) : "";
+      });
+      setDraftActuals(drafts);
     } catch {
       setData({ items: [], totalEstimated: 0, totalActual: 0, notes: [] });
     } finally {
@@ -78,10 +89,29 @@ export default function BudgetPage() {
     }
   };
 
+  const saveActual = async (item: BudgetItemRow) => {
+    const raw = draftActuals[item.id] ?? "";
+    const actual = raw === "" ? 0 : Number(raw);
+    if (!Number.isFinite(actual) || actual < 0) return;
+
+    setSavingId(item.id);
+    try {
+      const res = await apiFetch("/api/budget", {
+        method: "PATCH",
+        body: JSON.stringify({ items: [{ id: item.id, actual }] }),
+      });
+      setData((await res.json()) as BudgetResponse);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const items = data?.items ?? [];
   const totalEstimated = data?.totalEstimated ?? 0;
   const totalActual = data?.totalActual ?? 0;
   const difference = totalEstimated - totalActual;
+  const isOverBudget = totalActual > totalEstimated && totalActual > 0;
+  const chartMax = Math.max(totalEstimated, totalActual, 1);
 
   return (
     <>
@@ -97,6 +127,24 @@ export default function BudgetPage() {
             </Button>
           }
         />
+
+        {isOverBudget && (
+          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+            <CardContent className="flex items-start gap-3 p-4">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-900 dark:text-amber-100">{t("budget.overBudgetBanner")}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {truckChoice && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 text-sm">
+              <span className="font-medium">{t("budget.truckChoice")}: </span>
+              <span className="text-muted-foreground">{truckChoice}</span>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
@@ -116,6 +164,52 @@ export default function BudgetPage() {
             icon={TrendingDown}
           />
         </div>
+
+        {items.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("budget.chartTitle")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {items.slice(0, 8).map((item) => {
+                const estPct = (item.estimated / chartMax) * 100;
+                const actPct = (item.actual / chartMax) * 100;
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span className="truncate pr-2">{item.category}</span>
+                      <span className="shrink-0">
+                        {formatCurrency(item.estimated)} / {formatCurrency(item.actual)}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 h-3 rounded overflow-hidden bg-muted/40">
+                      <div
+                        className="bg-primary/70 h-full rounded-sm"
+                        style={{ width: `${estPct}%` }}
+                        title={t("budget.chartEstimated")}
+                      />
+                      <div
+                        className="bg-amber-500/80 h-full rounded-sm"
+                        style={{ width: `${actPct}%` }}
+                        title={t("budget.chartActual")}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex gap-4 text-xs text-muted-foreground pt-2">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-sm bg-primary/70" />
+                  {t("budget.chartEstimated")}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-sm bg-amber-500/80" />
+                  {t("budget.chartActual")}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {data?.notes && data.notes.length > 0 && (
           <Card>
@@ -153,13 +247,36 @@ export default function BudgetPage() {
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => {
-                      const diff = item.estimated - item.actual;
+                      const actualVal = Number(draftActuals[item.id] ?? 0) || item.actual;
+                      const diff = item.estimated - actualVal;
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.category}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.estimated)}</TableCell>
                           <TableCell className="text-right">
-                            {item.actual > 0 ? formatCurrency(item.actual) : "—"}
+                            <div className="flex items-center justify-end gap-2">
+                              <Input
+                                type="number"
+                                min={0}
+                                className="w-24 h-8 text-right"
+                                value={draftActuals[item.id] ?? ""}
+                                onChange={(e) =>
+                                  setDraftActuals((prev) => ({
+                                    ...prev,
+                                    [item.id]: e.target.value,
+                                  }))
+                                }
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                disabled={savingId === item.id}
+                                onClick={() => saveActual(item)}
+                              >
+                                {savingId === item.id ? t("common.saving") : t("budget.saveActual")}
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right text-emerald-600">
                             {diff > 0 ? formatCurrency(diff) : "—"}

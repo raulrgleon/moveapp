@@ -71,6 +71,17 @@ export const UTILITY_CATEGORIES = [
   { id: "security", labelKey: "utilityCategories.security" },
 ] as const;
 
+export const DOCUMENT_CATEGORY_KEYS = [
+  "lease",
+  "insurance",
+  "identity",
+  "school",
+  "vehicle",
+  "pet",
+  "medical",
+  "other",
+] as const;
+
 export const CHECKLIST_CATEGORIES = [
   "Housing",
   "Utilities",

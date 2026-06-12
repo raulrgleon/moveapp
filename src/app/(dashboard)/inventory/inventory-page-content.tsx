@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Package, Plus, Search } from "lucide-react";
+import { Download, Package, Plus, Search } from "lucide-react";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -103,10 +103,18 @@ export function InventoryPageContent() {
           title={t("inventory.pageTitle")}
           description={t("inventory.pageDesc", { count: boxes.length })}
           action={
-            <Button onClick={() => setFormMode({ type: "add" })}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t("inventory.addBox")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <a href="/api/inventory/export.csv" download="inventory.csv">
+                  <Download className="mr-2 h-4 w-4" />
+                  {t("inventory.exportCsv")}
+                </a>
+              </Button>
+              <Button onClick={() => setFormMode({ type: "add" })}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("inventory.addBox")}
+              </Button>
+            </div>
           }
         />
 

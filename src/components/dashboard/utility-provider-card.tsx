@@ -1,4 +1,8 @@
-import { Check, ExternalLink, MapPinOff, Star, X } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Check, ExternalLink, Loader2, MapPinOff, Star, X } from "lucide-react";
+import { useT } from "@/contexts/locale-context";
 import type { DestinationUtilityProvider } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,9 +12,28 @@ import { cn } from "@/lib/utils";
 
 interface UtilityProviderCardProps {
   provider: DestinationUtilityProvider;
+  contracted?: boolean;
+  onContract?: (provider: DestinationUtilityProvider) => Promise<void>;
 }
 
-export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
+export function UtilityProviderCard({
+  provider,
+  contracted = false,
+  onContract,
+}: UtilityProviderCardProps) {
+  const t = useT();
+  const [contracting, setContracting] = useState(false);
+
+  const handleContract = async () => {
+    if (!onContract || contracted) return;
+    setContracting(true);
+    try {
+      await onContract(provider);
+    } finally {
+      setContracting(false);
+    }
+  };
+
   return (
     <Card
       className={cn(
@@ -24,10 +47,16 @@ export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-muted-foreground">
-                #{provider.rank} in {provider.categoryLabel}
+                {t("utilities.providerCard.rankIn", {
+                  rank: provider.rank,
+                  category: provider.categoryLabel,
+                })}
               </span>
               {provider.isBestPick && (
-                <Badge className="shrink-0">Best pick</Badge>
+                <Badge className="shrink-0">{t("utilities.providerCard.bestPick")}</Badge>
+              )}
+              {contracted && (
+                <Badge variant="success" className="shrink-0">{t("utilities.contracted")}</Badge>
               )}
             </div>
             <h3 className="mt-1 font-semibold text-base leading-tight break-words">
@@ -44,12 +73,12 @@ export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
           {provider.availableAtAddress ? (
             <Badge variant="success" className="gap-1">
               <Check className="h-3 w-3" />
-              Available at your address
+              {t("utilities.providerCard.available")}
             </Badge>
           ) : (
             <Badge variant="destructive" className="gap-1">
               <MapPinOff className="h-3 w-3" />
-              Not at your address
+              {t("utilities.providerCard.notAvailable")}
             </Badge>
           )}
           <Badge variant="outline">{provider.categoryLabel}</Badge>
@@ -66,7 +95,7 @@ export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
 
         {provider.speedOrCapacity && (
           <p className="text-sm">
-            <span className="font-medium">Speed / capacity:</span>{" "}
+            <span className="font-medium">{t("utilities.providerCard.speedCapacity")}</span>{" "}
             <span className="text-muted-foreground">{provider.speedOrCapacity}</span>
           </p>
         )}
@@ -75,7 +104,9 @@ export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1">Pros</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              {t("utilities.providerCard.pros")}
+            </p>
             <ul className="text-sm space-y-1">
               {provider.pros.map((p) => (
                 <li key={p} className="flex gap-1.5 text-emerald-700">
@@ -86,7 +117,9 @@ export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
             </ul>
           </div>
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1">Cons</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              {t("utilities.providerCard.cons")}
+            </p>
             <ul className="text-sm space-y-1">
               {provider.cons.map((c) => (
                 <li key={c} className="flex gap-1.5 text-muted-foreground">
@@ -101,27 +134,56 @@ export function UtilityProviderCard({ provider }: UtilityProviderCardProps) {
         {(provider.setupFee !== undefined || provider.contractMonths) && (
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border-t pt-3">
             {provider.setupFee !== undefined && (
-              <span>Setup: {provider.setupFee === 0 ? "Free" : formatCurrency(provider.setupFee)}</span>
+              <span>
+                {t("utilities.providerCard.setup")}{" "}
+                {provider.setupFee === 0
+                  ? t("utilities.providerCard.setupFree")
+                  : formatCurrency(provider.setupFee)}
+              </span>
             )}
             {provider.contractMonths && (
-              <span>Contract: {provider.contractMonths} months</span>
+              <span>
+                {t("utilities.providerCard.contract")}{" "}
+                {t("utilities.providerCard.contractMonths", {
+                  months: provider.contractMonths,
+                })}
+              </span>
             )}
           </div>
         )}
       </CardContent>
 
       <CardFooter className="flex-col sm:flex-row gap-2">
-        <Button
-          className="w-full sm:w-auto"
-          disabled={!provider.availableAtAddress}
-          variant={provider.isBestPick ? "default" : "outline"}
-        >
-          Set up service
-          <ExternalLink className="ml-2 h-4 w-4" />
-        </Button>
-        {provider.isBestPick && provider.availableAtAddress && (
-          <Button variant="ghost" className="w-full sm:w-auto text-primary">
-            Recommended for you
+        {provider.websiteUrl && (
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
+            <a href={provider.websiteUrl} target="_blank" rel="noreferrer">
+              {t("utilities.visitWebsite")}
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        )}
+        {onContract && (
+          <Button
+            className="w-full sm:w-auto"
+            variant={contracted ? "secondary" : provider.isBestPick ? "default" : "outline"}
+            disabled={!provider.availableAtAddress || contracted || contracting}
+            onClick={() => void handleContract()}
+          >
+            {contracting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {contracted ? t("utilities.contracted") : t("utilities.markContracted")}
+          </Button>
+        )}
+        {!onContract && provider.websiteUrl && (
+          <Button
+            className="w-full sm:w-auto"
+            disabled={!provider.availableAtAddress}
+            variant={provider.isBestPick ? "default" : "outline"}
+            asChild
+          >
+            <a href={provider.websiteUrl} target="_blank" rel="noreferrer">
+              {t("utilities.providerCard.setUpService")}
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
           </Button>
         )}
       </CardFooter>

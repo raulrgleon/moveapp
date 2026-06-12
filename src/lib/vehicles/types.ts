@@ -17,6 +17,7 @@ export interface VehicleInfo {
   model: string;
   trim?: string;
   displayLabel: string;
+  needsTransport?: boolean;
 }
 
 export function createVehicleId(): string {
@@ -35,6 +36,7 @@ export function createEmptyVehicle(): VehicleInfo {
     modelId: 0,
     model: "",
     displayLabel: "",
+    needsTransport: false,
   };
 }
 

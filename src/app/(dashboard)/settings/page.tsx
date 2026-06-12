@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/select";
 import { ShareMoveCard } from "@/components/settings/share-move-card";
 import { ReminderPreferencesCard } from "@/components/settings/reminder-preferences-card";
+import { ChangePasswordCard } from "@/components/settings/change-password-card";
+import { ActiveMoveSwitcher } from "@/components/settings/active-move-switcher";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { Separator } from "@/components/ui/separator";
 import { parseHouseholdCounts } from "@/lib/move/household";
@@ -314,6 +316,10 @@ export default function SettingsPage() {
         </Card>
 
         <Separator />
+
+        <ChangePasswordCard />
+
+        <ActiveMoveSwitcher />
 
         {moveRole !== "owner" && (
           <p className="text-sm text-muted-foreground">

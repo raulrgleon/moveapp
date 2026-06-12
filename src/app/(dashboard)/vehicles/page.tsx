@@ -2,6 +2,7 @@
 
 import {
   Car,
+  ExternalLink,
   Fuel,
   Package,
   Sparkles,
@@ -14,10 +15,15 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMove } from "@/contexts/move-context";
-import { VEHICLE_OPTIONS } from "@/lib/mock-data";
+import { useRouteStats } from "@/hooks/use-route-stats";
 import { getMultiVehicleSummary } from "@/lib/vehicles/recommendations";
+import {
+  buildUshipSearchUrl,
+  estimateVehicleTransportOptions,
+} from "@/lib/vehicles/transport-options";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +37,20 @@ const OPTION_ICONS: Record<string, typeof Car> = {
 export default function VehiclesPage() {
   const t = useT();
   const { locale } = useLocale();
-  const { vehicles, setVehicles, vehicle } = useMove();
-  const recommended = VEHICLE_OPTIONS.find((o) => o.recommended);
+  const {
+    profile,
+    vehicles,
+    setVehicles,
+    vehicle,
+    vehicleTransportChoice,
+    setVehicleTransportChoice,
+  } = useMove();
+  const { stats } = useRouteStats();
+  const miles = stats?.distanceMiles ?? 800;
+  const transportOptions = estimateVehicleTransportOptions(miles, vehicles.length);
+  const recommended = transportOptions.find((o) => o.recommended);
+  const otherOptions = transportOptions.filter((o) => !o.recommended);
+  const ushipUrl = buildUshipSearchUrl(profile.origin, profile.destination);
 
   const optionTitles: Record<string, string> = {
     "1": t("vehicles.driveOwn"),
@@ -40,8 +58,6 @@ export default function VehiclesPage() {
     "3": t("vehicles.shipVehicle"),
     "4": t("vehicles.towDolly"),
   };
-
-  const otherOptions = VEHICLE_OPTIONS.filter((o) => !o.recommended);
 
   return (
     <>
@@ -52,6 +68,15 @@ export default function VehiclesPage() {
           description={getMultiVehicleSummary(vehicles, locale)}
         />
 
+        {vehicleTransportChoice && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 text-sm">
+              <span className="font-medium">{t("vehicles.selectedTransport")}: </span>
+              <span className="text-muted-foreground">{vehicleTransportChoice}</span>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="sm:col-span-1">
             <CardContent className="flex items-center gap-3 p-4">
@@ -61,7 +86,7 @@ export default function VehiclesPage() {
               <div>
                 <p className="text-xs text-muted-foreground">{t("vehicles.fleetCount", { count: vehicles.length })}</p>
                 <p className="text-sm font-semibold truncate max-w-[12rem]">
-                  {vehicle.displayLabel}
+                  {vehicle.displayLabel || t("onboarding.noVehicleSelected")}
                 </p>
               </div>
             </CardContent>
@@ -103,14 +128,23 @@ export default function VehiclesPage() {
               onChange={setVehicles}
               showTips
               variant="fleet"
+              showTransportCheckbox
             />
           </CardContent>
         </Card>
 
         <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">{t("vehicles.transportTitle")}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t("vehicles.transportDesc")}</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">{t("vehicles.transportTitle")}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{t("vehicles.transportDesc")}</p>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <a href={ushipUrl} target="_blank" rel="noopener noreferrer">
+                {t("vehicles.getQuote")}
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </a>
+            </Button>
           </div>
 
           {recommended && (
@@ -127,7 +161,7 @@ export default function VehiclesPage() {
                           {optionTitles[recommended.id]}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-0.5">
-                          {t("vehicles.driveOptionDesc", { vehicle: vehicle.displayLabel })}
+                          {t("vehicles.driveOptionDesc", { vehicle: vehicle.displayLabel || t("onboarding.noVehicleSelected") })}
                         </p>
                       </div>
                     </div>
@@ -158,6 +192,15 @@ export default function VehiclesPage() {
                       </div>
                     )}
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVehicleTransportChoice(optionTitles[recommended.id])}
+                  >
+                    {vehicleTransportChoice === optionTitles[recommended.id]
+                      ? t("vehicles.savedTransportChoice")
+                      : t("vehicles.saveTransportChoice")}
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -166,6 +209,9 @@ export default function VehiclesPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {otherOptions.map((option) => {
               const Icon = OPTION_ICONS[option.id] ?? Car;
+              const title = optionTitles[option.id] ?? option.title;
+              const isSaved = vehicleTransportChoice === title;
+
               return (
                 <Card
                   key={option.id}
@@ -176,15 +222,11 @@ export default function VehiclesPage() {
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                         <Icon className="h-4 w-4 text-primary" />
                       </div>
-                      <CardTitle className="text-base leading-snug">
-                        {optionTitles[option.id] ?? option.title}
-                      </CardTitle>
+                      <CardTitle className="text-base leading-snug">{title}</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col gap-4">
-                    <p className="text-sm text-muted-foreground flex-1">
-                      {option.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground flex-1">{option.description}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3">
                       <div>
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -209,6 +251,13 @@ export default function VehiclesPage() {
                         </div>
                       )}
                     </div>
+                    <Button
+                      variant={isSaved ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => setVehicleTransportChoice(title)}
+                    >
+                      {isSaved ? t("vehicles.savedTransportChoice") : t("vehicles.saveTransportChoice")}
+                    </Button>
                   </CardContent>
                 </Card>
               );
@@ -225,8 +274,8 @@ export default function VehiclesPage() {
               <span className="font-semibold shrink-0">{t("vehicles.driveTrailer")}</span>
               <span className="text-muted-foreground">
                 {t("vehicles.driveTrailerDesc", {
-                  make: vehicle.make,
-                  model: vehicle.model,
+                  make: vehicle.make || "—",
+                  model: vehicle.model || "—",
                 })}
               </span>
             </p>

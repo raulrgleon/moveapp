@@ -48,7 +48,7 @@ export function InventoryBoxForm({
   );
   const [photoError, setPhotoError] = useState<string | null>(null);
 
-  const handlePhoto = (file: File | undefined) => {
+  const handlePhoto = async (file: File | undefined) => {
     setPhotoError(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -59,10 +59,53 @@ export function InventoryBoxForm({
       setPhotoError(t("inventory.photoSizeError"));
       return;
     }
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/inventory/photo", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { photoUrl: string };
+        setPhotoUrl(data.photoUrl);
+        return;
+      }
+    } catch {
+      /* fallback to base64 */
+    }
+
+    try {
+      const res = await fetch("/api/inventory/photo", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataUrl: await readAsDataUrl(file) }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { photoUrl: string };
+        setPhotoUrl(data.photoUrl);
+        return;
+      }
+    } catch {
+      /* final fallback: inline base64 */
+    }
+
     const reader = new FileReader();
     reader.onload = () => setPhotoUrl(reader.result as string);
     reader.readAsDataURL(file);
   };
+
+  function readAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +170,7 @@ export function InventoryBoxForm({
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => handlePhoto(e.target.files?.[0])}
+          onChange={(e) => void handlePhoto(e.target.files?.[0])}
         />
         {photoUrl ? (
           <div className="relative overflow-hidden rounded-lg border">

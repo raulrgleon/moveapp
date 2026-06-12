@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         id: task.id,
         title: task.title,
         subtitle: task.category,
-        href: "/checklist",
+        href: `/checklist?task=${task.id}`,
       });
     }
   }
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         id: box.id,
         title: `Box #${box.boxNumber}`,
         subtitle: `${box.room} — ${box.contents}`,
-        href: "/inventory",
+        href: `/inventory?box=${box.boxNumber}`,
       });
     }
   }

@@ -20,6 +20,8 @@ interface MovingPlanContextValue {
   priorityTasks: ChecklistTask[];
   isHydrated: boolean;
   exportPlan: () => void;
+  exportIcal: () => void;
+  exportPdf: () => void;
 }
 
 const MovingPlanContext = createContext<MovingPlanContextValue | null>(null);
@@ -54,9 +56,17 @@ export function MovingPlanProvider({ children }: { children: React.ReactNode }) 
     URL.revokeObjectURL(url);
   }, [weeks, tasks, profile]);
 
+  const exportIcal = useCallback(() => {
+    window.location.href = "/api/move/plan.ics";
+  }, []);
+
+  const exportPdf = useCallback(() => {
+    window.print();
+  }, []);
+
   const value = useMemo(
-    () => ({ weeks, priorityTasks, isHydrated, exportPlan }),
-    [weeks, priorityTasks, isHydrated, exportPlan]
+    () => ({ weeks, priorityTasks, isHydrated, exportPlan, exportIcal, exportPdf }),
+    [weeks, priorityTasks, isHydrated, exportPlan, exportIcal, exportPdf]
   );
 
   return (

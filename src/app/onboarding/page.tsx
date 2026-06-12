@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -70,6 +71,7 @@ export default function OnboardingPage() {
   const [accountEmail, setAccountEmail] = useState(profile.email);
   const [accountPassword, setAccountPassword] = useState("");
   const [accountError, setAccountError] = useState("");
+  const [moveDateError, setMoveDateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const household = formatHousehold(adults, children);
@@ -81,7 +83,11 @@ export default function OnboardingPage() {
     { id: 2, title: t("onboarding.stepHousehold") },
     { id: 3, title: t("onboarding.stepVehicles") },
     { id: 4, title: t("onboarding.stepBudget") },
+    { id: 5, title: t("onboarding.stepSummary") },
+    { id: 6, title: t("onboarding.stepAccount") },
   ];
+
+  const progressPercent = Math.round((step / STEPS.length) * 100);
 
   const vehiclePreview =
     vehicles.length === 0
@@ -109,6 +115,14 @@ export default function OnboardingPage() {
   };
 
   const handleNext = async () => {
+    if (step === 1) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (moveDate < today) {
+        setMoveDateError(t("onboarding.moveDatePast"));
+        return;
+      }
+      setMoveDateError("");
+    }
     await saveStepData();
     setStep((s) => Math.min(STEPS.length, s + 1));
   };
@@ -179,7 +193,14 @@ export default function OnboardingPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-6 sm:py-12 sm:px-6 pb-8">
-        <div className="mb-8">
+        <div className="mb-8 space-y-4">
+          <div>
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-muted-foreground">{t("onboarding.progressLabel")}</span>
+              <span className="font-medium">{progressPercent}%</span>
+            </div>
+            <Progress value={progressPercent} className="h-2" />
+          </div>
           <div className="overflow-x-auto pb-2 -mx-1 px-1">
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
               {STEPS.map((s, i) => (
@@ -265,8 +286,14 @@ export default function OnboardingPage() {
                 <MoveDatePicker
                   label={t("onboarding.moveDate")}
                   value={moveDate}
-                  onChange={setMoveDate}
+                  onChange={(v) => {
+                    setMoveDate(v);
+                    setMoveDateError("");
+                  }}
                 />
+                {moveDateError && (
+                  <p className="text-sm text-destructive">{moveDateError}</p>
+                )}
               </>
             )}
 
@@ -360,17 +387,56 @@ export default function OnboardingPage() {
                     {t("onboarding.needHousing")}
                   </Label>
                 </div>
-                <div className="rounded-lg bg-accent/50 p-4 text-sm">
-                  <p className="font-medium text-accent-foreground">{t("onboarding.planPreview")}</p>
-                  <p className="mt-2 text-muted-foreground">
-                    {origin} → {destination} · {formatDate(moveDate, locale)} ·{" "}
+              </>
+            )}
+
+            {step === 5 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">{t("onboarding.summaryDesc")}</p>
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
+                  <p>
+                    <span className="font-medium">{t("onboarding.origin")}:</span> {origin}
+                  </p>
+                  <p>
+                    <span className="font-medium">{t("onboarding.destination")}:</span> {destination}
+                  </p>
+                  {isAddressConfirmed && (
+                    <p>
+                      <span className="font-medium">{t("onboarding.newAddress")}:</span>{" "}
+                      {destinationAddress}
+                    </p>
+                  )}
+                  <p>
+                    <span className="font-medium">{t("onboarding.moveDate")}:</span>{" "}
+                    {formatDate(moveDate, locale)}
+                  </p>
+                  <p>
+                    <span className="font-medium">{t("onboarding.household")}:</span>{" "}
+                    {householdWithPets(previewProfile)}
+                  </p>
+                  <p>
+                    <span className="font-medium">{t("onboarding.yourVehicles")}:</span> {vehiclePreview}
+                  </p>
+                  <p>
+                    <span className="font-medium">{t("onboarding.rentalPreference")}:</span>{" "}
+                    {rentalPreferenceFromKey(rentalKey)}
+                  </p>
+                  <p>
+                    <span className="font-medium">{t("onboarding.estimatedBudget")}:</span>{" "}
                     {formatCurrency(Number(budget) || profile.budget, locale)}
                   </p>
-                  <p className="mt-1 text-muted-foreground">
-                    {householdWithPets(previewProfile)} · {vehiclePreview}
-                  </p>
+                  {needsHousingHelp && (
+                    <p className="text-muted-foreground">{t("onboarding.needHousing")}</p>
+                  )}
+                  {needsVehicleTransport && (
+                    <p className="text-muted-foreground">{t("onboarding.needTransport")}</p>
+                  )}
                 </div>
-                <Separator />
+              </div>
+            )}
+
+            {step === 6 && (
+              <>
                 <p className="font-medium text-sm">{t("onboarding.createAccount")}</p>
                 <div className="space-y-2">
                   <Label htmlFor="accountName">{t("settings.fullName")}</Label>
@@ -405,6 +471,10 @@ export default function OnboardingPage() {
                   />
                 </div>
                 {accountError && <p className="text-sm text-destructive">{accountError}</p>}
+                <Separator />
+                <Button variant="outline" className="w-full" asChild>
+                  <a href="/api/auth/google">{t("onboarding.continueWithGoogle")}</a>
+                </Button>
               </>
             )}
 

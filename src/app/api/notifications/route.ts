@@ -39,6 +39,15 @@ export async function GET(req: NextRequest) {
     take: 3,
   });
 
+  const readKeys = new Set(
+    (
+      await prisma.notificationRead.findMany({
+        where: { userId: result.user.id },
+        select: { key: true },
+      })
+    ).map((r) => r.key)
+  );
+
   const notifications = [
     ...((move?.checklistTasks ?? []).map((t) => ({
       id: `task-${t.id}`,
@@ -47,8 +56,9 @@ export async function GET(req: NextRequest) {
       message: t.dueDate
         ? `Due ${t.dueDate.toISOString().slice(0, 10)}`
         : "Due soon",
-      href: "/checklist",
+      href: `/checklist?task=${t.id}`,
       createdAt: t.dueDate?.toISOString() ?? now.toISOString(),
+      read: readKeys.has(`task-${t.id}`),
     })) ?? []),
     ...(pendingInvites.map((c) => ({
       id: `invite-${c.id}`,
@@ -57,6 +67,7 @@ export async function GET(req: NextRequest) {
       message: `${c.email} has not accepted yet`,
       href: "/settings",
       createdAt: c.createdAt.toISOString(),
+      read: readKeys.has(`invite-${c.id}`),
     })) ?? []),
     ...(recentReminders.map((r) => ({
       id: `reminder-${r.id}`,
@@ -65,11 +76,14 @@ export async function GET(req: NextRequest) {
       message: r.sentAt.toISOString().slice(0, 16).replace("T", " "),
       href: "/checklist",
       createdAt: r.sentAt.toISOString(),
+      read: readKeys.has(`reminder-${r.id}`),
     })) ?? []),
   ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return NextResponse.json({
-    unreadCount: notifications.length,
+    unreadCount,
     notifications: notifications.slice(0, 15),
     moveRole: result.access.role,
     ownerName: result.access.ownerName,

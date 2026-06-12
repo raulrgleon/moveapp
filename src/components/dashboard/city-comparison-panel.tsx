@@ -39,10 +39,15 @@ function TrendBadge({ trend, destinationLabel }: { trend: HousingTrend; destinat
   return <Badge variant="secondary">{t("cityComparison.similar")}</Badge>;
 }
 
+function extractZip(text: string): string | undefined {
+  const match = text.match(/\b(\d{5})\b/);
+  return match?.[1];
+}
+
 export function CityComparisonPanel() {
   const t = useT();
   const { locale } = useLocale();
-  const { profile } = useMove();
+  const { profile, destinationAddress, destinationPostcode } = useMove();
   const [data, setData] = useState<HousingMarketResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -58,6 +63,14 @@ export function CityComparisonPanel() {
           origin: profile.origin,
           destination: profile.destination,
         });
+        const destZip =
+          destinationPostcode?.match(/\d{5}/)?.[0] ??
+          extractZip(destinationAddress) ??
+          extractZip(profile.destination);
+        const originZip = extractZip(profile.origin);
+        if (destZip) params.set("destZip", destZip);
+        if (originZip) params.set("originZip", originZip);
+
         const res = await fetch(`/api/housing-market?${params.toString()}`);
         if (!res.ok) throw new Error("housing failed");
         const json = (await res.json()) as HousingMarketResponse;
@@ -73,7 +86,7 @@ export function CityComparisonPanel() {
     return () => {
       cancelled = true;
     };
-  }, [profile.origin, profile.destination]);
+  }, [profile.origin, profile.destination, destinationAddress, destinationPostcode]);
 
   if (loading) {
     return (
@@ -91,7 +104,11 @@ export function CityComparisonPanel() {
       <Card className="border-amber-200 bg-amber-50/50">
         <CardContent className="p-4">
           <p className="font-medium text-sm">{t("cityComparison.unavailable")}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t("cityComparison.unavailableHint")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {data?.rentcastMissing
+              ? t("cityComparison.rentcastMissing")
+              : t("cityComparison.unavailableHint")}
+          </p>
         </CardContent>
       </Card>
     );
@@ -101,6 +118,13 @@ export function CityComparisonPanel() {
 
   return (
     <div className="space-y-4">
+      {data.source === "fallback" && (
+        <p className="text-xs text-muted-foreground">{t("cityComparison.fallbackNote")}</p>
+      )}
+      {data.rentcastMissing && data.source !== "fallback" && (
+        <p className="text-xs text-muted-foreground">{t("cityComparison.rentcastMissing")}</p>
+      )}
+
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">

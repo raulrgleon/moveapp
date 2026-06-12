@@ -84,3 +84,26 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export async function PATCH(req: NextRequest) {
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+  if (!canManageCollaborators(result.access.role)) {
+    return NextResponse.json({ error: "Only the move owner can update collaborators" }, { status: 403 });
+  }
+
+  const { id, role } = (await req.json()) as { id?: string; role?: string };
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const nextRole = role === "viewer" ? "viewer" : "editor";
+  const updated = await prisma.moveCollaborator.updateMany({
+    where: { id, moveId: result.access.moveId },
+    data: { role: nextRole },
+  });
+
+  if (updated.count === 0) {
+    return NextResponse.json({ error: "Collaborator not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true, role: nextRole });
+}

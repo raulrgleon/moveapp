@@ -54,6 +54,7 @@ interface MoveContextValue {
   destination: string;
   lat?: number;
   lon?: number;
+  destinationPostcode?: string;
   isAddressConfirmed: boolean;
   vehicles: VehicleInfo[];
   vehicle: VehicleInfo;
@@ -63,6 +64,10 @@ interface MoveContextValue {
   ownerName: string;
   canEdit: boolean;
   canEditProfile: boolean;
+  truckChoice: string | null;
+  vehicleTransportChoice: string | null;
+  setTruckChoice: (choice: string | null) => void;
+  setVehicleTransportChoice: (choice: string | null) => void;
   confirmAddress: (suggestion: AddressSuggestion) => void;
   clearAddress: () => void;
   setVehicles: (vehicles: VehicleInfo[]) => void;
@@ -74,6 +79,7 @@ interface MoveContextValue {
     destination: string;
     lat?: number;
     lon?: number;
+    destinationPostcode?: string;
     isAddressConfirmed: boolean;
     vehicles: VehicleInfo[];
     vehicle: VehicleInfo;
@@ -114,6 +120,8 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   const [ownerName, setOwnerName] = useState("");
   const [canEdit, setCanEdit] = useState(true);
   const [canEditProfile, setCanEditProfile] = useState(true);
+  const [truckChoice, setTruckChoiceState] = useState<string | null>(null);
+  const [vehicleTransportChoice, setVehicleTransportChoiceState] = useState<string | null>(null);
 
   const bumpProfileVersion = useCallback(() => {
     setProfileVersion((v) => v + 1);
@@ -128,6 +136,8 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       destinationLon?: number;
       destinationLabel?: string;
       vehicles?: VehicleInfo[];
+      truckChoice?: string | null;
+      vehicleTransportChoice?: string | null;
     }) => {
       if (!isAuthenticated || !user?.email || !canEditProfile) return;
       await apiFetch("/api/move", {
@@ -153,6 +163,8 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
           setCanEdit(data.canEdit ?? true);
           setCanEditProfile(data.canEditProfile ?? true);
           setVehiclesState(data.vehicles.length ? data.vehicles : []);
+          setTruckChoiceState(data.truckChoice ?? null);
+          setVehicleTransportChoiceState(data.vehicleTransportChoice ?? null);
           if (data.isAddressConfirmed && data.destinationAddress) {
             setConfirmed({
               displayName: data.destinationAddress,
@@ -220,6 +232,22 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     [setVehicles]
   );
 
+  const setTruckChoice = useCallback(
+    (choice: string | null) => {
+      setTruckChoiceState(choice);
+      void syncToDb({ truckChoice: choice });
+    },
+    [syncToDb]
+  );
+
+  const setVehicleTransportChoice = useCallback(
+    (choice: string | null) => {
+      setVehicleTransportChoiceState(choice);
+      void syncToDb({ vehicleTransportChoice: choice });
+    },
+    [syncToDb]
+  );
+
   const updateProfile = useCallback(
     async (patch: Partial<MoveProfile>, geocode = true) => {
       const next = { ...profile, ...patch };
@@ -260,6 +288,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       destination,
       lat: confirmed?.lat,
       lon: confirmed?.lon,
+      destinationPostcode: confirmed?.postcode,
       isAddressConfirmed: Boolean(confirmed),
       vehicles,
       vehicle: primaryVehicle,
@@ -269,6 +298,10 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       ownerName,
       canEdit,
       canEditProfile,
+      truckChoice,
+      vehicleTransportChoice,
+      setTruckChoice,
+      setVehicleTransportChoice,
       confirmAddress,
       clearAddress,
       setVehicles,
@@ -280,6 +313,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
         destination,
         lat: confirmed?.lat,
         lon: confirmed?.lon,
+        destinationPostcode: confirmed?.postcode,
         isAddressConfirmed: Boolean(confirmed),
         vehicles,
         vehicle: primaryVehicle,
@@ -295,6 +329,10 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     ownerName,
     canEdit,
     canEditProfile,
+    truckChoice,
+    vehicleTransportChoice,
+    setTruckChoice,
+    setVehicleTransportChoice,
     confirmAddress,
     clearAddress,
     setVehicles,

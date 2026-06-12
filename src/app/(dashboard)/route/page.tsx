@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Fuel, Hotel, Loader2, MapPin, PawPrint, Route as RouteIcon } from "lucide-react";
+import { ExternalLink, Fuel, Hotel, Loader2, MapPin, PawPrint, Route as RouteIcon } from "lucide-react";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
@@ -10,18 +10,24 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouteStats } from "@/hooks/use-route-stats";
+
+function RouteMapLoader() {
+  const t = useT();
+  return (
+    <div className="min-h-[280px] sm:min-h-[360px] rounded-xl border bg-muted/30 flex items-center justify-center">
+      <p className="text-sm text-muted-foreground">{t("routePage.loadingMap")}</p>
+    </div>
+  );
+}
 
 const RouteMap = dynamic(
   () => import("@/components/dashboard/route-map-wrapper").then((m) => m.RouteMapWrapper),
   {
     ssr: false,
-    loading: () => (
-      <div className="min-h-[280px] sm:min-h-[360px] rounded-xl border bg-muted/30 flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading map…</p>
-      </div>
-    ),
+    loading: () => <RouteMapLoader />,
   }
 );
 
@@ -32,13 +38,33 @@ const stopIcons = {
   pet_hotel: PawPrint,
 };
 
+function buildGoogleMapsUrl(
+  originLat?: number,
+  originLon?: number,
+  destLat?: number,
+  destLon?: number
+): string | null {
+  if (originLat == null || originLon == null || destLat == null || destLon == null) return null;
+  return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLon}&destination=${destLat},${destLon}`;
+}
+
+function buildAppleMapsUrl(
+  originLat?: number,
+  originLon?: number,
+  destLat?: number,
+  destLon?: number
+): string | null {
+  if (originLat == null || originLon == null || destLat == null || destLon == null) return null;
+  return `https://maps.apple.com/?saddr=${originLat},${originLon}&daddr=${destLat},${destLon}`;
+}
+
 export default function RoutePage() {
   const t = useT();
   const { profile } = useMove();
   const { stats, loading } = useRouteStats();
 
   const distanceLabel = stats
-    ? `${stats.distanceMiles.toLocaleString()} miles`
+    ? `${stats.distanceMiles.toLocaleString()} ${t("routePage.miles")}`
     : loading
       ? "…"
       : "—";
@@ -48,6 +74,19 @@ export default function RoutePage() {
     stats && stats.durationHours > 10
       ? t("routePage.multiDayRoute")
       : t("routePage.twoDayRoute");
+
+  const googleUrl = buildGoogleMapsUrl(
+    profile.originLat,
+    profile.originLon,
+    profile.destinationLat,
+    profile.destinationLon
+  );
+  const appleUrl = buildAppleMapsUrl(
+    profile.originLat,
+    profile.originLon,
+    profile.destinationLat,
+    profile.destinationLon
+  );
 
   return (
     <>
@@ -59,6 +98,28 @@ export default function RoutePage() {
             origin: profile.origin,
             destination: profile.destination,
           })}
+          action={
+            googleUrl || appleUrl ? (
+              <div className="flex flex-wrap gap-2">
+                {googleUrl && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={googleUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {t("routePage.openGoogleMaps")}
+                    </a>
+                  </Button>
+                )}
+                {appleUrl && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={appleUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {t("routePage.openAppleMaps")}
+                    </a>
+                  </Button>
+                )}
+              </div>
+            ) : undefined
+          }
         />
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,7 +137,7 @@ export default function RoutePage() {
           <StatCard
             label={t("routePage.recommendedStops")}
             value={`${stopCount}`}
-            subtext="Gas, hotels, rest"
+            subtext={t("routePage.stopsSubtext")}
             icon={MapPin}
           />
         </div>

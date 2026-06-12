@@ -66,6 +66,7 @@ export default function UtilitiesPage() {
   const [utilityNote, setUtilityNote] = useState("");
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [contractedIds, setContractedIds] = useState<Set<string>>(new Set());
   const {
     isAddressConfirmed,
     isHydrated,
@@ -76,6 +77,7 @@ export default function UtilitiesPage() {
     confirmAddress,
     clearAddress,
     canEditProfile,
+    canEdit,
   } = useMove();
 
   useEffect(() => {
@@ -202,10 +204,9 @@ export default function UtilitiesPage() {
               <div className="rounded-full bg-muted p-4 mb-4">
                 <Lock className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold text-lg">Utilities locked</h3>
+              <h3 className="font-semibold text-lg">{t("utilities.lockedTitle")}</h3>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Enter and confirm your new home address above to see ranked utility
-                providers, pricing, and availability for your exact location.
+                {t("utilities.lockedDesc")}
               </p>
             </CardContent>
           </Card>
@@ -231,7 +232,7 @@ export default function UtilitiesPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-muted-foreground">
-                        Confirmed address
+                        {t("utilities.confirmedAddress")}
                       </p>
                       <p className="mt-1 text-base sm:text-lg font-semibold break-words">
                         {destinationAddress}
@@ -249,7 +250,7 @@ export default function UtilitiesPage() {
                       </p>
                     </div>
                     <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-[120px]">
-                      <p className="text-xs text-muted-foreground">Best picks</p>
+                      <p className="text-xs text-muted-foreground">{t("utilities.bestPicks")}</p>
                       <p className="text-xl font-bold">{bestPicks.length}</p>
                     </div>
                   </div>
@@ -319,13 +320,33 @@ export default function UtilitiesPage() {
 
             <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-2">
               {filtered.map((provider) => (
-                <UtilityProviderCard key={provider.id} provider={provider} />
+                <UtilityProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  contracted={contractedIds.has(provider.id)}
+                  onContract={
+                    canEdit
+                      ? async (p) => {
+                          await fetch("/api/utilities/contract", {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              providerName: p.name,
+                              category: p.categoryLabel,
+                            }),
+                          });
+                          setContractedIds((prev) => new Set(prev).add(p.id));
+                        }
+                      : undefined
+                  }
+                />
               ))}
             </div>
 
             {filtered.length === 0 && (
               <p className="text-center text-muted-foreground py-12">
-                No providers found for this category.
+                {t("utilities.noProviders")}
               </p>
             )}
           </>

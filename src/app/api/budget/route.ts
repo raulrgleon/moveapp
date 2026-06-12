@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { estimateBudget } from "@/lib/budget/estimator";
+import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
 import type { MoveProfile } from "@/lib/move-profile";
 
@@ -126,6 +127,7 @@ export async function PATCH(req: NextRequest) {
         });
       }
     }
+    await logMoveActivity(move.id, result.user.id, "budget_updated");
   }
 
   return GET(req);

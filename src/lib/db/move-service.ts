@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { logMoveActivity } from "@/lib/db/activity";
+import type { Locale } from "@/lib/i18n";
 import {
   canEditMoveData,
   getMoveForUser,
@@ -68,12 +70,25 @@ export async function loginOrCreateUser(email: string, name: string, password: s
   return { user, moveId: move.id };
 }
 
+function userLocale(locale: string | null | undefined): Locale {
+  return locale === "es" ? "es" : "en";
+}
+
+async function getUserLocale(userId: string): Promise<Locale> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { locale: true },
+  });
+  return userLocale(user?.locale);
+}
+
 export async function buildMoveDataFromProfile(
   profile: MoveProfile,
-  vehicles: VehicleInfo[] = []
+  vehicles: VehicleInfo[] = [],
+  locale: Locale = "en"
 ) {
-  const checklist = generateChecklistFromProfile(profile);
-  const documents = generateStarterDocuments(profile);
+  const checklist = generateChecklistFromProfile(profile, locale);
+  const documents = generateStarterDocuments(profile, locale);
   const budget = estimateBudget(profile);
 
   return {
@@ -224,24 +239,36 @@ function profileChangeRequiresChecklistSync(p: Partial<MoveProfile>): boolean {
   );
 }
 
-export async function syncChecklistFromProfile(moveId: string, profile: MoveProfile) {
+export async function syncChecklistFromProfile(
+  moveId: string,
+  profile: MoveProfile,
+  locale: Locale = "en"
+) {
   const existing = await prisma.checklistTask.findMany({ where: { moveId } });
   const completedByTitle = new Map(
     existing.filter((t) => t.status === "completed").map((t) => [t.title, t.status])
   );
-  const fresh = generateChecklistFromProfile(profile);
+  const notesByTitle = new Map(
+    existing.filter((t) => t.notes).map((t) => [t.title, { notes: t.notes, assigneeEmail: t.assigneeEmail }])
+  );
+  const fresh = generateChecklistFromProfile(profile, locale);
 
   await prisma.checklistTask.deleteMany({ where: { moveId } });
   if (fresh.length > 0) {
     await prisma.checklistTask.createMany({
-      data: fresh.map((t) => ({
-        moveId,
-        title: t.title,
-        category: t.category,
-        status: completedByTitle.has(t.title) ? "completed" : t.status,
-        dueDate: t.dueDate ? new Date(t.dueDate) : null,
-        priority: t.priority,
-      })),
+      data: fresh.map((t) => {
+        const extra = notesByTitle.get(t.title);
+        return {
+          moveId,
+          title: t.title,
+          category: t.category,
+          status: completedByTitle.has(t.title) ? "completed" : t.status,
+          dueDate: t.dueDate ? new Date(t.dueDate) : null,
+          priority: t.priority,
+          notes: extra?.notes ?? null,
+          assigneeEmail: extra?.assigneeEmail ?? null,
+        };
+      }),
     });
   }
 }
@@ -292,6 +319,8 @@ export async function getUserDataByUserId(userId: string) {
     destinationLon: move.destinationLon ?? undefined,
     isAddressConfirmed: Boolean(move.destinationAddress),
     vehicles: move.vehicles.map(dbToVehicle),
+    truckChoice: move.truckChoice ?? null,
+    vehicleTransportChoice: move.vehicleTransportChoice ?? null,
     inventory: move.inventoryBoxes.map(dbToInventory),
     checklist: move.checklistTasks.map(dbToChecklist),
     documents: move.documents.map(dbToDocument),
@@ -370,6 +399,7 @@ function dbToVehicle(v: {
   model: string;
   trim: string | null;
   displayLabel: string;
+  needsTransport?: boolean;
 }): VehicleInfo {
   return {
     id: v.id,
@@ -380,6 +410,7 @@ function dbToVehicle(v: {
     model: v.model,
     trim: v.trim ?? undefined,
     displayLabel: v.displayLabel,
+    needsTransport: v.needsTransport ?? false,
   };
 }
 
@@ -414,6 +445,8 @@ function dbToChecklist(t: {
   status: string;
   dueDate: Date | null;
   priority: string;
+  notes?: string | null;
+  assigneeEmail?: string | null;
 }): ChecklistTask {
   return {
     id: t.id,
@@ -422,6 +455,8 @@ function dbToChecklist(t: {
     status: t.status as ChecklistTask["status"],
     dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : "",
     priority: t.priority as ChecklistTask["priority"],
+    notes: t.notes ?? undefined,
+    assigneeEmail: t.assigneeEmail ?? undefined,
   };
 }
 
@@ -435,6 +470,7 @@ function dbToDocument(d: {
   mimeType: string | null;
   sizeBytes: number | null;
   uploadedAt: Date | null;
+  expiresAt?: Date | null;
 }): DocumentItem & { fileName?: string; hasFile?: boolean; sizeBytes?: number } {
   return {
     id: d.id,
@@ -442,6 +478,8 @@ function dbToDocument(d: {
     category: d.category,
     status: d.status as DocumentItem["status"],
     uploadedAt: d.uploadedAt ? d.uploadedAt.toISOString().slice(0, 10) : undefined,
+    expiresAt: d.expiresAt ? d.expiresAt.toISOString().slice(0, 10) : undefined,
+    mimeType: d.mimeType ?? undefined,
     fileName: d.fileName ?? undefined,
     hasFile: Boolean(d.storageKey),
     sizeBytes: d.sizeBytes ?? undefined,
@@ -457,6 +495,8 @@ export async function updateMoveForUser(
     destinationLon?: number;
     destinationLabel?: string;
     vehicles?: VehicleInfo[];
+    truckChoice?: string | null;
+    vehicleTransportChoice?: string | null;
   }
 ) {
   const user = await prisma.user.findUnique({
@@ -475,6 +515,8 @@ export async function updateMoveForUserId(
     destinationLon?: number;
     destinationLabel?: string;
     vehicles?: VehicleInfo[];
+    truckChoice?: string | null;
+    vehicleTransportChoice?: string | null;
   },
   createIfMissing = true
 ) {
@@ -514,8 +556,29 @@ export async function updateMoveForUserId(
       ...(data.destinationLat !== undefined && { destinationLat: data.destinationLat }),
       ...(data.destinationLon !== undefined && { destinationLon: data.destinationLon }),
       ...(data.destinationLabel !== undefined && { destination: data.destinationLabel }),
+      ...(data.truckChoice !== undefined && { truckChoice: data.truckChoice }),
+      ...(data.vehicleTransportChoice !== undefined && {
+        vehicleTransportChoice: data.vehicleTransportChoice,
+      }),
     },
   });
+
+  if (data.truckChoice !== undefined) {
+    await logMoveActivity(moveId, userId, "truck_choice_saved", {
+      choice: data.truckChoice ?? "",
+    });
+  }
+  if (data.vehicleTransportChoice !== undefined) {
+    await logMoveActivity(moveId, userId, "vehicle_transport_saved", {
+      choice: data.vehicleTransportChoice ?? "",
+    });
+  }
+  if (data.destinationAddress !== undefined && data.destinationAddress) {
+    await logMoveActivity(moveId, userId, "address_confirmed");
+  }
+  if (p && profileChangeRequiresRecalc(p)) {
+    await logMoveActivity(moveId, userId, "profile_updated");
+  }
 
   if (p?.name) {
     await prisma.user.update({ where: { id: userId }, data: { name: p.name } });
@@ -535,6 +598,7 @@ export async function updateMoveForUserId(
           model: v.model,
           trim: v.trim ?? null,
           displayLabel: v.displayLabel,
+          needsTransport: v.needsTransport ?? false,
         })),
       });
     }
@@ -550,7 +614,8 @@ export async function updateMoveForUserId(
     });
     await syncBudgetEstimate(moveId, merged);
     if (profileChangeRequiresChecklistSync(p)) {
-      await syncChecklistFromProfile(moveId, merged);
+      const locale = await getUserLocale(userId);
+      await syncChecklistFromProfile(moveId, merged, locale);
     }
   } else if (
     data.destinationLat !== undefined ||
@@ -611,9 +676,136 @@ export async function replaceChecklist(userId: string, tasks: ChecklistTask[]) {
         status: t.status,
         dueDate: t.dueDate ? new Date(t.dueDate) : null,
         priority: t.priority,
+        notes: t.notes ?? null,
+        assigneeEmail: t.assigneeEmail ?? null,
       })),
     });
   }
+}
+
+export async function addChecklistTask(
+  userId: string,
+  task: Omit<ChecklistTask, "id"> & { id?: string }
+) {
+  const moveId = await getMoveIdForUser(userId);
+  return prisma.checklistTask.create({
+    data: {
+      id: task.id,
+      moveId,
+      title: task.title,
+      category: task.category,
+      status: task.status ?? "pending",
+      dueDate: task.dueDate ? new Date(task.dueDate) : null,
+      priority: task.priority ?? "medium",
+      notes: task.notes ?? null,
+      assigneeEmail: task.assigneeEmail ?? null,
+    },
+  });
+}
+
+export async function deleteChecklistTask(userId: string, taskId: string) {
+  const moveId = await getMoveIdForUser(userId);
+  const deleted = await prisma.checklistTask.deleteMany({
+    where: { id: taskId, moveId },
+  });
+  if (deleted.count === 0) throw new Error("Task not found");
+}
+
+export async function patchChecklistTask(
+  userId: string,
+  taskId: string,
+  patch: Partial<Pick<ChecklistTask, "status" | "notes" | "assigneeEmail" | "title" | "category" | "dueDate" | "priority">>
+) {
+  const moveId = await getMoveIdForUser(userId);
+  const existing = await prisma.checklistTask.findFirst({
+    where: { id: taskId, moveId },
+  });
+  if (!existing) throw new Error("Task not found");
+
+  const updated = await prisma.checklistTask.update({
+    where: { id: taskId },
+    data: {
+      ...(patch.status !== undefined && { status: patch.status }),
+      ...(patch.notes !== undefined && { notes: patch.notes || null }),
+      ...(patch.assigneeEmail !== undefined && { assigneeEmail: patch.assigneeEmail || null }),
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.category !== undefined && { category: patch.category }),
+      ...(patch.dueDate !== undefined && {
+        dueDate: patch.dueDate ? new Date(patch.dueDate) : null,
+      }),
+      ...(patch.priority !== undefined && { priority: patch.priority }),
+    },
+  });
+
+  if (patch.status === "completed" && existing.status !== "completed") {
+    await logMoveActivity(moveId, userId, "checklist_complete", {
+      taskId: updated.id,
+      title: updated.title,
+      category: updated.category,
+    });
+  }
+
+  return updated;
+}
+
+export async function listUserMoves(userId: string) {
+  const owned = await prisma.move.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      origin: true,
+      destination: true,
+      moveDate: true,
+      updatedAt: true,
+    },
+  });
+
+  const collabs = await prisma.moveCollaborator.findMany({
+    where: { userId, acceptedAt: { not: null } },
+    orderBy: { acceptedAt: "desc" },
+    include: {
+      move: {
+        select: {
+          id: true,
+          origin: true,
+          destination: true,
+          moveDate: true,
+          updatedAt: true,
+          user: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { activeMoveId: true },
+  });
+
+  return {
+    activeMoveId: user?.activeMoveId ?? null,
+    moves: [
+      ...owned.map((m) => ({
+        id: m.id,
+        origin: m.origin,
+        destination: m.destination,
+        moveDate: m.moveDate.toISOString().slice(0, 10),
+        role: "owner" as const,
+        ownerName: null as string | null,
+        isActive: user?.activeMoveId === m.id,
+      })),
+      ...collabs.map((c) => ({
+        id: c.move.id,
+        origin: c.move.origin,
+        destination: c.move.destination,
+        moveDate: c.move.moveDate.toISOString().slice(0, 10),
+        role: (c.role === "viewer" ? "viewer" : "editor") as "editor" | "viewer",
+        ownerName: c.move.user.name,
+        isActive: user?.activeMoveId === c.move.id,
+      })),
+    ],
+  };
 }
 
 export async function replaceDocuments(
@@ -649,5 +841,59 @@ export async function getDocumentForUser(userId: string, documentId: string) {
     where: { id: documentId, moveId: access.moveId },
   });
   return doc ? { doc, access } : null;
+}
+
+export async function deleteDocumentForUser(userId: string, documentId: string) {
+  const moveId = await getMoveIdForUser(userId);
+  const doc = await prisma.document.findFirst({
+    where: { id: documentId, moveId },
+  });
+  if (!doc) throw new Error("Document not found");
+  await prisma.document.delete({ where: { id: documentId } });
+  return doc;
+}
+
+export async function contractUtilityProvider(
+  userId: string,
+  providerName: string,
+  category: string
+) {
+  const moveId = await getMoveIdForUser(userId);
+  const pending = await prisma.checklistTask.findMany({
+    where: { moveId, category: "Utilities", status: { not: "completed" } },
+    orderBy: { dueDate: "asc" },
+  });
+
+  const cat = category.toLowerCase();
+  const providerToken = providerName.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const match =
+    pending.find(
+      (t) =>
+        t.title.toLowerCase().includes(cat) ||
+        (providerToken.length > 2 && t.title.toLowerCase().includes(providerToken))
+    ) ?? pending[0];
+
+  let taskId: string;
+  if (match) {
+    const updated = await patchChecklistTask(userId, match.id, { status: "completed" });
+    taskId = updated.id;
+  } else {
+    const created = await addChecklistTask(userId, {
+      title: `Contracted ${providerName.trim()} (${category})`,
+      category: "Utilities",
+      status: "completed",
+      dueDate: "",
+      priority: "medium",
+    });
+    taskId = created.id;
+  }
+
+  await logMoveActivity(moveId, userId, "utility_contracted", {
+    providerName,
+    category,
+    taskId,
+  });
+
+  return { taskId };
 }
 

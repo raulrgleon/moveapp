@@ -28,4 +28,6 @@ export interface HousingMarketResponse {
   origin: MarketLocationSummary | null;
   destination: MarketLocationSummary | null;
   metrics: HousingComparisonMetric[];
+  source?: "rentcast" | "fallback";
+  rentcastMissing?: boolean;
 }
