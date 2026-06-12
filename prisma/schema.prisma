@@ -18,6 +18,7 @@ model User {
   googleId       String?              @unique @map("google_id")
   emailReminders Boolean              @default(true) @map("email_reminders")
   smsReminders   Boolean              @default(false) @map("sms_reminders")
+  activeMoveId   String?              @map("active_move_id")
   createdAt      DateTime             @default(now()) @map("created_at")
   moves          Move[]
   sessions       Session[]
@@ -180,6 +181,9 @@ model Document {
   category   String
   status     String    @default("pending")
   fileName   String?   @map("file_name")
+  storageKey String?   @map("storage_key")
+  mimeType   String?   @map("mime_type")
+  sizeBytes  Int?      @map("size_bytes")
   uploadedAt DateTime? @map("uploaded_at")
 
   @@index([moveId])

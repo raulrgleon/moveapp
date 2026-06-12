@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
 import { loadUserData } from "@/lib/data-cache";
 import { INVENTORY_BOXES } from "@/lib/mock-data";
@@ -64,16 +65,17 @@ function seedDemoBoxes(): InventoryBox[] {
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isHydrated: authHydrated } = useAuth();
+  const { canEdit } = useMove();
   const [boxes, setBoxes] = useState<InventoryBox[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
   const saveToDb = useCallback(async (next: InventoryBox[]) => {
-    if (!isAuthenticated || !user?.email) return;
+    if (!isAuthenticated || !user?.email || !canEdit) return;
     await apiFetch("/api/inventory", {
       method: "PUT",
       body: JSON.stringify({ boxes: next }),
     });
-  }, [isAuthenticated, user?.email]);
+  }, [isAuthenticated, user?.email, canEdit]);
 
   useEffect(() => {
     if (!authHydrated) return;

@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireMoveAccess } from "@/lib/api-auth";
+import { getDocumentForUser } from "@/lib/db/move-service";
+import { readDocumentFile } from "@/lib/storage/documents";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+
+  const found = await getDocumentForUser(result.user.id, params.id);
+  if (!found?.doc.storageKey) {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+
+  try {
+    const buffer = await readDocumentFile(found.doc.storageKey);
+    const filename = found.doc.fileName ?? "document";
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": found.doc.mimeType ?? "application/octet-stream",
+        "Content-Disposition": `inline; filename="${filename.replace(/"/g, "")}"`,
+        "Content-Length": String(buffer.length),
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: "File missing on server" }, { status: 404 });
+  }
+}

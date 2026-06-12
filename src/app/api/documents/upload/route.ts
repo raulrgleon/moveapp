@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
+import { prisma } from "@/lib/prisma";
+import { saveDocumentFile } from "@/lib/storage/documents";
+
+export async function POST(req: NextRequest) {
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+
+  const denied = requireCanEditData(result.access);
+  if (denied) return denied;
+
+  try {
+    const form = await req.formData();
+    const file = form.get("file");
+    const name = String(form.get("name") ?? "").trim();
+    const category = String(form.get("category") ?? "Other").trim();
+
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "File required" }, { status: 400 });
+    }
+
+    const saved = await saveDocumentFile(result.access.moveId, file);
+    const doc = await prisma.document.create({
+      data: {
+        moveId: result.access.moveId,
+        name: name || saved.fileName,
+        category,
+        status: "pending",
+        fileName: saved.fileName,
+        storageKey: saved.storageKey,
+        mimeType: saved.mimeType,
+        sizeBytes: saved.sizeBytes,
+        uploadedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json({
+      document: {
+        id: doc.id,
+        name: doc.name,
+        category: doc.category,
+        status: doc.status,
+        fileName: doc.fileName,
+        hasFile: true,
+        sizeBytes: doc.sizeBytes,
+        uploadedAt: doc.uploadedAt?.toISOString().slice(0, 10),
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upload failed";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

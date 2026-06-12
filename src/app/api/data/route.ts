@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionEmail, unauthorized } from "@/lib/api-auth";
-import { getUserData } from "@/lib/db/move-service";
+import { getSessionUser, unauthorized } from "@/lib/api-auth";
+import { getUserDataByUserId } from "@/lib/db/move-service";
 
 export async function GET(req: NextRequest) {
-  const email = await getSessionEmail(req);
-  if (!email) return unauthorized();
+  const user = await getSessionUser(req);
+  if (!user) return unauthorized();
 
   try {
-    const data = await getUserData(email);
+    const data = await getUserDataByUserId(user.id);
     if (!data) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

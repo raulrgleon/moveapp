@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AddressAutocomplete } from "@/components/address/address-autocomplete";
 import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
@@ -46,7 +47,7 @@ function rentalKeyFromProfile(preference: string): string {
 export default function SettingsPage() {
   const t = useT();
   const { locale, setLocale } = useLocale();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const {
     profile,
     updateProfile,
@@ -55,6 +56,9 @@ export default function SettingsPage() {
     destinationAddress,
     vehicles,
     setVehicles,
+    canEditProfile,
+    moveRole,
+    ownerName,
   } = useMove();
 
   const initialCounts = useMemo(() => parseHouseholdCounts(profile), [profile]);
@@ -73,12 +77,18 @@ export default function SettingsPage() {
   const [budget, setBudget] = useState(String(profile.budget));
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [actionError, setActionError] = useState("");
+  const router = useRouter();
 
   const household = formatHousehold(adults, children);
   const petDetails = formatPetDetails(petCount);
   const pets = petCount > 0;
 
   const saveProfile = async () => {
+    if (!canEditProfile) return;
     setSaving(true);
     try {
       await updateProfile({
@@ -277,10 +287,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <ShareMoveCard />
-
-        <ReminderPreferencesCard />
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("settings.language")}</CardTitle>
@@ -309,15 +315,99 @@ export default function SettingsPage() {
 
         <Separator />
 
+        {moveRole !== "owner" && (
+          <p className="text-sm text-muted-foreground">
+            {t("settings.collaboratingAs", { role: moveRole, owner: ownerName })}
+          </p>
+        )}
+
+        {canEditProfile && (
+          <>
+            <ShareMoveCard />
+            <ReminderPreferencesCard />
+          </>
+        )}
+
+        <Separator />
+
+        {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+
         <div className="flex flex-col sm:flex-row gap-4">
           <LogoutButton variant="outline" className="w-full sm:w-auto" />
-          <Button variant="outline" className="w-full sm:w-auto">
-            {t("common.export")}
-          </Button>
-          <Button variant="destructive" className="w-full sm:w-auto">
-            {t("common.deleteAccount")}
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              setActionError("");
+              try {
+                const res = await fetch("/api/user/export", { credentials: "include" });
+                if (!res.ok) throw new Error("Export failed");
+                const data = await res.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `movepilot-export-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch {
+                setActionError(t("settings.exportFailed"));
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            {exporting ? t("settings.exporting") : t("common.export")}
           </Button>
         </div>
+
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">{t("common.deleteAccount")}</CardTitle>
+            <CardDescription>{t("settings.deleteAccountDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="delete-password">{t("login.password")}</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="destructive"
+              disabled={deleting || !deletePassword}
+              onClick={async () => {
+                setDeleting(true);
+                setActionError("");
+                try {
+                  const res = await fetch("/api/user/delete-account", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ password: deletePassword }),
+                  });
+                  if (!res.ok) {
+                    const err = (await res.json().catch(() => ({}))) as { error?: string };
+                    throw new Error(err.error ?? "Delete failed");
+                  }
+                  await logout();
+                  router.push("/");
+                } catch (err) {
+                  setActionError(err instanceof Error ? err.message : t("settings.deleteFailed"));
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? t("settings.deleting") : t("common.deleteAccount")}
+            </Button>
+          </CardContent>
+        </Card>
       </PageContainer>
     </>
   );

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Droplets,
   Flame,
   Home,
   Lock,
+  Loader2,
   MapPin,
   Sparkles,
   Tv,
@@ -28,10 +29,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UTILITY_CATEGORIES } from "@/lib/constants";
 import type { DestinationUtilityProvider } from "@/lib/types";
 import {
-  DESTINATION_UTILITIES,
-  UTILITY_AI_SUMMARY,
-} from "@/lib/mock-data";
-import {
   getUtilityBestPicks,
   sumUtilityMonthlyEstimate,
 } from "@/lib/utilities/recommendations";
@@ -50,13 +47,14 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 };
 
 function personalizeProviders(
-  address: string
+  address: string,
+  providers: DestinationUtilityProvider[]
 ): DestinationUtilityProvider[] {
   const shortAddress = address.split(",").slice(0, 2).join(",").trim();
-  return DESTINATION_UTILITIES.map((p) => ({
+  return providers.map((p) => ({
     ...p,
     coverageNote: p.availableAtAddress
-      ? `Verified for ${shortAddress} via address lookup`
+      ? `${p.coverageNote} — ${shortAddress}`
       : p.coverageNote,
   }));
 }
@@ -64,22 +62,61 @@ function personalizeProviders(
 export default function UtilitiesPage() {
   const t = useT();
   const [filter, setFilter] = useState("all");
+  const [providers, setProviders] = useState<DestinationUtilityProvider[]>([]);
+  const [utilityNote, setUtilityNote] = useState("");
+  const [loadingProviders, setLoadingProviders] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const {
     isAddressConfirmed,
     isHydrated,
     destinationAddress,
     destination,
+    lat,
+    lon,
     confirmAddress,
     clearAddress,
+    canEditProfile,
   } = useMove();
 
-  const providers = useMemo(
-    () =>
-      isAddressConfirmed
-        ? personalizeProviders(destinationAddress)
-        : DESTINATION_UTILITIES,
-    [isAddressConfirmed, destinationAddress]
-  );
+  useEffect(() => {
+    if (!isAddressConfirmed || lat == null || lon == null) {
+      setProviders([]);
+      setUtilityNote("");
+      return;
+    }
+
+    let cancelled = false;
+    async function load() {
+      setLoadingProviders(true);
+      setLoadError(false);
+      try {
+        const params = new URLSearchParams({
+          lat: String(lat),
+          lon: String(lon),
+          address: destinationAddress,
+        });
+        const res = await fetch(`/api/utilities?${params}`, { credentials: "include" });
+        if (!res.ok) throw new Error("failed");
+        const data = (await res.json()) as {
+          providers: DestinationUtilityProvider[];
+          summary: string;
+        };
+        if (!cancelled) {
+          setProviders(personalizeProviders(destinationAddress, data.providers));
+          setUtilityNote(data.summary);
+        }
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoadingProviders(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAddressConfirmed, destinationAddress, lat, lon]);
 
   const filtered =
     filter === "all"
@@ -100,9 +137,9 @@ export default function UtilitiesPage() {
     [bestPicks]
   );
 
-  const utilityNote = isAddressConfirmed
-    ? t("utilities.addressConfirmedNote")
-    : UTILITY_AI_SUMMARY.note;
+  const utilityNoteText = isAddressConfirmed
+    ? utilityNote || t("utilities.addressConfirmedNote")
+    : t("utilities.pageDescLocked");
 
   if (!isHydrated) {
     return (
@@ -139,22 +176,22 @@ export default function UtilitiesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <AddressAutocomplete
-              onSelect={confirmAddress}
-              placeholder="Type street, city, state… e.g. 1842 Harper Rd, Huntington WV"
+              onSelect={canEditProfile ? confirmAddress : () => undefined}
+              placeholder={t("address.placeholder")}
               initialValue={isAddressConfirmed ? destinationAddress : ""}
+              disabled={!canEditProfile}
             />
             {isAddressConfirmed ? (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                 <AddressConfirmedBadge address={destinationAddress} />
-                <Button variant="ghost" size="sm" onClick={clearAddress}>
-                  Change address
-                </Button>
+                {canEditProfile && (
+                  <Button variant="ghost" size="sm" onClick={clearAddress}>
+                    {t("utilities.changeAddress")}
+                  </Button>
+                )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Suggestions appear as you type. Select an address to load electricity,
-                water, gas, internet, and fiber options for that location.
-              </p>
+              <p className="text-sm text-muted-foreground">{t("utilities.addressHint")}</p>
             )}
           </CardContent>
         </Card>
@@ -171,6 +208,17 @@ export default function UtilitiesPage() {
                 providers, pricing, and availability for your exact location.
               </p>
             </CardContent>
+          </Card>
+        ) : loadingProviders ? (
+          <Card>
+            <CardContent className="p-8 flex items-center justify-center gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              {t("utilities.loading")}
+            </CardContent>
+          </Card>
+        ) : loadError ? (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardContent className="p-4 text-sm text-muted-foreground">{t("utilities.loadError")}</CardContent>
           </Card>
         ) : (
           <>
@@ -217,7 +265,7 @@ export default function UtilitiesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">{utilityNote}</p>
+                <p className="text-sm text-muted-foreground">{utilityNoteText}</p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {bestPicks.map((pick) => (
                     <div

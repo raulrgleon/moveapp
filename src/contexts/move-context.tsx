@@ -59,6 +59,10 @@ interface MoveContextValue {
   vehicle: VehicleInfo;
   isHydrated: boolean;
   profileVersion: number;
+  moveRole: "owner" | "editor" | "viewer";
+  ownerName: string;
+  canEdit: boolean;
+  canEditProfile: boolean;
   confirmAddress: (suggestion: AddressSuggestion) => void;
   clearAddress: () => void;
   setVehicles: (vehicles: VehicleInfo[]) => void;
@@ -106,6 +110,10 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<MoveProfile>(DEFAULT_PROFILE);
   const [vehicles, setVehiclesState] = useState<VehicleInfo[]>(defaultVehicles());
   const [profileVersion, setProfileVersion] = useState(0);
+  const [moveRole, setMoveRole] = useState<"owner" | "editor" | "viewer">("owner");
+  const [ownerName, setOwnerName] = useState("");
+  const [canEdit, setCanEdit] = useState(true);
+  const [canEditProfile, setCanEditProfile] = useState(true);
 
   const bumpProfileVersion = useCallback(() => {
     setProfileVersion((v) => v + 1);
@@ -121,7 +129,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       destinationLabel?: string;
       vehicles?: VehicleInfo[];
     }) => {
-      if (!isAuthenticated || !user?.email) return;
+      if (!isAuthenticated || !user?.email || !canEditProfile) return;
       await apiFetch("/api/move", {
         method: "PATCH",
         body: JSON.stringify(payload),
@@ -129,7 +137,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       invalidateUserData();
       bumpProfileVersion();
     },
-    [isAuthenticated, user?.email, bumpProfileVersion]
+    [isAuthenticated, user?.email, bumpProfileVersion, canEditProfile]
   );
 
   useEffect(() => {
@@ -139,7 +147,11 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       if (isAuthenticated && user?.email) {
         try {
           const data = await loadUserData(user.email);
-          setProfile(data.profile);
+          if (data.profile) setProfile(data.profile);
+          setMoveRole(data.moveRole ?? "owner");
+          setOwnerName(data.ownerName ?? "");
+          setCanEdit(data.canEdit ?? true);
+          setCanEditProfile(data.canEditProfile ?? true);
           setVehiclesState(data.vehicles.length ? data.vehicles : []);
           if (data.isAddressConfirmed && data.destinationAddress) {
             setConfirmed({
@@ -253,6 +265,10 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       vehicle: primaryVehicle,
       isHydrated,
       profileVersion,
+      moveRole,
+      ownerName,
+      canEdit,
+      canEditProfile,
       confirmAddress,
       clearAddress,
       setVehicles,
@@ -275,6 +291,10 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     vehicles,
     isHydrated,
     profileVersion,
+    moveRole,
+    ownerName,
+    canEdit,
+    canEditProfile,
     confirmAddress,
     clearAddress,
     setVehicles,

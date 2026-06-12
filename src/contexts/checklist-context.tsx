@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
 import { loadUserData } from "@/lib/data-cache";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
@@ -24,18 +25,19 @@ const ChecklistContext = createContext<ChecklistContextValue | null>(null);
 
 export function ChecklistProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isHydrated: authHydrated } = useAuth();
+  const { canEdit } = useMove();
   const [tasks, setTasks] = useState<ChecklistTask[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
   const saveToDb = useCallback(
     async (next: ChecklistTask[]) => {
-      if (!isAuthenticated || !user?.email) return;
+      if (!isAuthenticated || !user?.email || !canEdit) return;
       await apiFetch("/api/checklist", {
         method: "PUT",
         body: JSON.stringify({ tasks: next }),
       });
     },
-    [isAuthenticated, user?.email]
+    [isAuthenticated, user?.email, canEdit]
   );
 
   useEffect(() => {

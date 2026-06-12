@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  canEditMoveData,
+  getMoveForUser,
+  resolveMoveAccess,
+} from "@/lib/db/move-access";
 import { DEFAULT_PROFILE, type MoveProfile } from "@/lib/move-profile";
 import {
   generateChecklistFromProfile,
@@ -246,32 +251,15 @@ export async function getUserData(email: string) {
     where: { email: email.trim().toLowerCase() },
   });
   if (!user) return null;
-  const data = await getUserDataByUserId(user.id);
-  if (!data?.moveId || !data.profile) return null;
-  return data;
+  return getUserDataByUserId(user.id);
 }
 
 export async function getUserDataByUserId(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      moves: {
-        orderBy: { updatedAt: "desc" },
-        take: 1,
-        include: {
-          vehicles: true,
-          inventoryBoxes: { orderBy: { boxNumber: "asc" } },
-          checklistTasks: { orderBy: { dueDate: "asc" } },
-          documents: { orderBy: { uploadedAt: "desc" } },
-        },
-      },
-    },
-  });
-
+  const result = await getMoveForUser(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;
 
-  const move = user.moves[0];
-  if (!move) {
+  if (!result) {
     return {
       user: { id: user.id, email: user.email, name: user.name },
       moveId: null,
@@ -284,14 +272,21 @@ export async function getUserDataByUserId(userId: string) {
       inventory: [],
       checklist: [],
       documents: [],
+      moveRole: "owner" as const,
+      ownerName: user.name,
+      canEdit: true,
+      canEditProfile: true,
       stats: { checklist: 0, inventory: 0, documents: 0, vehicles: 0 },
     };
   }
 
+  const { access, move } = result;
+  const profileName = access.role === "owner" ? user.name : move.user.name;
+
   return {
     user: { id: user.id, email: user.email, name: user.name },
     moveId: move.id,
-    profile: moveToProfile(user.name, user.email, move),
+    profile: moveToProfile(profileName, move.user.email, move),
     destinationAddress: move.destinationAddress ?? "",
     destinationLat: move.destinationLat ?? undefined,
     destinationLon: move.destinationLon ?? undefined,
@@ -300,6 +295,10 @@ export async function getUserDataByUserId(userId: string) {
     inventory: move.inventoryBoxes.map(dbToInventory),
     checklist: move.checklistTasks.map(dbToChecklist),
     documents: move.documents.map(dbToDocument),
+    moveRole: access.role,
+    ownerName: access.ownerName,
+    canEdit: canEditMoveData(access.role),
+    canEditProfile: access.role === "owner",
     stats: {
       checklist: move.checklistTasks.length,
       inventory: move.inventoryBoxes.length,
@@ -432,8 +431,11 @@ function dbToDocument(d: {
   category: string;
   status: string;
   fileName: string | null;
+  storageKey: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
   uploadedAt: Date | null;
-}): DocumentItem & { fileName?: string } {
+}): DocumentItem & { fileName?: string; hasFile?: boolean; sizeBytes?: number } {
   return {
     id: d.id,
     name: d.name,
@@ -441,6 +443,8 @@ function dbToDocument(d: {
     status: d.status as DocumentItem["status"],
     uploadedAt: d.uploadedAt ? d.uploadedAt.toISOString().slice(0, 10) : undefined,
     fileName: d.fileName ?? undefined,
+    hasFile: Boolean(d.storageKey),
+    sizeBytes: d.sizeBytes ?? undefined,
   };
 }
 
@@ -474,9 +478,14 @@ export async function updateMoveForUserId(
   },
   createIfMissing = true
 ) {
+  const access = await resolveMoveAccess(userId);
+  if (!access || access.role !== "owner") {
+    throw new Error("Only the move owner can update profile settings");
+  }
+
   const moveId = createIfMissing
-    ? await ensureMoveForUserId(userId)
-    : await getMoveIdByUserId(userId);
+    ? access.moveId || (await ensureMoveForUserId(userId))
+    : access.moveId;
 
   const p = data.profile;
 
@@ -557,17 +566,17 @@ export async function updateMoveForUserId(
   }
 }
 
-async function getMoveIdByUserId(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { moves: { take: 1, orderBy: { updatedAt: "desc" } } },
-  });
-  if (!user?.moves[0]) throw new Error("Move not found");
-  return user.moves[0].id;
+async function getMoveIdForUser(userId: string, requireEdit = true) {
+  const access = await resolveMoveAccess(userId);
+  if (!access) throw new Error("Move not found");
+  if (requireEdit && !canEditMoveData(access.role)) {
+    throw new Error("Read-only access");
+  }
+  return access.moveId;
 }
 
-export async function replaceInventory(email: string, boxes: InventoryBox[]) {
-  const moveId = await getMoveId(email);
+export async function replaceInventory(userId: string, boxes: InventoryBox[]) {
+  const moveId = await getMoveIdForUser(userId);
   await prisma.$transaction([
     prisma.inventoryBox.deleteMany({ where: { moveId } }),
     ...boxes.map((b) =>
@@ -589,8 +598,8 @@ export async function replaceInventory(email: string, boxes: InventoryBox[]) {
   ]);
 }
 
-export async function replaceChecklist(email: string, tasks: ChecklistTask[]) {
-  const moveId = await getMoveId(email);
+export async function replaceChecklist(userId: string, tasks: ChecklistTask[]) {
+  const moveId = await getMoveIdForUser(userId);
   await prisma.checklistTask.deleteMany({ where: { moveId } });
   if (tasks.length > 0) {
     await prisma.checklistTask.createMany({
@@ -608,10 +617,10 @@ export async function replaceChecklist(email: string, tasks: ChecklistTask[]) {
 }
 
 export async function replaceDocuments(
-  email: string,
-  docs: (DocumentItem & { fileName?: string })[]
+  userId: string,
+  docs: (DocumentItem & { fileName?: string; storageKey?: string; mimeType?: string; sizeBytes?: number })[]
 ) {
-  const moveId = await getMoveId(email);
+  const moveId = await getMoveIdForUser(userId);
   await prisma.$transaction([
     prisma.document.deleteMany({ where: { moveId } }),
     ...docs.map((d) =>
@@ -623,6 +632,9 @@ export async function replaceDocuments(
           category: d.category,
           status: d.status,
           fileName: d.fileName ?? null,
+          storageKey: d.storageKey ?? null,
+          mimeType: d.mimeType ?? null,
+          sizeBytes: d.sizeBytes ?? null,
           uploadedAt: d.uploadedAt ? new Date(d.uploadedAt) : null,
         },
       })
@@ -630,11 +642,12 @@ export async function replaceDocuments(
   ]);
 }
 
-async function getMoveId(email: string) {
-  const user = await prisma.user.findUnique({
-    where: { email: email.trim().toLowerCase() },
-    include: { moves: { take: 1, orderBy: { updatedAt: "desc" } } },
+export async function getDocumentForUser(userId: string, documentId: string) {
+  const access = await resolveMoveAccess(userId);
+  if (!access) return null;
+  const doc = await prisma.document.findFirst({
+    where: { id: documentId, moveId: access.moveId },
   });
-  if (!user?.moves[0]) throw new Error("Move not found");
-  return user.moves[0].id;
+  return doc ? { doc, access } : null;
 }
+

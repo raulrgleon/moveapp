@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getSessionUser, unauthorized } from "@/lib/api-auth";
+import { requireMoveAccess } from "@/lib/api-auth";
+import { canManageCollaborators } from "@/lib/db/move-access";
 import { prisma } from "@/lib/prisma";
 import { sendMoveInviteEmail } from "@/lib/notifications/email";
 
 export async function GET(req: NextRequest) {
-  const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+  if (!canManageCollaborators(result.access.role)) {
+    return NextResponse.json({ collaborators: [] });
+  }
 
-  const move = await prisma.move.findFirst({
-    where: { userId: session.id },
-    orderBy: { updatedAt: "desc" },
+  const move = await prisma.move.findUnique({
+    where: { id: result.access.moveId },
     include: {
       collaborators: {
         orderBy: { createdAt: "asc" },
@@ -24,27 +27,26 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+  if (!canManageCollaborators(result.access.role)) {
+    return NextResponse.json({ error: "Only the move owner can invite collaborators" }, { status: 403 });
+  }
 
+  const session = result.user;
   const { email, role } = (await req.json()) as { email?: string; role?: string };
   const inviteEmail = email?.trim().toLowerCase();
   if (!inviteEmail || !inviteEmail.includes("@")) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
   }
 
-  const move = await prisma.move.findFirst({
-    where: { userId: session.id },
-    orderBy: { updatedAt: "desc" },
-  });
-  if (!move) return NextResponse.json({ error: "No move found" }, { status: 404 });
-
+  const moveId = result.access.moveId;
   if (inviteEmail === session.email) {
     return NextResponse.json({ error: "Cannot invite yourself" }, { status: 400 });
   }
 
   const existing = await prisma.moveCollaborator.findUnique({
-    where: { moveId_email: { moveId: move.id, email: inviteEmail } },
+    where: { moveId_email: { moveId, email: inviteEmail } },
   });
   if (existing) {
     return NextResponse.json({ error: "Already invited" }, { status: 409 });
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
   const inviteToken = randomUUID();
   const collab = await prisma.moveCollaborator.create({
     data: {
-      moveId: move.id,
+      moveId,
       email: inviteEmail,
       role: role === "viewer" ? "viewer" : "editor",
       inviteToken,
@@ -67,20 +69,17 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+  if (!canManageCollaborators(result.access.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const move = await prisma.move.findFirst({
-    where: { userId: session.id },
-    orderBy: { updatedAt: "desc" },
-  });
-  if (!move) return unauthorized();
-
   await prisma.moveCollaborator.deleteMany({
-    where: { id, moveId: move.id },
+    where: { id, moveId: result.access.moveId },
   });
 
   return NextResponse.json({ ok: true });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { setActiveMove } from "@/lib/db/move-access";
 import {
   COOKIE_NAME,
   createSession,
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
       where: { id: collab.id },
       data: { userId: user.id, acceptedAt: new Date(), inviteToken: null },
     });
+
+    await setActiveMove(user.id, collab.moveId);
 
     const { token: sessionToken, expiresAt } = await createSession(
       user.id,

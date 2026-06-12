@@ -1,26 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionEmail, unauthorized } from "@/lib/api-auth";
-import { prisma } from "@/lib/prisma";
+import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { estimateBudget } from "@/lib/budget/estimator";
+import { prisma } from "@/lib/prisma";
 import type { MoveProfile } from "@/lib/move-profile";
 
 export async function GET(req: NextRequest) {
-  const email = await getSessionEmail(req);
-  if (!email) return unauthorized();
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
 
-  const user = await prisma.user.findUnique({
-    where: { email },
+  const move = await prisma.move.findUnique({
+    where: { id: result.access.moveId },
     include: {
-      moves: {
-        take: 1,
-        orderBy: { updatedAt: "desc" },
-        include: { budgetItems: { orderBy: { sortOrder: "asc" } } },
-      },
+      budgetItems: { orderBy: { sortOrder: "asc" } },
+      user: { select: { name: true, email: true } },
     },
   });
 
-  const move = user?.moves[0];
   if (!move) {
     return NextResponse.json({ items: [], totalEstimated: 0, totalActual: 0, notes: [] });
   }
@@ -28,8 +24,8 @@ export async function GET(req: NextRequest) {
   let items = move.budgetItems;
   if (items.length === 0) {
     const profile: MoveProfile = {
-      name: user!.name,
-      email: user!.email,
+      name: move.user.name,
+      email: move.user.email,
       origin: move.origin,
       destination: move.destination,
       moveDate: move.moveDate.toISOString().slice(0, 10),
@@ -63,8 +59,8 @@ export async function GET(req: NextRequest) {
   const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
   const totalActual = items.reduce((s, i) => s + i.actual, 0);
   const est = estimateBudget({
-    name: user!.name,
-    email: user!.email,
+    name: move.user.name,
+    email: move.user.email,
     origin: move.origin,
     destination: move.destination,
     moveDate: move.moveDate.toISOString().slice(0, 10),
@@ -86,25 +82,27 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const email = await getSessionEmail(req);
-  if (!email) return unauthorized();
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+
+  const denied = requireCanEditData(result.access);
+  if (denied) return denied;
 
   const body = (await req.json()) as {
     items?: { id: string; actual?: number }[];
     recalculate?: boolean;
   };
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: { moves: { take: 1, orderBy: { updatedAt: "desc" } } },
+  const move = await prisma.move.findUnique({
+    where: { id: result.access.moveId },
+    include: { user: { select: { name: true, email: true } } },
   });
-  const move = user?.moves[0];
   if (!move) return NextResponse.json({ error: "No move" }, { status: 404 });
 
-  if (body.recalculate) {
+  if (body.recalculate && result.access.role === "owner") {
     const profile: MoveProfile = {
-      name: user!.name,
-      email: user!.email,
+      name: move.user.name,
+      email: move.user.email,
       origin: move.origin,
       destination: move.destination,
       moveDate: move.moveDate.toISOString().slice(0, 10),
@@ -122,8 +120,8 @@ export async function PATCH(req: NextRequest) {
   if (body.items) {
     for (const item of body.items) {
       if (item.actual !== undefined) {
-        await prisma.budgetItem.update({
-          where: { id: item.id },
+        await prisma.budgetItem.updateMany({
+          where: { id: item.id, moveId: move.id },
           data: { actual: item.actual },
         });
       }

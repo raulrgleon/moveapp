@@ -9,37 +9,50 @@ import {
   useState,
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
-import { loadUserData } from "@/lib/data-cache";
+import { invalidateUserData, loadUserData } from "@/lib/data-cache";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
 
 export interface StoredDocument extends DocumentItem {
   fileName?: string;
+  hasFile?: boolean;
+  sizeBytes?: number;
 }
 
 interface DocumentsContextValue {
   documents: StoredDocument[];
   isHydrated: boolean;
+  canEdit: boolean;
   addDocument: (input: { name: string; category: string; fileName: string }) => void;
+  uploadDocument: (file: File, name: string, category: string) => Promise<void>;
   setDocumentStatus: (id: string, status: DocumentStatus) => void;
+  refreshDocuments: () => Promise<void>;
 }
 
 const DocumentsContext = createContext<DocumentsContextValue | null>(null);
 
 export function DocumentsProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isHydrated: authHydrated } = useAuth();
+  const { canEdit } = useMove();
   const [documents, setDocuments] = useState<StoredDocument[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
+  const refreshDocuments = useCallback(async () => {
+    if (!isAuthenticated || !user?.email) return;
+    const data = await loadUserData(user.email, true);
+    setDocuments(data.documents);
+  }, [isAuthenticated, user?.email]);
+
   const saveToDb = useCallback(
     async (next: StoredDocument[]) => {
-      if (!isAuthenticated || !user?.email) return;
+      if (!isAuthenticated || !user?.email || !canEdit) return;
       await apiFetch("/api/documents", {
         method: "PUT",
         body: JSON.stringify({ documents: next }),
       });
     },
-    [isAuthenticated, user?.email]
+    [isAuthenticated, user?.email, canEdit]
   );
 
   useEffect(() => {
@@ -61,6 +74,28 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
 
     load();
   }, [authHydrated, isAuthenticated, user?.email]);
+
+  const uploadDocument = useCallback(
+    async (file: File, name: string, category: string) => {
+      if (!canEdit) throw new Error("Read-only access");
+      const form = new FormData();
+      form.append("file", file);
+      form.append("name", name);
+      form.append("category", category);
+      const res = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? "Upload failed");
+      }
+      invalidateUserData();
+      await refreshDocuments();
+    },
+    [canEdit, refreshDocuments]
+  );
 
   const addDocument = useCallback(
     (input: { name: string; category: string; fileName: string }) => {
@@ -93,8 +128,16 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ documents, isHydrated, addDocument, setDocumentStatus }),
-    [documents, isHydrated, addDocument, setDocumentStatus]
+    () => ({
+      documents,
+      isHydrated,
+      canEdit,
+      addDocument,
+      uploadDocument,
+      setDocumentStatus,
+      refreshDocuments,
+    }),
+    [documents, isHydrated, canEdit, addDocument, uploadDocument, setDocumentStatus, refreshDocuments]
   );
 
   return (

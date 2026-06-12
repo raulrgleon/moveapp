@@ -17,7 +17,11 @@ export interface UserDataPayload {
   vehicles: VehicleInfo[];
   inventory: InventoryBox[];
   checklist: ChecklistTask[];
-  documents: (DocumentItem & { fileName?: string })[];
+  documents: (DocumentItem & { fileName?: string; hasFile?: boolean })[];
+  moveRole?: "owner" | "editor" | "viewer";
+  ownerName?: string;
+  canEdit?: boolean;
+  canEditProfile?: boolean;
 }
 
 let cached: UserDataPayload | null = null;
