@@ -81,7 +81,7 @@ export function AIAssistantPanel() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button
-              className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg shadow-brand-blue/30 bg-gradient-to-br from-brand-navy to-brand-blue hover:opacity-90 mobile-nav-offset lg:bottom-6"
+              className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg shadow-brand/30 bg-gradient-to-br from-brand-dark to-brand hover:opacity-90 mobile-nav-offset lg:bottom-6"
               size="icon"
             >
               <Bot className="h-6 w-6" />

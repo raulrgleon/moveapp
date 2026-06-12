@@ -31,7 +31,7 @@ export default function AssistantPage() {
     <>
       <DashboardHeader title={t("assistant.title")} description={t("assistant.subtitle")} />
       <PageContainer className="flex flex-col min-h-[calc(100dvh-8rem)] max-w-3xl mx-auto">
-        <div className="rounded-xl border bg-gradient-to-r from-brand-accent-soft/40 via-background to-brand-blue/5 p-4 mb-4">
+        <div className="rounded-xl border bg-gradient-to-r from-brand-accent-soft/60 via-background to-brand/5 p-4 mb-4">
           <PilotBadge
             title={t("brand.pilotName")}
             subtitle={t("brand.pilotIntro")}

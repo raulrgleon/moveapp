@@ -23,7 +23,7 @@ export function BrandMark({ className, size = "md" }: BrandMarkProps) {
   return (
     <div
       className={cn(
-        "brand-mark flex shrink-0 items-center justify-center bg-gradient-to-br from-brand-navy to-brand-blue text-white shadow-md shadow-brand-blue/25",
+        "brand-mark flex shrink-0 items-center justify-center bg-gradient-to-br from-brand-dark to-brand text-white shadow-md shadow-brand/30",
         sizes[size],
         className
       )}

@@ -48,6 +48,9 @@ const config: Config = {
           blue: "hsl(var(--brand-blue))",
           accent: "hsl(var(--brand-accent))",
           "accent-soft": "hsl(var(--brand-accent-soft))",
+          DEFAULT: "#0D9488",
+          light: "#14B8A6",
+          dark: "#0F766E",
         },
       },
       borderRadius: {
