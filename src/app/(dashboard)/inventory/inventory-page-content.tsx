@@ -25,6 +25,7 @@ import { InventoryMoveDayPanel } from "@/components/inventory/inventory-move-day
 import { InventoryPilotPanel } from "@/components/inventory/inventory-pilot-panel";
 import { InventoryQrDialog } from "@/components/inventory/inventory-qr-dialog";
 import { InventoryRoomProgress } from "@/components/inventory/inventory-room-progress";
+import { InventorySuppliesPanel } from "@/components/inventory/inventory-supplies-panel";
 import { InventoryWeightSummary } from "@/components/inventory/inventory-weight-summary";
 import { useInventory } from "@/contexts/inventory-context";
 import { useT } from "@/contexts/locale-context";
@@ -135,6 +136,13 @@ export function InventoryPageContent() {
   const destProgress = useMemo(() => destinationRoomProgress(boxes), [boxes]);
 
   useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "supplies" || tabParam === "moveDay" || tabParam === "manage") {
+      setTab(tabParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!isHydrated) return;
     if (scannedBox) {
       setHighlightId(scannedBox.id);
@@ -197,6 +205,7 @@ export function InventoryPageContent() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="manage">{t("inventory.tabManage")}</TabsTrigger>
+            <TabsTrigger value="supplies">{t("inventory.tabSupplies")}</TabsTrigger>
             <TabsTrigger value="moveDay">{t("inventory.tabMoveDay")}</TabsTrigger>
           </TabsList>
 
@@ -400,6 +409,10 @@ export function InventoryPageContent() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="supplies" className="mt-6">
+            <InventorySuppliesPanel />
           </TabsContent>
 
           <TabsContent value="moveDay" className="mt-6">

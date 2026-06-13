@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import { useChecklist } from "@/contexts/checklist-context";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
@@ -37,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CHECKLIST_CATEGORIES } from "@/lib/constants";
+import { isPackingSuppliesTask } from "@/lib/inventory/supplies";
 import type { ChecklistTask, TaskPriority, TaskStatus } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -82,6 +84,13 @@ export default function ChecklistPage() {
     }
     return list;
   }, [tasks, filter, dueDateFilter]);
+
+  useEffect(() => {
+    const category = searchParams.get("category");
+    if (category && ALL_CATEGORIES.includes(category as (typeof ALL_CATEGORIES)[number])) {
+      setFilter(category);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const taskId = searchParams.get("task");
@@ -242,6 +251,14 @@ export default function ChecklistPage() {
                       </div>
                       {task.notes && (
                         <p className="text-xs text-muted-foreground whitespace-pre-wrap">{task.notes}</p>
+                      )}
+                      {isPackingSuppliesTask(task.title) && (
+                        <Button asChild variant="link" size="sm" className="h-auto p-0 text-primary">
+                          <Link href="/inventory?tab=supplies">
+                            {t("movingSupplies.checklistTaskLink")}
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Link>
+                        </Button>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0">

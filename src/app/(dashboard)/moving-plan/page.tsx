@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { Download, FileDown, Printer } from "lucide-react";
+import { MovingPlanSuppliesCard } from "@/components/moving-plan/moving-plan-supplies-card";
+import { isPackingSuppliesTask } from "@/lib/inventory/supplies";
 import { useMovingPlan } from "@/contexts/moving-plan-context";
 import { householdWithPets, useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
@@ -121,6 +124,16 @@ export default function MovingPlanPage() {
                           </li>
                         ))}
                       </ul>
+                      {week.tasks.some(isPackingSuppliesTask) && (
+                        <div className="mt-4 rounded-lg border border-dashed bg-muted/30 p-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("movingSupplies.weekHint")}
+                          </p>
+                          <Button asChild size="sm" variant="outline" className="mt-2">
+                            <Link href="/inventory?tab=supplies">{t("movingSupplies.openList")}</Link>
+                          </Button>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))
@@ -128,6 +141,7 @@ export default function MovingPlanPage() {
             </div>
 
             <div className="space-y-6">
+              <MovingPlanSuppliesCard />
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">{t("movingPlanPage.priorityTasks")}</CardTitle>
