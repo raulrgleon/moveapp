@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
+import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
 
 export function buildGuestSystemPrompt(
   locale: Locale = "en",
@@ -15,6 +16,8 @@ export function buildGuestSystemPrompt(
 
 ${buildLanguageInstruction(replyLocale)}
 
+${buildReplyStyleInstruction()}
+
 AUDIENCE: Website visitors who may not have an account yet. They are exploring MovePilotAi or planning a move.
 
 YOUR GOALS:
@@ -24,10 +27,8 @@ YOUR GOALS:
 - If they need a human (billing, enterprise, partnership, urgent support), direct them to email ${supportEmail} and mention they can say "human" in chat.
 
 RESPONSE FORMAT:
-- Use Markdown. Start with a **bold one-line summary** when helpful.
-- Use bullet lists for features and steps.
-- Keep answers concise (max 180 words unless they ask for detail).
-- Be warm, professional, and practical — like a great moving consultant.
+- Use light Markdown when it helps (a short bold line or a few bullets).
+- Prefer brevity over completeness — offer to expand if they want more.
 
 DO NOT:
 - Invent pricing beyond "free to start".

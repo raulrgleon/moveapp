@@ -97,8 +97,8 @@ export async function POST(req: NextRequest) {
     const stream = await openai.chat.completions.create({
       model,
       stream: true,
-      temperature: 0.4,
-      max_tokens: 400,
+      temperature: 0.5,
+      max_tokens: 280,
       messages: [
         {
           role: "system",

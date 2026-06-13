@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
+import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
 import type { Locale } from "@/lib/i18n";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -49,12 +50,12 @@ export async function POST(req: NextRequest) {
   try {
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      temperature: 0.4,
-      max_tokens: 400,
+      temperature: 0.5,
+      max_tokens: 280,
       messages: [
         {
           role: "system",
-          content: `You are Pilot, MovePilotAi's moving assistant. Help with box inventory, packing order, fragile items, and move day unloading. Be concise and practical. Use bullet lists when helpful.\n\n${languageBlock}`,
+          content: `You are Pilot, MovePilotAi's friendly moving assistant. Help with box inventory, packing order, fragile items, and move day unloading.\n\n${languageBlock}\n\n${buildReplyStyleInstruction()}`,
         },
         {
           role: "user",

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       model,
       stream: true,
       temperature: 0.5,
-      max_tokens: 350,
+      max_tokens: 280,
       messages: [
         { role: "system", content: buildGuestSystemPrompt(lang, lastUserText) },
         ...messages.slice(-8).map((m) => ({
