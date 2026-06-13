@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { translate, type Locale } from "@/lib/i18n";
 
 export async function GET(req: NextRequest) {
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
+  const locale: Locale = result.user.locale === "es" ? "es" : "en";
   const now = new Date();
   const inThreeDays = new Date();
   inThreeDays.setDate(inThreeDays.getDate() + 3);
@@ -54,8 +56,10 @@ export async function GET(req: NextRequest) {
       type: "task_due" as const,
       title: t.title,
       message: t.dueDate
-        ? `Due ${t.dueDate.toISOString().slice(0, 10)}`
-        : "Due soon",
+        ? translate(locale, "notifications.taskDueMessage", {
+            date: t.dueDate.toISOString().slice(0, 10),
+          })
+        : translate(locale, "notifications.taskDueSoon"),
       href: `/checklist?task=${t.id}`,
       createdAt: t.dueDate?.toISOString() ?? now.toISOString(),
       read: readKeys.has(`task-${t.id}`),
@@ -63,16 +67,19 @@ export async function GET(req: NextRequest) {
     ...(pendingInvites.map((c) => ({
       id: `invite-${c.id}`,
       type: "invite_pending" as const,
-      title: "Collaborator invite pending",
-      message: `${c.email} has not accepted yet`,
-      href: "/settings",
+      title: translate(locale, "notifications.invitePendingTitle"),
+      message: translate(locale, "notifications.invitePendingMessage", { email: c.email }),
+      href: "/collaboration",
       createdAt: c.createdAt.toISOString(),
       read: readKeys.has(`invite-${c.id}`),
     })) ?? []),
     ...(recentReminders.map((r) => ({
       id: `reminder-${r.id}`,
       type: "reminder_sent" as const,
-      title: r.channel === "email" ? "Email reminder sent" : "SMS reminder sent",
+      title:
+        r.channel === "email"
+          ? translate(locale, "notifications.emailReminderTitle")
+          : translate(locale, "notifications.smsReminderTitle"),
       message: r.sentAt.toISOString().slice(0, 16).replace("T", " "),
       href: "/checklist",
       createdAt: r.sentAt.toISOString(),

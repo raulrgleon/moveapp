@@ -1,8 +1,10 @@
 "use client";
 
 import { RouteMap } from "@/components/dashboard/route-map";
+import { RouteMapEmptyState } from "@/components/dashboard/route-map-empty-state";
 import { useMove } from "@/contexts/move-context";
-import { MOVE_ROUTE_POINTS, type GeoPoint } from "@/lib/geo/coordinates";
+import { hasRouteCoordinates } from "@/lib/move/profile-completeness";
+import type { GeoPoint } from "@/lib/geo/coordinates";
 
 interface RouteMapWrapperProps {
   className?: string;
@@ -12,21 +14,24 @@ interface RouteMapWrapperProps {
 export function RouteMapWrapper({ className, showNewHome = true }: RouteMapWrapperProps) {
   const { profile, isAddressConfirmed, destinationAddress, lat, lon } = useMove();
 
-  const origin: GeoPoint =
-    profile.originLat != null && profile.originLon != null
-      ? { lat: profile.originLat, lon: profile.originLon, label: profile.origin }
-      : MOVE_ROUTE_POINTS.origin;
+  if (!hasRouteCoordinates(profile)) {
+    return <RouteMapEmptyState className={className} />;
+  }
+
+  const origin: GeoPoint = {
+    lat: profile.originLat!,
+    lon: profile.originLon!,
+    label: profile.origin,
+  };
 
   const destination: GeoPoint =
     isAddressConfirmed && lat != null && lon != null
       ? { lat, lon, label: destinationAddress }
-      : profile.destinationLat != null && profile.destinationLon != null
-        ? {
-            lat: profile.destinationLat,
-            lon: profile.destinationLon,
-            label: profile.destination,
-          }
-        : MOVE_ROUTE_POINTS.destination;
+      : {
+          lat: profile.destinationLat!,
+          lon: profile.destinationLon!,
+          label: profile.destination,
+        };
 
   const newHome =
     isAddressConfirmed && lat != null && lon != null

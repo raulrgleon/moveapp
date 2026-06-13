@@ -49,7 +49,12 @@ export async function processDueReminders() {
         },
       });
       if (!already) {
-        await sendTaskReminderEmail(user.email, user.name, taskPayload);
+        await sendTaskReminderEmail(
+          user.email,
+          user.name,
+          taskPayload,
+          user.locale === "es" ? "es" : "en"
+        );
         await prisma.reminderLog.create({
           data: { userId: user.id, channel: "email" },
         });
@@ -63,7 +68,12 @@ export async function processDueReminders() {
         where: { userId: user.id, taskId: top.id, channel: "sms" },
       });
       if (!already) {
-        await sendTaskReminderSms(user.phone, top.title, top.dueDate);
+        await sendTaskReminderSms(
+          user.phone,
+          top.title,
+          top.dueDate,
+          user.locale === "es" ? "es" : "en"
+        );
         await prisma.reminderLog.create({
           data: { userId: user.id, taskId: top.id, channel: "sms" },
         });

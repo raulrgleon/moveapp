@@ -31,7 +31,8 @@ export async function POST(
   await sendMoveInviteEmail(
     collab.email,
     result.user.name,
-    `${base}/invite/${collab.inviteToken}`
+    `${base}/invite/${collab.inviteToken}`,
+    result.user.locale === "es" ? "es" : "en"
   );
 
   return NextResponse.json({ ok: true });

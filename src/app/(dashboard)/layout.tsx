@@ -2,6 +2,7 @@ import { AIAssistantPanel } from "@/components/layout/ai-assistant-panel";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 import { DashboardAuthGuard } from "@/components/auth/dashboard-auth-guard";
+import { MoveSetupGuard } from "@/components/auth/move-setup-guard";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { SystemAnnouncementBanner } from "@/components/layout/system-announcement-banner";
 
@@ -12,6 +13,7 @@ export default function DashboardLayout({
 }) {
   return (
     <DashboardAuthGuard>
+      <MoveSetupGuard>
       <div className="flex h-[100dvh] overflow-hidden bg-background flex-col">
         <SystemAnnouncementBanner />
         <ImpersonationBanner />
@@ -28,6 +30,7 @@ export default function DashboardLayout({
           </div>
         </div>
       </div>
+      </MoveSetupGuard>
     </DashboardAuthGuard>
   );
 }

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const invite = await prisma.moveCollaborator.findUnique({
     where: { id: params.id },
-    include: { move: { include: { user: { select: { name: true } } } } },
+    include: { move: { include: { user: { select: { name: true, locale: true } } } } },
   });
 
   if (!invite) {
@@ -37,7 +37,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   await sendMoveInviteEmail(
     invite.email,
     invite.move.user.name,
-    `${base}/invite/${inviteToken}`
+    `${base}/invite/${inviteToken}`,
+    invite.move.user.locale === "es" ? "es" : "en"
   );
 
   await logAdminAction({

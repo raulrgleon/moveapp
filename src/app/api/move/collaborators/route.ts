@@ -73,7 +73,12 @@ export async function POST(req: NextRequest) {
   });
 
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  await sendMoveInviteEmail(inviteEmail, session.name, `${base}/invite/${inviteToken}`);
+  await sendMoveInviteEmail(
+    inviteEmail,
+    session.name,
+    `${base}/invite/${inviteToken}`,
+    session.locale === "es" ? "es" : "en"
+  );
   await logMoveActivity(moveId, session.id, "invite_sent", {
     email: inviteEmail,
     role: collab.role,

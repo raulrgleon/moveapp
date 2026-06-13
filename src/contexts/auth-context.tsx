@@ -35,6 +35,7 @@ interface AuthContextValue {
     email: string;
     password: string;
     name: string;
+    locale?: string;
     profile?: Record<string, unknown>;
     vehicles?: unknown[];
     destinationAddress?: string;
@@ -109,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: string;
       password: string;
       name: string;
+      locale?: string;
       profile?: Record<string, unknown>;
       vehicles?: unknown[];
       destinationAddress?: string;

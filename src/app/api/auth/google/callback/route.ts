@@ -7,6 +7,7 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { buildDefaultMoveData } from "@/lib/db/move-service";
+import { sendWelcomeEmail } from "@/lib/notifications/email";
 
 export async function GET(req: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -63,7 +64,10 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  let isNewUser = false;
+
   if (!user) {
+    isNewUser = true;
     user = await prisma.user.create({
       data: {
         email: googleUser.email.toLowerCase(),
@@ -80,8 +84,14 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  if (isNewUser) {
+    const locale = user.locale === "es" ? "es" : "en";
+    await sendWelcomeEmail(user.email, user.name, locale);
+  }
+
   const { token, expiresAt } = await createSession(user.id, user.email, user.role);
-  const res = NextResponse.redirect(`${base}/dashboard`);
+  const redirectPath = isNewUser ? `${base}/onboarding?complete=1` : `${base}/dashboard`;
+  const res = NextResponse.redirect(redirectPath);
   res.cookies.set(COOKIE_NAME, token, sessionCookieOptions(expiresAt, isSecureRequest(req)));
   res.cookies.set("oauth_state", "", { maxAge: 0, path: "/" });
   return res;

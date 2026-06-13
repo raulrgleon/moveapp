@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { GettingStartedCard } from "@/components/dashboard/getting-started-card";
 import { NextActionCard } from "@/components/dashboard/next-action-card";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useRouteStats } from "@/hooks/use-route-stats";
@@ -95,6 +96,8 @@ export default function DashboardPage() {
       />
       <PageContainer>
         <PendingInvitesBanner />
+
+        <GettingStartedCard />
 
         <PageHeader
           title={t("dashboardPage.overview")}

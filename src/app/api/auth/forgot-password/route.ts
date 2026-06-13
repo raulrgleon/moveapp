@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
       });
 
       const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      await sendPasswordResetEmail(normalized, `${base}/reset-password?token=${token}`);
+      await sendPasswordResetEmail(
+        normalized,
+        `${base}/reset-password?token=${token}`,
+        user.locale === "es" ? "es" : "en"
+      );
     }
 
     return NextResponse.json({
