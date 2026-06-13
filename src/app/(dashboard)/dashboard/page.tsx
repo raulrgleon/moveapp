@@ -21,6 +21,7 @@ import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DashboardUtilitiesCard } from "@/components/dashboard/dashboard-utilities-card";
 import { DashboardHousingCard } from "@/components/dashboard/dashboard-housing-card";
+import { DashboardInventoryCard } from "@/components/dashboard/dashboard-inventory-card";
 import { MoveActivityFeed } from "@/components/dashboard/move-activity-feed";
 import { CollaboratorsDashboardCard } from "@/components/collaboration/collaborators-dashboard-card";
 import { PendingInvitesBanner } from "@/components/collaboration/pending-invites-banner";
@@ -205,6 +206,8 @@ export default function DashboardPage() {
         </Card>
 
         <CollaboratorsDashboardCard />
+
+        <DashboardInventoryCard />
 
         <DashboardHousingCard />
 

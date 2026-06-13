@@ -32,6 +32,7 @@ const EN_BASE_TASKS: TaskTemplate[] = [
   { title: "Pack non-essential rooms", category: "Packing", daysBeforeMove: 14, priority: "medium" },
   { title: "Confirm moving day logistics", category: "Travel", daysBeforeMove: 7, priority: "high" },
   { title: "Pack essentials box for first night", category: "Packing", daysBeforeMove: 3, priority: "high" },
+  { title: "Label inventory boxes with QR codes", category: "Packing", daysBeforeMove: 5, priority: "medium" },
   { title: "Final walkthrough of old home", category: "Housing", daysBeforeMove: 1, priority: "high" },
 ];
 
@@ -49,6 +50,7 @@ const ES_BASE_TASKS: TaskTemplate[] = [
   { title: "Empacar habitaciones no esenciales", category: "Packing", daysBeforeMove: 14, priority: "medium" },
   { title: "Confirmar logística del día de mudanza", category: "Travel", daysBeforeMove: 7, priority: "high" },
   { title: "Empacar caja de esenciales para la primera noche", category: "Packing", daysBeforeMove: 3, priority: "high" },
+  { title: "Etiquetar cajas del inventario con códigos QR", category: "Packing", daysBeforeMove: 5, priority: "medium" },
   { title: "Recorrido final del hogar anterior", category: "Housing", daysBeforeMove: 1, priority: "high" },
 ];
 

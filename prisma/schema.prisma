@@ -183,17 +183,22 @@ model Vehicle {
 }
 
 model InventoryBox {
-  id        String   @id @default(uuid())
-  moveId    String   @map("move_id")
-  move      Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
-  boxNumber Int      @map("box_number")
-  room      String
-  contents  String
-  photoUrl  String?  @map("photo_url") @db.Text
-  fragile   Boolean  @default(false)
-  status    String   @default("packed")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  moveId          String   @map("move_id")
+  move            Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  boxNumber       Int      @map("box_number")
+  room            String
+  destinationRoom String?  @map("destination_room")
+  contents        String
+  photoUrl        String?  @map("photo_url") @db.Text
+  fragile         Boolean  @default(false)
+  essentials      Boolean  @default(false)
+  sizeEstimate    String?  @map("size_estimate")
+  weightLbs       Float?   @map("weight_lbs")
+  assigneeEmail   String?  @map("assignee_email")
+  status          String   @default("packed")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([moveId])
   @@map("inventory_boxes")

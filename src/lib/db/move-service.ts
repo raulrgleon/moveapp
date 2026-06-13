@@ -418,9 +418,14 @@ function dbToInventory(b: {
   id: string;
   boxNumber: number;
   room: string;
+  destinationRoom?: string | null;
   contents: string;
   photoUrl: string | null;
   fragile: boolean;
+  essentials?: boolean;
+  sizeEstimate?: string | null;
+  weightLbs?: number | null;
+  assigneeEmail?: string | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -429,9 +434,14 @@ function dbToInventory(b: {
     id: b.id,
     boxNumber: b.boxNumber,
     room: b.room as InventoryBox["room"],
+    destinationRoom: (b.destinationRoom as InventoryBox["destinationRoom"]) ?? undefined,
     contents: b.contents,
     photoUrl: b.photoUrl ?? undefined,
     fragile: b.fragile,
+    essentials: b.essentials ?? false,
+    sizeEstimate: (b.sizeEstimate as InventoryBox["sizeEstimate"]) ?? undefined,
+    weightLbs: b.weightLbs ?? undefined,
+    assigneeEmail: b.assigneeEmail ?? undefined,
     status: b.status as InventoryBox["status"],
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
@@ -651,9 +661,14 @@ export async function replaceInventory(userId: string, boxes: InventoryBox[]) {
           moveId,
           boxNumber: b.boxNumber,
           room: b.room,
+          destinationRoom: b.destinationRoom ?? null,
           contents: b.contents,
           photoUrl: b.photoUrl ?? null,
           fragile: b.fragile,
+          essentials: b.essentials ?? false,
+          sizeEstimate: b.sizeEstimate ?? null,
+          weightLbs: b.weightLbs ?? null,
+          assigneeEmail: b.assigneeEmail ?? null,
           status: b.status,
           createdAt: new Date(b.createdAt),
           updatedAt: new Date(b.updatedAt),

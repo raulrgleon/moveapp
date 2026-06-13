@@ -3,8 +3,10 @@
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, Trash2 } from "lucide-react";
 import { useT } from "@/contexts/locale-context";
+import { useMoveTeam } from "@/hooks/use-move-team";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -15,11 +17,13 @@ import {
 } from "@/components/ui/select";
 import {
   INVENTORY_ROOM_KEYS,
+  INVENTORY_SIZE_KEYS,
   MAX_PHOTO_BYTES,
   type InventoryBox,
   type InventoryBoxInput,
   type InventoryBoxStatus,
   type InventoryRoomKey,
+  type InventorySizeEstimate,
 } from "@/lib/inventory/types";
 
 interface InventoryBoxFormProps {
@@ -38,14 +42,24 @@ export function InventoryBoxForm({
   onDelete,
 }: InventoryBoxFormProps) {
   const t = useT();
+  const { assigneeOptions } = useMoveTeam();
   const fileRef = useRef<HTMLInputElement>(null);
   const [room, setRoom] = useState<InventoryRoomKey>(initial?.room ?? "kitchen");
+  const [destinationRoom, setDestinationRoom] = useState<InventoryRoomKey>(
+    initial?.destinationRoom ?? initial?.room ?? "kitchen"
+  );
   const [contents, setContents] = useState(initial?.contents ?? "");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(initial?.photoUrl);
   const [fragile, setFragile] = useState(initial?.fragile ?? false);
-  const [status, setStatus] = useState<InventoryBoxStatus>(
-    initial?.status ?? "packed"
+  const [essentials, setEssentials] = useState(initial?.essentials ?? false);
+  const [sizeEstimate, setSizeEstimate] = useState<InventorySizeEstimate>(
+    initial?.sizeEstimate ?? "m"
   );
+  const [weightLbs, setWeightLbs] = useState(
+    initial?.weightLbs != null ? String(initial.weightLbs) : ""
+  );
+  const [assigneeEmail, setAssigneeEmail] = useState(initial?.assigneeEmail ?? "");
+  const [status, setStatus] = useState<InventoryBoxStatus>(initial?.status ?? "packed");
   const [photoError, setPhotoError] = useState<string | null>(null);
 
   const handlePhoto = async (file: File | undefined) => {
@@ -74,23 +88,7 @@ export function InventoryBoxForm({
         return;
       }
     } catch {
-      /* fallback to base64 */
-    }
-
-    try {
-      const res = await fetch("/api/inventory/photo", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataUrl: await readAsDataUrl(file) }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { photoUrl: string };
-        setPhotoUrl(data.photoUrl);
-        return;
-      }
-    } catch {
-      /* final fallback: inline base64 */
+      /* fallback */
     }
 
     const reader = new FileReader();
@@ -98,19 +96,22 @@ export function InventoryBoxForm({
     reader.readAsDataURL(file);
   };
 
-  function readAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contents.trim()) return;
-    onSubmit({ room, contents, photoUrl, fragile, status });
+    const parsedWeight = weightLbs.trim() ? Number(weightLbs) : undefined;
+    onSubmit({
+      room,
+      destinationRoom: destinationRoom !== room ? destinationRoom : destinationRoom,
+      contents,
+      photoUrl,
+      fragile,
+      essentials,
+      sizeEstimate,
+      weightLbs: parsedWeight && parsedWeight > 0 ? parsedWeight : undefined,
+      assigneeEmail: assigneeEmail || undefined,
+      status,
+    });
   };
 
   return (
@@ -118,7 +119,14 @@ export function InventoryBoxForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>{t("inventory.room")}</Label>
-          <Select value={room} onValueChange={(v) => setRoom(v as InventoryRoomKey)}>
+          <Select
+            value={room}
+            onValueChange={(v) => {
+              const r = v as InventoryRoomKey;
+              setRoom(r);
+              if (!initial) setDestinationRoom(r);
+            }}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -132,6 +140,24 @@ export function InventoryBoxForm({
           </Select>
         </div>
 
+        <div className="space-y-2">
+          <Label>{t("inventory.destinationRoom")}</Label>
+          <Select value={destinationRoom} onValueChange={(v) => setDestinationRoom(v as InventoryRoomKey)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INVENTORY_ROOM_KEYS.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {t(`inventory.rooms.${key}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>{t("inventory.status")}</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as InventoryBoxStatus)}>
@@ -147,7 +173,55 @@ export function InventoryBoxForm({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="space-y-2">
+          <Label>{t("inventory.size")}</Label>
+          <Select value={sizeEstimate} onValueChange={(v) => setSizeEstimate(v as InventorySizeEstimate)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INVENTORY_SIZE_KEYS.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {t(`inventory.sizes.${key}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="box-weight">{t("inventory.weight")}</Label>
+        <Input
+          id="box-weight"
+          type="number"
+          min={1}
+          step={1}
+          placeholder={t("inventory.weightOptional")}
+          value={weightLbs}
+          onChange={(e) => setWeightLbs(e.target.value)}
+        />
+      </div>
+
+      {assigneeOptions.length > 0 && (
+        <div className="space-y-2">
+          <Label>{t("inventory.assignee")}</Label>
+          <Select value={assigneeEmail || "__none"} onValueChange={(v) => setAssigneeEmail(v === "__none" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">{t("inventory.assigneeNone")}</SelectItem>
+              {assigneeOptions.map((a) => (
+                <SelectItem key={a.email} value={a.email}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="box-contents">{t("inventory.contents")}</Label>
@@ -175,26 +249,12 @@ export function InventoryBoxForm({
         {photoUrl ? (
           <div className="relative overflow-hidden rounded-lg border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photoUrl}
-              alt={t("inventory.photoAlt")}
-              className="h-36 w-full object-cover"
-            />
+            <img src={photoUrl} alt={t("inventory.photoAlt")} className="h-36 w-full object-cover" />
             <div className="absolute right-2 top-2 flex gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => fileRef.current?.click()}
-              >
+              <Button type="button" size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
                 <Camera className="h-4 w-4" />
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => setPhotoUrl(undefined)}
-              >
+              <Button type="button" size="sm" variant="secondary" onClick={() => setPhotoUrl(undefined)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -212,15 +272,19 @@ export function InventoryBoxForm({
         {photoError && <p className="text-xs text-destructive">{photoError}</p>}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="fragile"
-          checked={fragile}
-          onCheckedChange={(v) => setFragile(v === true)}
-        />
-        <Label htmlFor="fragile" className="font-normal cursor-pointer">
-          {t("inventory.fragile")}
-        </Label>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Checkbox id="fragile" checked={fragile} onCheckedChange={(v) => setFragile(v === true)} />
+          <Label htmlFor="fragile" className="font-normal cursor-pointer">
+            {t("inventory.fragile")}
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox id="essentials" checked={essentials} onCheckedChange={(v) => setEssentials(v === true)} />
+          <Label htmlFor="essentials" className="font-normal cursor-pointer">
+            {t("inventory.essentials")}
+          </Label>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2">

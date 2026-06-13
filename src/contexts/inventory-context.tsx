@@ -12,56 +12,30 @@ import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
 import { loadUserData } from "@/lib/data-cache";
-import { INVENTORY_BOXES } from "@/lib/mock-data";
 import {
   createInventoryBox,
-  createInventoryId,
   nextBoxNumber,
   type InventoryBox,
   type InventoryBoxInput,
   type InventoryBoxStatus,
-  type InventoryRoomKey,
 } from "@/lib/inventory/types";
 
 interface InventoryContextValue {
   boxes: InventoryBox[];
   isHydrated: boolean;
   addBox: (input: InventoryBoxInput) => InventoryBox;
+  addBoxes: (inputs: InventoryBoxInput[]) => InventoryBox[];
   updateBox: (id: string, input: Partial<InventoryBoxInput>) => void;
   removeBox: (id: string) => void;
+  removeBoxes: (ids: string[]) => void;
   setBoxStatus: (id: string, status: InventoryBoxStatus) => void;
+  bulkSetStatus: (ids: string[], status: InventoryBoxStatus) => void;
+  bulkUpdate: (ids: string[], patch: Partial<InventoryBoxInput>) => void;
   getBoxByNumber: (boxNumber: number) => InventoryBox | undefined;
-  resetToDemo: () => void;
+  getBoxById: (id: string) => InventoryBox | undefined;
 }
 
 const InventoryContext = createContext<InventoryContextValue | null>(null);
-
-function legacyToBox(item: (typeof INVENTORY_BOXES)[number], index: number): InventoryBox {
-  const roomMap: Record<string, InventoryRoomKey> = {
-    Kitchen: "kitchen",
-    "Living Room": "livingRoom",
-    "Master Bedroom": "masterBedroom",
-    "Child's Room": "childRoom",
-    Bathroom: "bathroom",
-    Garage: "garage",
-  };
-  const now = new Date().toISOString();
-  return {
-    id: createInventoryId(),
-    boxNumber: item.boxNumber ?? index + 1,
-    room: roomMap[item.room] ?? "other",
-    contents: item.contents,
-    photoUrl: undefined,
-    fragile: false,
-    status: "packed",
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function seedDemoBoxes(): InventoryBox[] {
-  return INVENTORY_BOXES.map(legacyToBox);
-}
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isHydrated: authHydrated } = useAuth();
@@ -69,13 +43,16 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [boxes, setBoxes] = useState<InventoryBox[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  const saveToDb = useCallback(async (next: InventoryBox[]) => {
-    if (!isAuthenticated || !user?.email || !canEdit) return;
-    await apiFetch("/api/inventory", {
-      method: "PUT",
-      body: JSON.stringify({ boxes: next }),
-    });
-  }, [isAuthenticated, user?.email, canEdit]);
+  const saveToDb = useCallback(
+    async (next: InventoryBox[]) => {
+      if (!isAuthenticated || !user?.email || !canEdit) return;
+      await apiFetch("/api/inventory", {
+        method: "PUT",
+        body: JSON.stringify({ boxes: next }),
+      });
+    },
+    [isAuthenticated, user?.email, canEdit]
+  );
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -94,7 +71,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       setIsHydrated(true);
     }
 
-    load();
+    void load();
   }, [authHydrated, isAuthenticated, user?.email]);
 
   const persist = useCallback(
@@ -114,6 +91,20 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     [boxes, persist]
   );
 
+  const addBoxes = useCallback(
+    (inputs: InventoryBoxInput[]) => {
+      let num = nextBoxNumber(boxes);
+      const created = inputs.map((input) => {
+        const box = createInventoryBox(input, num);
+        num += 1;
+        return box;
+      });
+      persist([...boxes, ...created]);
+      return created;
+    },
+    [boxes, persist]
+  );
+
   const updateBox = useCallback(
     (id: string, input: Partial<InventoryBoxInput>) => {
       const now = new Date().toISOString();
@@ -124,6 +115,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
                 ...box,
                 ...input,
                 contents: input.contents?.trim() ?? box.contents,
+                assigneeEmail: input.assigneeEmail?.trim() || undefined,
                 updatedAt: now,
               }
             : box
@@ -140,6 +132,14 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     [boxes, persist]
   );
 
+  const removeBoxes = useCallback(
+    (ids: string[]) => {
+      const set = new Set(ids);
+      persist(boxes.filter((box) => !set.has(box.id)));
+    },
+    [boxes, persist]
+  );
+
   const setBoxStatus = useCallback(
     (id: string, status: InventoryBoxStatus) => {
       const now = new Date().toISOString();
@@ -152,27 +152,79 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     [boxes, persist]
   );
 
+  const bulkSetStatus = useCallback(
+    (ids: string[], status: InventoryBoxStatus) => {
+      const set = new Set(ids);
+      const now = new Date().toISOString();
+      persist(
+        boxes.map((box) =>
+          set.has(box.id) ? { ...box, status, updatedAt: now } : box
+        )
+      );
+    },
+    [boxes, persist]
+  );
+
+  const bulkUpdate = useCallback(
+    (ids: string[], patch: Partial<InventoryBoxInput>) => {
+      const set = new Set(ids);
+      const now = new Date().toISOString();
+      persist(
+        boxes.map((box) =>
+          set.has(box.id)
+            ? {
+                ...box,
+                ...patch,
+                contents: patch.contents?.trim() ?? box.contents,
+                assigneeEmail: patch.assigneeEmail?.trim() ?? box.assigneeEmail,
+                updatedAt: now,
+              }
+            : box
+        )
+      );
+    },
+    [boxes, persist]
+  );
+
   const getBoxByNumber = useCallback(
     (boxNumber: number) => boxes.find((b) => b.boxNumber === boxNumber),
     [boxes]
   );
 
-  const resetToDemo = useCallback(() => {
-    persist(seedDemoBoxes());
-  }, [persist]);
+  const getBoxById = useCallback(
+    (id: string) => boxes.find((b) => b.id === id),
+    [boxes]
+  );
 
   const value = useMemo(
     () => ({
       boxes,
       isHydrated,
       addBox,
+      addBoxes,
       updateBox,
       removeBox,
+      removeBoxes,
       setBoxStatus,
+      bulkSetStatus,
+      bulkUpdate,
       getBoxByNumber,
-      resetToDemo,
+      getBoxById,
     }),
-    [boxes, isHydrated, addBox, updateBox, removeBox, setBoxStatus, getBoxByNumber, resetToDemo]
+    [
+      boxes,
+      isHydrated,
+      addBox,
+      addBoxes,
+      updateBox,
+      removeBox,
+      removeBoxes,
+      setBoxStatus,
+      bulkSetStatus,
+      bulkUpdate,
+      getBoxByNumber,
+      getBoxById,
+    ]
   );
 
   return (

@@ -6,6 +6,7 @@ import { useT } from "@/contexts/locale-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,10 @@ const STATUS_VARIANT: Record<InventoryBoxStatus, "secondary" | "default" | "outl
 interface InventoryBoxCardProps {
   box: InventoryBox;
   roomLabel: string;
+  destLabel: string;
   highlighted?: boolean;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
   onShowQr: () => void;
@@ -36,7 +40,10 @@ interface InventoryBoxCardProps {
 export function InventoryBoxCard({
   box,
   roomLabel,
+  destLabel,
   highlighted,
+  selected,
+  onSelect,
   onEdit,
   onDelete,
   onShowQr,
@@ -55,28 +62,39 @@ export function InventoryBoxCard({
     <Card
       className={cn(
         "overflow-hidden transition-shadow hover:shadow-md",
-        highlighted && "ring-2 ring-primary shadow-md"
+        highlighted && "ring-2 ring-primary shadow-md",
+        selected && "ring-2 ring-primary/50"
       )}
     >
       <div className="relative flex h-28 items-center justify-center border-b bg-muted/40">
+        {onSelect && (
+          <div className="absolute left-2 top-2 z-10">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={(v) => onSelect(v === true)}
+              className="bg-background border-2"
+            />
+          </div>
+        )}
         {box.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={box.photoUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+          <img src={box.photoUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground">
             <Camera className="h-7 w-7 opacity-40" />
             <span className="text-[10px]">{t("inventory.noPhoto")}</span>
           </div>
         )}
-        {box.fragile && (
-          <Badge className="absolute left-2 top-2 bg-amber-500 hover:bg-amber-500 text-[10px]">
-            {t("inventory.fragileBadge")}
-          </Badge>
-        )}
+        <div className="absolute right-2 top-2 flex flex-col gap-1">
+          {box.fragile && (
+            <Badge className="bg-amber-500 hover:bg-amber-500 text-[10px]">
+              {t("inventory.fragileBadge")}
+            </Badge>
+          )}
+          {box.essentials && (
+            <Badge className="bg-primary text-[10px]">{t("inventory.essentialsBadge")}</Badge>
+          )}
+        </div>
       </div>
 
       <CardContent className="p-4">
@@ -89,6 +107,12 @@ export function InventoryBoxCard({
               </Badge>
             </div>
             <p className="text-sm text-primary truncate">{roomLabel}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {t("inventory.destinationShort", { room: destLabel })}
+            </p>
+            {box.assigneeEmail && (
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{box.assigneeEmail}</p>
+            )}
           </div>
 
           <button

@@ -19,14 +19,19 @@ export async function GET(req: NextRequest) {
   }
 
   const boxes = moveData.move.inventoryBoxes;
-  const header = "box_number,room,contents,status,fragile,created_at,updated_at";
+  const header = "box_number,origin_room,destination_room,contents,status,fragile,essentials,size,weight_lbs,assignee,created_at,updated_at";
   const rows = boxes.map((b) =>
     [
       b.boxNumber,
       csvEscape(b.room),
+      csvEscape(b.destinationRoom ?? b.room),
       csvEscape(b.contents),
       b.status,
       b.fragile ? "yes" : "no",
+      b.essentials ? "yes" : "no",
+      b.sizeEstimate ?? "",
+      b.weightLbs ?? "",
+      csvEscape(b.assigneeEmail ?? ""),
       b.createdAt.toISOString(),
       b.updatedAt.toISOString(),
     ].join(",")

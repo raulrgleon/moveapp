@@ -156,7 +156,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
                   ? boxes
                       .map(
                         (b) =>
-                          `#${b.boxNumber} (${b.room}, ${b.status}): ${b.contents}`
+                          `#${b.boxNumber} ${b.room}→${b.destinationRoom ?? b.room} (${b.status}${b.fragile ? ", fragile" : ""}${b.essentials ? ", essentials" : ""}): ${b.contents}`
                       )
                       .join("; ")
                   : undefined,
