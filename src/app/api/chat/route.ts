@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildMoveSystemPromptAsync, type MoveContextInput } from "@/lib/ai/move-context";
+import { getLatestUserMessage } from "@/lib/ai/detect-message-locale";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { requireMoveAccess } from "@/lib/api-auth";
@@ -78,9 +79,11 @@ export async function POST(req: NextRequest) {
       accessResult instanceof NextResponse ? null : accessResult.user.id;
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const lastUserText = getLatestUserMessage(messages);
     const systemPrompt = await buildMoveSystemPromptAsync({
       ...moveContext,
       locale: locale ?? moveContext?.locale,
+      userMessage: lastUserText,
     });
 
     const lastUser = messages.filter((m) => m.role === "user").pop();

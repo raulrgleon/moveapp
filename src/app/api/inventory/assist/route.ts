@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
+import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 import type { Locale } from "@/lib/i18n";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -29,7 +30,9 @@ export async function POST(req: NextRequest) {
   }
 
   const boxes = moveData.move.inventoryBoxes;
-  const lang = locale === "es" ? "Spanish" : "English";
+  const fallback: Locale = locale === "es" ? "es" : "en";
+  const replyLocale = resolveReplyLocale(question.trim(), fallback);
+  const languageBlock = buildLanguageInstruction(replyLocale);
   const inventoryLines =
     boxes.length === 0
       ? "No boxes yet."
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are Pilot, MovePilotAi's moving assistant. Reply in ${lang}. Help with box inventory, packing order, fragile items, and move day unloading. Be concise and practical. Use bullet lists when helpful.`,
+          content: `You are Pilot, MovePilotAi's moving assistant. Help with box inventory, packing order, fragile items, and move day unloading. Be concise and practical. Use bullet lists when helpful.\n\n${languageBlock}`,
         },
         {
           role: "user",

@@ -8,6 +8,7 @@ import { householdWithPets, type MoveProfile } from "@/lib/move-profile";
 import { buildTrailerRecommendation } from "@/lib/trucks/recommendations";
 
 import type { Locale } from "@/lib/i18n";
+import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 import type { DestinationUtilityProvider } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 
@@ -30,6 +31,8 @@ export interface MoveContextInput {
   locale?: Locale;
   inventorySummary?: string;
   routeStats?: RouteContextStats;
+  /** Latest user message — used to detect reply language. */
+  userMessage?: string;
 }
 
 async function resolveUtilityPicks(ctx?: MoveContextInput): Promise<{
@@ -86,10 +89,8 @@ export async function buildMoveSystemPromptAsync(ctx?: MoveContextInput): Promis
           .join("; ")
       : "Not loaded — confirm address in Utilities";
 
-  const replyLanguage =
-    ctx?.locale === "es"
-      ? "Spanish (español). All user-facing text must be in Spanish."
-      : "English. All user-facing text must be in English.";
+  const replyLocale = resolveReplyLocale(ctx?.userMessage, ctx?.locale ?? "en");
+  const languageBlock = buildLanguageInstruction(replyLocale);
 
   const userName = profile?.name ?? "User";
   const moveDate = profile?.moveDate ?? "TBD";
@@ -108,7 +109,7 @@ export async function buildMoveSystemPromptAsync(ctx?: MoveContextInput): Promis
 
   return `You are MovePilot AI, a fast and practical moving co-pilot.
 
-LANGUAGE: Reply in ${replyLanguage}
+${languageBlock}
 
 RESPONSE FORMAT (required):
 - Use Markdown only. Never plain unformatted paragraphs.

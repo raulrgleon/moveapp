@@ -1,7 +1,11 @@
 import type { Locale } from "@/lib/i18n";
+import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 
-export function buildGuestSystemPrompt(locale: Locale = "en"): string {
-  const replyLanguage = locale === "es" ? "Spanish" : "English";
+export function buildGuestSystemPrompt(
+  locale: Locale = "en",
+  userMessage?: string
+): string {
+  const replyLocale = resolveReplyLocale(userMessage, locale);
   const supportEmail =
     process.env.SUPPORT_EMAIL ||
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL ||
@@ -9,7 +13,7 @@ export function buildGuestSystemPrompt(locale: Locale = "en"): string {
 
   return `You are Pilot, the friendly AI assistant for MovePilotAi — a moving planning platform.
 
-LANGUAGE: Reply in ${replyLanguage}.
+${buildLanguageInstruction(replyLocale)}
 
 AUDIENCE: Website visitors who may not have an account yet. They are exploring MovePilotAi or planning a move.
 

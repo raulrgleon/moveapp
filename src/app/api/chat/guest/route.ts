@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
 import { buildGuestSystemPrompt } from "@/lib/ai/guest-prompt";
+import { getLatestUserMessage } from "@/lib/ai/detect-message-locale";
 import { rateLimit } from "@/lib/rate-limit";
 import type { Locale } from "@/lib/i18n";
 
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const lang: Locale = locale === "es" ? "es" : "en";
+    const lastUserText = getLatestUserMessage(messages);
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
     const stream = await openai.chat.completions.create({
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
       temperature: 0.5,
       max_tokens: 350,
       messages: [
-        { role: "system", content: buildGuestSystemPrompt(lang) },
+        { role: "system", content: buildGuestSystemPrompt(lang, lastUserText) },
         ...messages.slice(-8).map((m) => ({
           role: m.role,
           content: m.content.slice(0, 4000),
