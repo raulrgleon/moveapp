@@ -37,6 +37,8 @@ interface BudgetResponse {
   totalEstimated: number;
   totalActual: number;
   notes: string[];
+  distanceMiles?: number;
+  isEstimate?: boolean;
 }
 
 export default function BudgetPage() {
@@ -127,6 +129,14 @@ export default function BudgetPage() {
             </Button>
           }
         />
+
+        <Card className="border-dashed bg-muted/30">
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            {data?.distanceMiles
+              ? t("budget.estimateBannerMiles", { miles: data.distanceMiles.toLocaleString() })
+              : t("budget.estimateBanner")}
+          </CardContent>
+        </Card>
 
         {isOverBudget && (
           <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">

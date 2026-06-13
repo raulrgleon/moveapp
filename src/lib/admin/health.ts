@@ -1,6 +1,7 @@
 import { execSync } from "child_process";
 import { statfsSync } from "fs";
 import path from "path";
+import { getNotificationConfigStatus } from "@/lib/notifications/config";
 import { prisma } from "@/lib/prisma";
 
 function envConfigured(key: string) {
@@ -64,6 +65,8 @@ export async function getSystemHealth() {
     cron: envConfigured("CRON_SECRET"),
   };
 
+  const notifications = getNotificationConfigStatus();
+
   return {
     dbOk,
     dbLatencyMs,
@@ -72,6 +75,7 @@ export async function getSystemHealth() {
     appUrl: process.env.NEXT_PUBLIC_APP_URL ?? null,
     nodeEnv: process.env.NODE_ENV ?? "development",
     integrations,
+    notifications,
     env: {
       authSecret: maskEnv("AUTH_SECRET"),
       databaseUrl: maskEnv("DATABASE_URL"),

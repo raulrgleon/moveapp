@@ -10,6 +10,7 @@ import { buildTrailerRecommendation } from "@/lib/trucks/recommendations";
 import type { Locale } from "@/lib/i18n";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
+import { buildPilotActionInstructions } from "@/lib/ai/pilot-actions";
 import type { DestinationUtilityProvider } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 
@@ -34,6 +35,8 @@ export interface MoveContextInput {
   routeStats?: RouteContextStats;
   /** Latest user message — used to detect reply language. */
   userMessage?: string;
+  checklistSummary?: string;
+  budgetSummary?: string;
 }
 
 async function resolveUtilityPicks(ctx?: MoveContextInput): Promise<{
@@ -52,6 +55,7 @@ async function resolveUtilityPicks(ctx?: MoveContextInput): Promise<{
         lat: ctx.lat,
         lon: ctx.lon,
         address: ctx.destinationAddress,
+        locale: ctx.locale ?? "en",
       });
       const picks = getUtilityBestPicks(providers);
       return {
@@ -132,6 +136,12 @@ RENTAL: ${rental}
 TRAILER TIP: ${trailerTip}
 UTILITIES (~$${utilityMonthlyTotal}/mo): ${utilityPicks}
 INVENTORY BOXES: ${ctx?.inventorySummary ?? "not tracked yet — user can add boxes in Inventory"}
+CHECKLIST (id | status | due | title):
+${ctx?.checklistSummary ?? "none loaded"}
+BUDGET ITEMS (id | category | estimated | actual):
+${ctx?.budgetSummary ?? "none loaded"}
+
+${buildPilotActionInstructions()}
 
 Answer only about this move. If unsure, say what to verify. Prioritize actionable next steps.`;
 }

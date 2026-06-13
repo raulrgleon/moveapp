@@ -43,6 +43,12 @@ interface Health {
   pm2Status: { online: boolean };
   diskFreeGb: number | null;
   integrations: Record<string, boolean>;
+  notifications?: {
+    ready: boolean;
+    missing: string[];
+    email: { configured: boolean; from: string | null };
+    sms: { configured: boolean; phone: string | null };
+  };
 }
 
 export default function AdminDashboardPage() {
@@ -149,6 +155,29 @@ export default function AdminDashboardPage() {
                       {key}: {ok ? t("adminConsole.configured") : t("adminConsole.missing")}
                     </Badge>
                   ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {health?.notifications && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">{t("adminConsole.notifications")}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <Badge variant={health.notifications.ready ? "default" : "secondary"}>
+                    {health.notifications.ready
+                      ? t("adminConsole.notificationsReady")
+                      : t("adminConsole.notificationsMissing")}
+                  </Badge>
+                  {health.notifications.email.from && (
+                    <p className="text-muted-foreground">EMAIL_FROM: {health.notifications.email.from}</p>
+                  )}
+                  {health.notifications.missing.length > 0 && (
+                    <p className="text-muted-foreground">
+                      Missing: {health.notifications.missing.join(", ")}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}

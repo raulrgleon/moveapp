@@ -117,9 +117,28 @@ model Move {
   budgetItems           BudgetItem[]
   collaborators         MoveCollaborator[]
   activities            MoveActivity[]
+  partnerQuotes         PartnerQuote[]
+  partnerShareToken     String?            @unique @map("partner_share_token")
+  partnerShareEnabled   Boolean            @default(false) @map("partner_share_enabled")
 
   @@index([userId])
   @@map("moves")
+}
+
+model PartnerQuote {
+  id           String   @id @default(uuid())
+  moveId       String   @map("move_id")
+  move         Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  companyName  String   @map("company_name")
+  contactEmail String   @map("contact_email")
+  contactPhone String?  @map("contact_phone")
+  amount       Int?
+  message      String?  @db.Text
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([moveId])
+  @@map("partner_quotes")
 }
 
 model MoveCollaborator {

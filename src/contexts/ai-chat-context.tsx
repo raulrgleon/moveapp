@@ -14,6 +14,12 @@ import { useChecklist } from "@/contexts/checklist-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { useRouteStats } from "@/hooks/use-route-stats";
 import { translate } from "@/lib/i18n";
+import {
+  formatActionResultMessage,
+  parsePilotActions,
+  stripPilotActions,
+} from "@/lib/ai/pilot-actions";
+import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import type { AIQuickQuestion } from "@/lib/types";
 
 export interface ChatMessage {
@@ -185,11 +191,43 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
             const { done, value } = await reader.read();
             if (done) break;
             full += decoder.decode(value, { stream: true });
+            const display = stripPilotActions(full);
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId ? { ...m, content: full } : m
+                m.id === assistantId ? { ...m, content: display } : m
               )
             );
+          }
+        }
+
+        const actions = parsePilotActions(full);
+        if (actions.length > 0) {
+          const results: { ok: boolean; label: string }[] = [];
+          for (const action of actions) {
+            try {
+              const actionRes = await fetch("/api/chat/actions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(action),
+              });
+              const data = (await actionRes.json()) as { ok?: boolean; label?: string };
+              results.push({
+                ok: actionRes.ok && Boolean(data.ok),
+                label: data.label ?? action.action,
+              });
+            } catch {
+              results.push({ ok: false, label: action.action });
+            }
+          }
+          const suffix = formatActionResultMessage(locale, results);
+          if (suffix) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: stripPilotActions(full) + suffix } : m
+              )
+            );
+            window.dispatchEvent(new Event(MOVE_PROFILE_UPDATED));
           }
         }
       } catch {

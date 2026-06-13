@@ -78,10 +78,43 @@ export async function POST(req: NextRequest) {
     const userId =
       accessResult instanceof NextResponse ? null : accessResult.user.id;
 
+    let enrichedContext = moveContext;
+    if (userId && !(accessResult instanceof NextResponse)) {
+      const [tasks, budgetItems] = await Promise.all([
+        prisma.checklistTask.findMany({
+          where: { moveId: accessResult.access.moveId },
+          orderBy: { dueDate: "asc" },
+          take: 20,
+        }),
+        prisma.budgetItem.findMany({
+          where: { moveId: accessResult.access.moveId },
+          orderBy: { sortOrder: "asc" },
+        }),
+      ]);
+      enrichedContext = {
+        ...moveContext,
+        checklistSummary:
+          tasks.length > 0
+            ? tasks
+                .map(
+                  (t) =>
+                    `${t.id} | ${t.status} | ${t.dueDate?.toISOString().slice(0, 10) ?? "no date"} | ${t.title}`
+                )
+                .join("\n")
+            : "none",
+        budgetSummary:
+          budgetItems.length > 0
+            ? budgetItems
+                .map((b) => `${b.id} | ${b.category} | est $${b.estimated} | actual $${b.actual}`)
+                .join("\n")
+            : "none",
+      };
+    }
+
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     const lastUserText = getLatestUserMessage(messages);
     const systemPrompt = await buildMoveSystemPromptAsync({
-      ...moveContext,
+      ...enrichedContext,
       locale: locale ?? moveContext?.locale,
       userMessage: lastUserText,
     });

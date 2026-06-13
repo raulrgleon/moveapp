@@ -24,7 +24,7 @@ import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { UtilityProviderCard } from "@/components/dashboard/utility-provider-card";
 import { useMove } from "@/contexts/move-context";
-import { useT } from "@/contexts/locale-context";
+import { useLocale, useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UTILITY_CATEGORIES } from "@/lib/constants";
@@ -62,6 +62,7 @@ function personalizeProviders(
 
 export default function UtilitiesPage() {
   const t = useT();
+  const { locale } = useLocale();
   const [filter, setFilter] = useState("all");
   const [providers, setProviders] = useState<DestinationUtilityProvider[]>([]);
   const [utilityNote, setUtilityNote] = useState("");
@@ -108,6 +109,7 @@ export default function UtilitiesPage() {
           lat: String(lat),
           lon: String(lon),
           address: destinationAddress,
+          locale,
         });
         const res = await fetch(`/api/utilities?${params}`, { credentials: "include" });
         if (!res.ok) throw new Error("failed");
@@ -130,7 +132,7 @@ export default function UtilitiesPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAddressConfirmed, destinationAddress, lat, lon]);
+  }, [isAddressConfirmed, destinationAddress, lat, lon, locale]);
 
   const filtered =
     filter === "all"

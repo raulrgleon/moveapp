@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Zap } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
-import { useT } from "@/contexts/locale-context";
+import { useLocale, useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DestinationUtilityProvider } from "@/lib/types";
@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/utils";
 
 export function DashboardUtilitiesCard() {
   const t = useT();
+  const { locale } = useLocale();
   const {
     isAddressConfirmed,
     destinationAddress,
@@ -37,6 +38,7 @@ export function DashboardUtilitiesCard() {
           lat: String(lat),
           lon: String(lon),
           address: destinationAddress,
+          locale,
         });
         const res = await fetch(`/api/utilities?${params}`, { credentials: "include" });
         if (!res.ok) return;
@@ -50,7 +52,7 @@ export function DashboardUtilitiesCard() {
     return () => {
       cancelled = true;
     };
-  }, [isAddressConfirmed, destinationAddress, lat, lon]);
+  }, [isAddressConfirmed, destinationAddress, lat, lon, locale]);
 
   const bestPicks = getUtilityBestPicks(providers);
   const estimatedMonthlyTotal = sumUtilityMonthlyEstimate(bestPicks);

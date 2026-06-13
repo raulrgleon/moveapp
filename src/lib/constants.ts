@@ -17,6 +17,7 @@ import {
   UserPlus,
   Activity,
   Wrench,
+  Handshake,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -32,6 +33,7 @@ export const NAV_ITEMS = [
   { href: "/inventory", labelKey: "nav.inventory", icon: Package },
   { href: "/documents", labelKey: "nav.documents", icon: FileText },
   { href: "/collaboration", labelKey: "nav.collaboration", icon: Users },
+  { href: "/partner", labelKey: "nav.partner", icon: Handshake },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 

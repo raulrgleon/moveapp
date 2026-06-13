@@ -1,5 +1,11 @@
 import type { DestinationUtilityProvider } from "@/lib/types";
 import { resolveZipFromQuery } from "@/lib/geo/resolve-zip";
+import type { Locale } from "@/lib/i18n";
+import {
+  localizeUtilitiesSummary,
+  localizeUtilityProviders,
+  utilityCategoryLabel,
+} from "@/lib/utilities/i18n-labels";
 
 const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
@@ -135,7 +141,11 @@ function mapTechnologyCategory(tech?: string): "fiber" | "internet" | "cable" {
   return "internet";
 }
 
-function buildBroadbandProviders(fcc: FccProvider[], location: LocationContext): DestinationUtilityProvider[] {
+function buildBroadbandProviders(
+  fcc: FccProvider[],
+  location: LocationContext,
+  locale: Locale
+): DestinationUtilityProvider[] {
   const seen = new Set<string>();
   const providers: DestinationUtilityProvider[] = [];
   let bestFiberSet = false;
@@ -156,7 +166,11 @@ function buildBroadbandProviders(fcc: FccProvider[], location: LocationContext):
       websiteUrl: lookupProviderWebsite(name),
       category,
       categoryLabel:
-        category === "fiber" ? "Fiber internet" : category === "cable" ? "Cable internet" : "Internet",
+        category === "fiber"
+          ? utilityCategoryLabel("fiber", locale)
+          : category === "cable"
+            ? utilityCategoryLabel("cable", locale)
+            : utilityCategoryLabel("internet", locale),
       rank: category === "fiber" ? 1 : 2,
       isBestPick: isFiber,
       availableAtAddress: true,
@@ -173,7 +187,7 @@ function buildBroadbandProviders(fcc: FccProvider[], location: LocationContext):
   return providers.slice(0, 8);
 }
 
-function buildStateUtilities(location: LocationContext): DestinationUtilityProvider[] {
+function buildStateUtilities(location: LocationContext, locale: Locale): DestinationUtilityProvider[] {
   const stateKey = location.state ?? "";
   const defaults = STATE_UTILITIES[stateKey] ?? {
     electricity: "Regional electric utility",
@@ -189,7 +203,7 @@ function buildStateUtilities(location: LocationContext): DestinationUtilityProvi
       name: defaults.electricity,
       websiteUrl: lookupProviderWebsite(defaults.electricity),
       category: "electricity",
-      categoryLabel: "Electricity",
+      categoryLabel: utilityCategoryLabel("electricity", locale),
       rank: 1,
       isBestPick: true,
       availableAtAddress: true,
@@ -207,7 +221,7 @@ function buildStateUtilities(location: LocationContext): DestinationUtilityProvi
       name: defaults.water,
       websiteUrl: lookupProviderWebsite(defaults.water),
       category: "water",
-      categoryLabel: "Water & sewer",
+      categoryLabel: utilityCategoryLabel("water", locale),
       rank: 1,
       isBestPick: true,
       availableAtAddress: true,
@@ -224,7 +238,7 @@ function buildStateUtilities(location: LocationContext): DestinationUtilityProvi
       name: defaults.gas,
       websiteUrl: lookupProviderWebsite(defaults.gas),
       category: "gas",
-      categoryLabel: "Natural gas",
+      categoryLabel: utilityCategoryLabel("gas", locale),
       rank: 1,
       isBestPick: true,
       availableAtAddress: true,
@@ -243,7 +257,9 @@ export async function fetchUtilitiesForLocation(input: {
   lat?: number;
   lon?: number;
   address?: string;
+  locale?: Locale;
 }): Promise<{ providers: DestinationUtilityProvider[]; location: LocationContext; summary: string }> {
+  const locale = input.locale ?? "en";
   let lat = input.lat;
   let lon = input.lon;
   let location: LocationContext;
@@ -278,14 +294,16 @@ export async function fetchUtilitiesForLocation(input: {
   }
 
   const fcc = await fetchFccBroadband(lat, lon);
-  const broadband = buildBroadbandProviders(fcc, location);
-  const utilities = buildStateUtilities(location);
-  const providers = [...utilities, ...broadband];
+  const broadband = buildBroadbandProviders(fcc, location, locale);
+  const utilities = buildStateUtilities(location, locale);
+  const providers = localizeUtilityProviders([...utilities, ...broadband], locale);
 
   const bestFiber = broadband.find((p) => p.category === "fiber");
-  const summary = bestFiber
+  const rawSummary = bestFiber
     ? `Fiber available (${bestFiber.name}) near ${location.label.split(",").slice(0, 2).join(",")}. Confirm exact unit service before ordering.`
     : `Utilities for ${location.label.split(",").slice(0, 2).join(",")}. Internet from FCC data; confirm electricity, water, and gas locally.`;
+
+  const summary = localizeUtilitiesSummary(rawSummary, locale);
 
   return { providers, location, summary };
 }

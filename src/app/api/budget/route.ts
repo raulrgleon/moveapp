@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { estimateBudget } from "@/lib/budget/estimator";
+import { resolveRouteDistanceMiles } from "@/lib/geo/route-service";
 import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
 import type { MoveProfile } from "@/lib/move-profile";
@@ -37,8 +38,13 @@ export async function GET(req: NextRequest) {
       rentalPreference: move.rentalPreference,
       needsHousingHelp: move.needsHousingHelp,
       needsVehicleTransport: move.needsVehicleTransport,
+      originLat: move.originLat ?? undefined,
+      originLon: move.originLon ?? undefined,
+      destinationLat: move.destinationLat ?? undefined,
+      destinationLon: move.destinationLon ?? undefined,
     };
     const est = await syncBudgetEstimate(move.id, profile);
+    const distanceMiles = await resolveRouteDistanceMiles(profile);
     items = est.items.map((i, idx) => ({
       id: `temp-${idx}`,
       moveId: move.id,
@@ -54,6 +60,8 @@ export async function GET(req: NextRequest) {
       totalEstimated: est.totalEstimated,
       totalActual: 0,
       notes: est.notes,
+      distanceMiles,
+      isEstimate: true,
     });
   }
 
@@ -72,6 +80,29 @@ export async function GET(req: NextRequest) {
     rentalPreference: move.rentalPreference,
     needsHousingHelp: move.needsHousingHelp,
     needsVehicleTransport: move.needsVehicleTransport,
+    originLat: move.originLat ?? undefined,
+    originLon: move.originLon ?? undefined,
+    destinationLat: move.destinationLat ?? undefined,
+    destinationLon: move.destinationLon ?? undefined,
+  });
+
+  const distanceMiles = await resolveRouteDistanceMiles({
+    name: move.user.name,
+    email: move.user.email,
+    origin: move.origin,
+    destination: move.destination,
+    moveDate: move.moveDate.toISOString().slice(0, 10),
+    household: move.household,
+    pets: move.pets,
+    petDetails: move.petDetails ?? "",
+    budget: move.budget,
+    rentalPreference: move.rentalPreference,
+    needsHousingHelp: move.needsHousingHelp,
+    needsVehicleTransport: move.needsVehicleTransport,
+    originLat: move.originLat ?? undefined,
+    originLon: move.originLon ?? undefined,
+    destinationLat: move.destinationLat ?? undefined,
+    destinationLon: move.destinationLon ?? undefined,
   });
 
   return NextResponse.json({
@@ -79,6 +110,8 @@ export async function GET(req: NextRequest) {
     totalEstimated,
     totalActual,
     notes: est.notes,
+    distanceMiles,
+    isEstimate: true,
   });
 }
 

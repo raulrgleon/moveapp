@@ -24,11 +24,12 @@ export default function TrucksPage() {
   const t = useT();
   const { profile, vehicles, truckChoice, setTruckChoice } = useMove();
   const { stats, loading } = useRouteStats();
-  const miles = stats?.distanceMiles ?? 800;
-  const options = estimateTruckOptions(profile, miles);
+  const hasRoute = stats != null && stats.distanceMiles > 0;
+  const miles = hasRoute ? stats.distanceMiles : null;
+  const options = estimateTruckOptions(profile, miles ?? profile.budget / 5);
   const trucks = options.filter((o) => o.type === "truck");
   const trailers = options.filter((o) => o.type === "trailer");
-  const recommendation = buildTrailerRecommendation(profile, miles, vehicles);
+  const recommendation = buildTrailerRecommendation(profile, miles ?? 0, vehicles);
 
   return (
     <>
@@ -46,6 +47,14 @@ export default function TrucksPage() {
               : "")
           }
         />
+
+        <Card className="border-dashed bg-muted/30">
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            {hasRoute
+              ? t("trucksPage.estimateBannerMiles", { miles: stats!.distanceMiles.toLocaleString() })
+              : t("trucksPage.estimateBannerNoRoute")}
+          </CardContent>
+        </Card>
 
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-6 flex items-start gap-4">
