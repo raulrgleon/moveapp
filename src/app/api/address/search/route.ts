@@ -7,7 +7,7 @@ import {
 } from "@/lib/geo/address-region";
 import { parseNominatimResult } from "@/lib/geo/nominatim";
 
-const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilot.ai)";
+const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
 function parseCoord(value: string | null): number | undefined {
   if (value == null || value === "") return undefined;

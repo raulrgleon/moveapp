@@ -1,7 +1,7 @@
 import type { DestinationUtilityProvider } from "@/lib/types";
 import { resolveZipFromQuery } from "@/lib/geo/resolve-zip";
 
-const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilot.ai)";
+const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
 interface LocationContext {
   zip: string | null;

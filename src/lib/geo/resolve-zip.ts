@@ -1,4 +1,4 @@
-const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilot.ai)";
+const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
 function extractZip(postcode?: string): string | null {
   if (!postcode) return null;

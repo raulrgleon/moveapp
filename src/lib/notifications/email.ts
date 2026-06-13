@@ -1,6 +1,6 @@
 export async function sendWelcomeEmail(to: string, name: string, locale: "en" | "es" = "en") {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "MovePilot <noreply@movepilot.ai>";
+  const from = process.env.EMAIL_FROM || "MovePilotAi <noreply@movepilotai.com>";
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const subject = locale === "es" ? "Bienvenido a MovePilot" : "Welcome to MovePilot";
   const greeting = locale === "es" ? `Hola ${name},` : `Hi ${name},`;
@@ -31,7 +31,7 @@ export async function sendWelcomeEmail(to: string, name: string, locale: "en" | 
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "MovePilot <noreply@movepilot.ai>";
+  const from = process.env.EMAIL_FROM || "MovePilotAi <noreply@movepilotai.com>";
 
   if (!apiKey) {
     console.log(`[email] Password reset for ${to}: ${resetUrl}`);
@@ -59,7 +59,7 @@ export async function sendTaskReminderEmail(
   tasks: { title: string; dueDate: string }[]
 ) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "MovePilot <noreply@movepilot.ai>";
+  const from = process.env.EMAIL_FROM || "MovePilotAi <noreply@movepilotai.com>";
   const list = tasks.map((t) => `<li>${t.title} — due ${t.dueDate}</li>`).join("");
 
   if (!apiKey) {
@@ -84,7 +84,7 @@ export async function sendTaskReminderEmail(
 
 export async function sendMoveInviteEmail(to: string, inviterName: string, inviteUrl: string) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "MovePilot <noreply@movepilot.ai>";
+  const from = process.env.EMAIL_FROM || "MovePilotAi <noreply@movepilotai.com>";
 
   if (!apiKey) {
     console.log(`[email] Invite for ${to}: ${inviteUrl}`);
