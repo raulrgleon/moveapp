@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Droplets,
@@ -35,6 +35,7 @@ import {
 } from "@/lib/utilities/recommendations";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useUtilityProviders } from "@/hooks/use-utility-providers";
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   electricity: Zap,
@@ -64,10 +65,6 @@ export default function UtilitiesPage() {
   const t = useT();
   const { locale } = useLocale();
   const [filter, setFilter] = useState("all");
-  const [providers, setProviders] = useState<DestinationUtilityProvider[]>([]);
-  const [utilityNote, setUtilityNote] = useState("");
-  const [loadingProviders, setLoadingProviders] = useState(false);
-  const [loadError, setLoadError] = useState(false);
   const [contractedIds, setContractedIds] = useState<Set<string>>(new Set());
   const {
     profile,
@@ -75,64 +72,36 @@ export default function UtilitiesPage() {
     isHydrated,
     destinationAddress,
     destination,
-    lat,
-    lon,
     confirmAddress,
     clearAddress,
     canEditProfile,
     canEdit,
   } = useMove();
 
+  const {
+    providers: rawProviders,
+    summary: utilityNote,
+    loading: loadingProviders,
+    error: loadError,
+    isPrecise,
+    hasLocation,
+  } = useUtilityProviders();
+
+  const providers = useMemo(
+    () =>
+      isPrecise && destinationAddress
+        ? personalizeProviders(destinationAddress, rawProviders)
+        : rawProviders,
+    [rawProviders, isPrecise, destinationAddress]
+  );
+
   const destRegion = useMemo(() => {
     const parsed = parseCityStateLabel(profile.destination);
     return {
       city: parsed.city,
       state: parsed.state,
-      lat: profile.destinationLat,
-      lon: profile.destinationLon,
     };
-  }, [profile.destination, profile.destinationLat, profile.destinationLon]);
-
-  useEffect(() => {
-    if (!isAddressConfirmed || lat == null || lon == null) {
-      setProviders([]);
-      setUtilityNote("");
-      return;
-    }
-
-    let cancelled = false;
-    async function load() {
-      setLoadingProviders(true);
-      setLoadError(false);
-      try {
-        const params = new URLSearchParams({
-          lat: String(lat),
-          lon: String(lon),
-          address: destinationAddress,
-          locale,
-        });
-        const res = await fetch(`/api/utilities?${params}`, { credentials: "include" });
-        if (!res.ok) throw new Error("failed");
-        const data = (await res.json()) as {
-          providers: DestinationUtilityProvider[];
-          summary: string;
-        };
-        if (!cancelled) {
-          setProviders(personalizeProviders(destinationAddress, data.providers));
-          setUtilityNote(data.summary);
-        }
-      } catch {
-        if (!cancelled) setLoadError(true);
-      } finally {
-        if (!cancelled) setLoadingProviders(false);
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAddressConfirmed, destinationAddress, lat, lon, locale]);
+  }, [profile.destination]);
 
   const filtered =
     filter === "all"
@@ -153,9 +122,14 @@ export default function UtilitiesPage() {
     [bestPicks]
   );
 
-  const utilityNoteText = isAddressConfirmed
+  const utilityNoteText = isPrecise
     ? utilityNote || t("utilities.addressConfirmedNote")
-    : t("utilities.pageDescLocked");
+    : hasLocation
+      ? utilityNote ||
+        t("utilities.cityEstimateNote", {
+          city: profile.destination.split(",")[0]?.trim() ?? profile.destination,
+        })
+      : t("utilities.pageDescLocked");
 
   if (!isHydrated) {
     return (
@@ -177,9 +151,11 @@ export default function UtilitiesPage() {
         <PageHeader
           title={t("utilities.pageTitle")}
           description={
-            isAddressConfirmed
+            isPrecise
               ? t("utilities.pageDescConfirmed")
-              : t("utilities.pageDescLocked")
+              : hasLocation
+                ? t("utilities.pageDescCityEstimate", { city: profile.destination })
+                : t("utilities.pageDescLocked")
           }
         />
 
@@ -213,7 +189,7 @@ export default function UtilitiesPage() {
           </CardContent>
         </Card>
 
-        {!isAddressConfirmed ? (
+        {!hasLocation ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <div className="rounded-full bg-muted p-4 mb-4">
@@ -247,10 +223,12 @@ export default function UtilitiesPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-muted-foreground">
-                        {t("utilities.confirmedAddress")}
+                        {isPrecise
+                          ? t("utilities.confirmedAddress")
+                          : t("utilities.destinationArea")}
                       </p>
                       <p className="mt-1 text-base sm:text-lg font-semibold break-words">
-                        {destinationAddress}
+                        {isPrecise ? destinationAddress : profile.destination}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {destination}

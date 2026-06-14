@@ -8,6 +8,12 @@ export interface GenerateAlertsInput {
   totalEstimated: number;
   totalActual: number;
   budgetTarget: number;
+  moveDate?: string;
+  daysUntilMove?: number;
+  distanceMiles?: number;
+  driveTimeLabel?: string;
+  pendingHighPriority?: number;
+  pets?: boolean;
   locale?: Locale;
 }
 
@@ -29,6 +35,48 @@ export function generateAlerts(input: GenerateAlertsInput): AlertItem[] {
       type: "warning",
       title: t(locale, "dashboardPage.alertOverdueTitle"),
       message: t(locale, "dashboardPage.alertOverdueMessage", { count: overdue.length }),
+    });
+  }
+
+  const days = input.daysUntilMove;
+  if (days != null && days >= 0 && days <= 14) {
+    alerts.push({
+      id: "move-date-soon",
+      type: days <= 7 ? "warning" : "info",
+      title: t(locale, "dashboardPage.alertMoveSoonTitle"),
+      message: t(locale, "dashboardPage.alertMoveSoonMessage", { days }),
+    });
+  }
+
+  if ((input.pendingHighPriority ?? 0) > 0) {
+    alerts.push({
+      id: "high-priority",
+      type: "info",
+      title: t(locale, "dashboardPage.alertHighPriorityTitle"),
+      message: t(locale, "dashboardPage.alertHighPriorityMessage", {
+        count: input.pendingHighPriority ?? 0,
+      }),
+    });
+  }
+
+  if (input.distanceMiles != null && input.distanceMiles >= 800) {
+    alerts.push({
+      id: "long-route",
+      type: "info",
+      title: t(locale, "dashboardPage.alertLongRouteTitle"),
+      message: t(locale, "dashboardPage.alertLongRouteMessage", {
+        miles: input.distanceMiles,
+        drive: input.driveTimeLabel ?? "",
+      }),
+    });
+  }
+
+  if (input.pets && input.distanceMiles != null && input.distanceMiles >= 400) {
+    alerts.push({
+      id: "pet-travel",
+      type: "info",
+      title: t(locale, "dashboardPage.alertPetTravelTitle"),
+      message: t(locale, "dashboardPage.alertPetTravelMessage"),
     });
   }
 
@@ -67,5 +115,5 @@ export function generateAlerts(input: GenerateAlertsInput): AlertItem[] {
     });
   }
 
-  return alerts;
+  return alerts.slice(0, 6);
 }

@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
 import { invalidateUserData, loadUserData } from "@/lib/data-cache";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
 
 export interface StoredDocument extends DocumentItem {
@@ -80,6 +81,13 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
 
     load();
   }, [authHydrated, isAuthenticated, user?.email]);
+
+  useEffect(() => {
+    if (!authHydrated || !isAuthenticated || !user?.email) return;
+    return subscribeProfileUpdated(() => {
+      void refreshDocuments();
+    });
+  }, [authHydrated, isAuthenticated, user?.email, refreshDocuments]);
 
   const uploadDocument = useCallback(
     async (file: File, name: string, category: string, expiresAt?: string) => {

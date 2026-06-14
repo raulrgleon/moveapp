@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
-import { invalidateUserData } from "@/lib/data-cache";
-import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
+import { useAuth } from "@/contexts/auth-context";
+import { refreshMoveData } from "@/lib/move/refresh-data";
 
 interface PendingInvite {
   id: string;
@@ -20,6 +20,7 @@ interface PendingInvite {
 export function PendingInvitesBanner() {
   const t = useT();
   const router = useRouter();
+  const { user } = useAuth();
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [accepting, setAccepting] = useState<string | null>(null);
 
@@ -49,8 +50,7 @@ export function PendingInvitesBanner() {
       });
       if (!res.ok) throw new Error("Failed");
       setInvites((prev) => prev.filter((i) => i.token !== token));
-      invalidateUserData();
-      window.dispatchEvent(new Event(MOVE_PROFILE_UPDATED));
+      if (user?.email) await refreshMoveData(user.email);
       router.refresh();
     } finally {
       setAccepting(null);

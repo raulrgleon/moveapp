@@ -9,7 +9,8 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "seed:admin": "node --env-file=.env.local scripts/seed-admin.mjs"
+    "seed:admin": "node --env-file=.env.local scripts/seed-admin.mjs",
+    "download-vehicles": "node scripts/download-vehicle-catalog.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -10,10 +10,10 @@ import {
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { apiFetch } from "@/lib/api-client";
-import { invalidateUserData, loadUserData } from "@/lib/data-cache";
+import { loadUserData, type UserDataPayload } from "@/lib/data-cache";
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { formatDestinationLabel } from "@/lib/geo/nominatim";
-import { dispatchProfileUpdated } from "@/lib/move/profile-events";
+import { refreshMoveData, subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import {
   DEFAULT_PROFILE,
   geocodeQuery,
@@ -95,7 +95,28 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
 
   const bumpProfileVersion = useCallback(() => {
     setProfileVersion((v) => v + 1);
-    dispatchProfileUpdated();
+  }, []);
+
+  const applyUserData = useCallback((data: UserDataPayload) => {
+    if (data.profile) setProfile(data.profile);
+    setMoveRole(data.moveRole ?? "owner");
+    setOwnerName(data.ownerName ?? "");
+    setCanEdit(data.canEdit ?? true);
+    setCanEditProfile(data.canEditProfile ?? true);
+    setVehiclesState(data.vehicles.length ? data.vehicles : []);
+    setTruckChoiceState(data.truckChoice ?? null);
+    setVehicleTransportChoiceState(data.vehicleTransportChoice ?? null);
+    if (data.isAddressConfirmed && data.destinationAddress) {
+      setConfirmed({
+        displayName: data.destinationAddress,
+        lat: data.destinationLat ?? 0,
+        lon: data.destinationLon ?? 0,
+        destinationLabel: data.profile?.destination ?? "",
+        postcode: data.profile?.destination.match(/\b\d{5}\b/)?.[0],
+      });
+    } else {
+      setConfirmed(null);
+    }
   }, []);
 
   const syncToDb = useCallback(
@@ -114,7 +135,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      invalidateUserData();
+      await refreshMoveData(user.email);
       bumpProfileVersion();
     },
     [isAuthenticated, user?.email, bumpProfileVersion, canEditProfile]
@@ -127,24 +148,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       if (isAuthenticated && user?.email) {
         try {
           const data = await loadUserData(user.email);
-          if (data.profile) setProfile(data.profile);
-          setMoveRole(data.moveRole ?? "owner");
-          setOwnerName(data.ownerName ?? "");
-          setCanEdit(data.canEdit ?? true);
-          setCanEditProfile(data.canEditProfile ?? true);
-          setVehiclesState(data.vehicles.length ? data.vehicles : []);
-          setTruckChoiceState(data.truckChoice ?? null);
-          setVehicleTransportChoiceState(data.vehicleTransportChoice ?? null);
-          if (data.isAddressConfirmed && data.destinationAddress) {
-            setConfirmed({
-              displayName: data.destinationAddress,
-              lat: data.destinationLat ?? 0,
-              lon: data.destinationLon ?? 0,
-              destinationLabel: data.profile.destination,
-            });
-          } else {
-            setConfirmed(null);
-          }
+          applyUserData(data);
         } catch {
           setProfile(loadProfileFromStorage() ?? DEFAULT_PROFILE);
           setVehiclesState([]);
@@ -157,7 +161,19 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     }
 
     load();
-  }, [authHydrated, isAuthenticated, user?.email]);
+  }, [authHydrated, isAuthenticated, user?.email, applyUserData]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.email) return;
+    return subscribeProfileUpdated(() => {
+      void loadUserData(user.email, true)
+        .then((data) => {
+          applyUserData(data);
+          bumpProfileVersion();
+        })
+        .catch(() => {});
+    });
+  }, [isAuthenticated, user?.email, applyUserData, bumpProfileVersion]);
 
   const confirmAddress = useCallback(
     (suggestion: AddressSuggestion) => {

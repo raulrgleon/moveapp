@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
 import { loadUserData } from "@/lib/data-cache";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import {
   createInventoryBox,
   nextBoxNumber,
@@ -72,6 +73,15 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
 
     void load();
+  }, [authHydrated, isAuthenticated, user?.email]);
+
+  useEffect(() => {
+    if (!authHydrated || !isAuthenticated || !user?.email) return;
+    return subscribeProfileUpdated(() => {
+      void loadUserData(user.email, true)
+        .then((data) => setBoxes(data.inventory))
+        .catch(() => {});
+    });
   }, [authHydrated, isAuthenticated, user?.email]);
 
   const persist = useCallback(

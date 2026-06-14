@@ -35,6 +35,7 @@ import { NextActionCard } from "@/components/dashboard/next-action-card";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useRouteStats } from "@/hooks/use-route-stats";
 import { generateAlerts } from "@/lib/dashboard/generate-alerts";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { apiFetch } from "@/lib/api-client";
 import { daysUntil, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ export default function DashboardPage() {
       }
     }
     void loadBudget();
+    return subscribeProfileUpdated(() => void loadBudget());
   }, []);
 
   const daysLeft = daysUntil(profile.moveDate);
@@ -83,9 +85,26 @@ export default function DashboardPage() {
         totalEstimated: budgetTotals.totalEstimated,
         totalActual: budgetTotals.totalActual,
         budgetTarget: profile.budget,
+        moveDate: profile.moveDate,
+        daysUntilMove: daysLeft,
+        distanceMiles: routeStats?.distanceMiles,
+        driveTimeLabel: routeStats?.driveTimeLabel,
+        pendingHighPriority: pendingHigh,
+        pets: profile.pets,
         locale,
       }),
-    [tasks, documents, budgetTotals, profile.budget, locale]
+    [
+      tasks,
+      documents,
+      budgetTotals,
+      profile.budget,
+      profile.moveDate,
+      profile.pets,
+      daysLeft,
+      routeStats,
+      pendingHigh,
+      locale,
+    ]
   );
 
   return (

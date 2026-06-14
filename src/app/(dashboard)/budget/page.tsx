@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
-import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
@@ -73,9 +73,7 @@ export default function BudgetPage() {
   }, []);
 
   useEffect(() => {
-    const reload = () => void load();
-    window.addEventListener(MOVE_PROFILE_UPDATED, reload);
-    return () => window.removeEventListener(MOVE_PROFILE_UPDATED, reload);
+    return subscribeProfileUpdated(() => void load());
   }, []);
 
   const recalculate = async () => {

@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
-import { invalidateUserData } from "@/lib/data-cache";
-import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
+import { refreshMoveData } from "@/lib/move/refresh-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -61,8 +60,7 @@ export function ActiveMoveSwitcher() {
         body: JSON.stringify({ moveId }),
       });
       setActiveId(moveId);
-      invalidateUserData();
-      window.dispatchEvent(new Event(MOVE_PROFILE_UPDATED));
+      if (user?.email) await refreshMoveData(user.email);
       router.refresh();
     } finally {
       setLoading(false);

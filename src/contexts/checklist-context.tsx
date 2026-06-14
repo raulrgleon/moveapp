@@ -11,8 +11,8 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
 import { apiFetch } from "@/lib/api-client";
-import { loadUserData, invalidateUserData } from "@/lib/data-cache";
-import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
+import { invalidateUserData, loadUserData } from "@/lib/data-cache";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import type { ChecklistTask, TaskStatus } from "@/lib/types";
 
 interface ChecklistContextValue {
@@ -66,17 +66,11 @@ export function ChecklistProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authHydrated || !isAuthenticated || !user?.email) return;
 
-    async function reload() {
-      try {
-        const data = await loadUserData(user!.email, true);
-        setTasks(data.checklist);
-      } catch {
-        /* keep current tasks */
-      }
-    }
-
-    window.addEventListener(MOVE_PROFILE_UPDATED, reload);
-    return () => window.removeEventListener(MOVE_PROFILE_UPDATED, reload);
+    return subscribeProfileUpdated(() => {
+      void loadUserData(user.email, true)
+        .then((data) => setTasks(data.checklist))
+        .catch(() => {});
+    });
   }, [authHydrated, isAuthenticated, user?.email]);
 
   const setTaskStatus = useCallback(

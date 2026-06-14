@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Zap } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
-import { useLocale, useT } from "@/contexts/locale-context";
+import { useT } from "@/contexts/locale-context";
+import { useUtilityProviders } from "@/hooks/use-utility-providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { DestinationUtilityProvider } from "@/lib/types";
 import {
   getUtilityBestPicks,
   sumUtilityMonthlyEstimate,
@@ -16,43 +15,8 @@ import { formatCurrency } from "@/lib/utils";
 
 export function DashboardUtilitiesCard() {
   const t = useT();
-  const { locale } = useLocale();
-  const {
-    isAddressConfirmed,
-    destinationAddress,
-    lat,
-    lon,
-    isHydrated,
-  } = useMove();
-  const [providers, setProviders] = useState<DestinationUtilityProvider[]>([]);
-
-  useEffect(() => {
-    if (!isAddressConfirmed || lat == null || lon == null) {
-      setProviders([]);
-      return;
-    }
-    let cancelled = false;
-    async function load() {
-      try {
-        const params = new URLSearchParams({
-          lat: String(lat),
-          lon: String(lon),
-          address: destinationAddress,
-          locale,
-        });
-        const res = await fetch(`/api/utilities?${params}`, { credentials: "include" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { providers: DestinationUtilityProvider[] };
-        if (!cancelled) setProviders(data.providers);
-      } catch {
-        if (!cancelled) setProviders([]);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAddressConfirmed, destinationAddress, lat, lon, locale]);
+  const { isHydrated, profile } = useMove();
+  const { providers, isPrecise, hasLocation, loading } = useUtilityProviders();
 
   const bestPicks = getUtilityBestPicks(providers);
   const estimatedMonthlyTotal = sumUtilityMonthlyEstimate(bestPicks);
@@ -67,51 +31,58 @@ export function DashboardUtilitiesCard() {
           </CardTitle>
           <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
             <Link href="/utilities">
-              {isAddressConfirmed
+              {isPrecise
                 ? t("dashboardPage.viewAllServices")
-                : t("dashboardPage.setUpAddress")}
+                : hasLocation
+                  ? t("dashboardPage.viewAllServices")
+                  : t("dashboardPage.setUpAddress")}
             </Link>
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isHydrated && isAddressConfirmed ? (
+        {isHydrated && hasLocation ? (
           <>
-            <p className="text-sm text-muted-foreground break-words">
-              {destinationAddress}
-            </p>
-            {bestPicks.length > 0 ? (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {bestPicks.slice(0, 4).map((pick) => (
-                  <div
-                    key={pick.id}
-                    className="rounded-lg border bg-muted/30 px-3 py-2 text-sm"
-                  >
-                    <p className="text-xs text-muted-foreground">{pick.categoryLabel}</p>
-                    <p className="font-medium mt-0.5 truncate">{pick.name}</p>
-                    <p className="text-sm font-semibold text-primary mt-1">
-                      {formatCurrency(pick.estimatedMonthlyPrice)}
-                      <span className="text-xs font-normal text-muted-foreground ml-1">
-                        {pick.priceUnit}
-                      </span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("utilities.loading")}</p>
+            {!isPrecise && (
+              <p className="text-xs text-muted-foreground">
+                {t("utilities.cityEstimateNote", { city: profile.destination.split(",")[0]?.trim() ?? profile.destination })}
+              </p>
             )}
-            <div className="flex items-center gap-2 text-sm text-primary">
-              <Sparkles className="h-4 w-4 shrink-0" />
-              <span className="break-words">
-                {t("utilities.estMonthlyTotal")}: {formatCurrency(estimatedMonthlyTotal)}
-              </span>
-            </div>
+            {loading && providers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+            ) : bestPicks.length > 0 ? (
+              <>
+                <p className="text-sm text-muted-foreground break-words">
+                  {t("dashboardPage.utilitiesEstimate", {
+                    total: formatCurrency(estimatedMonthlyTotal),
+                  })}
+                </p>
+                <ul className="space-y-2">
+                  {bestPicks.map((pick) => (
+                    <li
+                      key={pick.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">{pick.name}</span>
+                      </span>
+                      <span className="text-muted-foreground shrink-0">
+                        {pick.estimatedMonthlyPrice != null
+                          ? formatCurrency(pick.estimatedMonthlyPrice)
+                          : "—"}
+                        {pick.priceUnit ?? ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("utilities.emptyProviders")}</p>
+            )}
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            {t("dashboardPage.utilitiesLocked")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("dashboardPage.utilitiesLocked")}</p>
         )}
       </CardContent>
     </Card>
