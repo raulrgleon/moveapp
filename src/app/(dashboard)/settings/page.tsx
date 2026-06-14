@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { ShareMoveCard } from "@/components/settings/share-move-card";
 import { ReminderPreferencesCard } from "@/components/settings/reminder-preferences-card";
 import { ChangePasswordCard } from "@/components/settings/change-password-card";
@@ -298,6 +299,16 @@ export default function SettingsPage() {
             <Button onClick={saveProfile} disabled={saving}>
               {saving ? t("common.loading") : t("settings.updateMove")}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("settings.theme")}</CardTitle>
+            <CardDescription>{t("settings.themeDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ThemeToggle />
           </CardContent>
         </Card>
 

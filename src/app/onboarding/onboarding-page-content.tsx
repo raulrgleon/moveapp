@@ -172,6 +172,7 @@ export function OnboardingPageContent() {
         destinationLon: profile.destinationLon,
         isAddressConfirmed,
       });
+      sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
     } catch (err) {
       setAccountError(err instanceof Error ? err.message : t("auth.registerFailed"));
@@ -186,6 +187,7 @@ export function OnboardingPageContent() {
     try {
       await saveStepData();
       setVehicles(onboardingVehicles.filter((v) => v.make?.trim() && v.model?.trim()));
+      sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
     } catch (err) {
       setAccountError(err instanceof Error ? err.message : t("apiErrors.saveFailed"));

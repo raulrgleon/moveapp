@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { ExternalLink, Fuel, Hotel, Loader2, MapPin, PawPrint, Route as RouteIcon } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Fuel, Hotel, Loader2, MapPin, Maximize2, Minimize2, PawPrint, Route as RouteIcon } from "lucide-react";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
@@ -73,6 +74,7 @@ export default function RoutePage() {
   const t = useT();
   const { profile } = useMove();
   const { stats, loading } = useRouteStats();
+  const [cinematic, setCinematic] = useState(false);
 
   const distanceLabel = stats
     ? `${stats.distanceMiles.toLocaleString()} ${t("routePage.miles")}`
@@ -154,7 +156,42 @@ export default function RoutePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <RouteMap className="min-h-[280px] sm:min-h-[360px]" showNewHome />
+          <div
+            className={
+              cinematic
+                ? "fixed inset-0 z-50 bg-background p-4 flex flex-col"
+                : "relative"
+            }
+          >
+            {cinematic && (
+              <div className="flex justify-between items-center mb-3 shrink-0">
+                <p className="font-semibold">{t("routePage.cinematicMode")}</p>
+                <Button variant="outline" size="sm" onClick={() => setCinematic(false)}>
+                  <Minimize2 className="mr-2 h-4 w-4" />
+                  {t("routePage.exitCinematic")}
+                </Button>
+              </div>
+            )}
+            <RouteMap
+              className={
+                cinematic
+                  ? "flex-1 min-h-0 rounded-xl"
+                  : "min-h-[280px] sm:min-h-[360px]"
+              }
+              showNewHome
+            />
+            {!cinematic && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="absolute top-3 right-3 z-[500] shadow-lg"
+                onClick={() => setCinematic(true)}
+              >
+                <Maximize2 className="mr-2 h-4 w-4" />
+                {t("routePage.cinematicMode")}
+              </Button>
+            )}
+          </div>
 
           <div className="space-y-4">
             <RouteWeatherPanel />

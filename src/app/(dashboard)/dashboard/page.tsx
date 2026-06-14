@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   DollarSign,
   Info,
-  MapPin,
   TrendingUp,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -25,15 +24,21 @@ import { DashboardInventoryCard } from "@/components/dashboard/dashboard-invento
 import { MoveActivityFeed } from "@/components/dashboard/move-activity-feed";
 import { CollaboratorsDashboardCard } from "@/components/collaboration/collaborators-dashboard-card";
 import { PendingInvitesBanner } from "@/components/collaboration/pending-invites-banner";
+import { MoveCommandHero } from "@/components/dashboard/move-command-hero";
+import { MoveBadgesRow } from "@/components/dashboard/move-badges-row";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { ConfettiBurst } from "@/components/ui/confetti-burst";
+import { CountUp } from "@/components/ui/count-up";
 import { GettingStartedCard } from "@/components/dashboard/getting-started-card";
 import { NextActionCard } from "@/components/dashboard/next-action-card";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useRouteStats } from "@/hooks/use-route-stats";
+import { calculateMoveScore } from "@/lib/gamification/move-score";
+import { hasRouteCoordinates } from "@/lib/move/profile-completeness";
 import { generateAlerts } from "@/lib/dashboard/generate-alerts";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { apiFetch } from "@/lib/api-client";
@@ -46,14 +51,24 @@ const QUICK_ACTION_KEYS = [
   { id: "budget", href: "/budget", labelKey: "dashboardPage.quickActionBudget" },
 ] as const;
 
+const CELEBRATE_KEY = "movepilot_celebrate";
+
 export default function DashboardPage() {
   const t = useT();
   const { locale } = useLocale();
-  const { profile } = useMove();
+  const { profile, vehicles, isAddressConfirmed } = useMove();
   const { tasks } = useChecklist();
   const { documents } = useDocuments();
   const { stats: routeStats } = useRouteStats();
   const [budgetTotals, setBudgetTotals] = useState({ totalEstimated: 0, totalActual: 0 });
+  const [celebrate, setCelebrate] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem(CELEBRATE_KEY)) {
+      sessionStorage.removeItem(CELEBRATE_KEY);
+      setCelebrate(true);
+    }
+  }, []);
 
   useEffect(() => {
     async function loadBudget() {
@@ -76,6 +91,19 @@ export default function DashboardPage() {
   const completed = tasks.filter((task) => task.status === "completed").length;
   const taskProgress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
   const pendingHigh = tasks.filter((t) => t.status !== "completed" && t.priority === "high").length;
+
+  const gamification = useMemo(
+    () =>
+      calculateMoveScore({
+        profile,
+        tasks,
+        documents,
+        isAddressConfirmed,
+        vehicleCount: vehicles.length,
+        hasRouteCoords: hasRouteCoordinates(profile),
+      }),
+    [profile, tasks, documents, isAddressConfirmed, vehicles.length]
+  );
 
   const alerts = useMemo(
     () =>
@@ -109,58 +137,30 @@ export default function DashboardPage() {
 
   return (
     <>
+      <ConfettiBurst active={celebrate} />
       <DashboardHeader
         title={t("dashboard.title")}
         description={t("common.welcomeBack", { name: profile.name.split(" ")[0] })}
       />
       <PageContainer>
         <PendingInvitesBanner />
-
         <GettingStartedCard />
-
         <PageHeader
           title={t("dashboardPage.overview")}
           description={t("dashboardPage.overviewDesc")}
         />
 
-        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-          <CardContent className="p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <MapPin className="h-6 w-6 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground">{t("dashboardPage.movingRoute")}</p>
-                  <p className="text-lg sm:text-xl font-semibold break-words">
-                    {profile.origin} → {profile.destination}
-                  </p>
-                  {routeStats && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {routeStats.distanceMiles.toLocaleString()} mi · {routeStats.driveTimeLabel} drive
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6 shrink-0">
-                <Button variant="outline" size="sm" asChild className="self-start sm:self-center">
-                  <Link href="/route">{t("dashboardPage.viewRouteMap")}</Link>
-                </Button>
-                <Button variant="outline" size="sm" asChild className="self-start sm:self-center">
-                  <Link href="/settings">{t("settings.updateMove")}</Link>
-                </Button>
-                <div>
-                  <p className="text-muted-foreground text-sm">{t("dashboardPage.moveDate")}</p>
-                  <p className="font-medium">{formatDate(profile.moveDate, locale)}</p>
-                </div>
-                <div className="rounded-lg bg-primary px-4 py-2 text-primary-foreground text-center sm:text-left">
-                  <p className="text-xs opacity-80">{t("dashboardPage.countdown")}</p>
-                  <p className="text-2xl font-bold">{t("dashboardPage.days", { days: daysLeft })}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <MoveCommandHero
+          origin={profile.origin}
+          destination={profile.destination}
+          moveDate={profile.moveDate}
+          daysLeft={daysLeft}
+          distanceMiles={routeStats?.distanceMiles}
+          driveTimeLabel={routeStats?.driveTimeLabel}
+          gamification={gamification}
+        />
+
+        <MoveBadgesRow badges={gamification.badges} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -168,32 +168,37 @@ export default function DashboardPage() {
             value={formatCurrency(profile.budget, locale)}
             subtext={t("dashboardPage.budgetTarget")}
             icon={DollarSign}
+            glass
           />
           <StatCard
             label={t("dashboardPage.taskProgress")}
             value={`${taskProgress}%`}
-            subtext={t("checklistPage.progressDesc", {
-              completed,
-              total: tasks.length,
-            })}
+            numericValue={taskProgress}
+            numericSuffix="%"
+            subtext={t("checklistPage.progressDesc", { completed, total: tasks.length })}
             icon={CheckCircle2}
+            glass
           />
           <StatCard
             label={t("dashboardPage.priorityOpen")}
             value={String(pendingHigh)}
+            numericValue={pendingHigh}
             subtext={t("dashboardPage.highPriorityTasks")}
             icon={TrendingUp}
+            glass
           />
           <StatCard
             label={t("dashboardPage.daysUntilMove")}
-            value={`${daysLeft}`}
+            value={String(daysLeft)}
+            numericValue={Math.max(0, daysLeft)}
             subtext={formatDate(profile.moveDate, locale)}
             icon={Calendar}
+            glass
           />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 glass-card border-primary/10 shadow-lg shadow-primary/5">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboardPage.taskProgress")}</CardTitle>
             </CardHeader>
@@ -201,23 +206,29 @@ export default function DashboardPage() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">{t("checklistPage.overallProgress")}</span>
-                  <span className="font-medium">{taskProgress}%</span>
+                  <span className="font-medium">
+                    <CountUp value={taskProgress} suffix="%" />
+                  </span>
                 </div>
-                <Progress value={taskProgress} className="h-3" />
+                <Progress value={taskProgress} className="h-3 transition-all duration-700" />
               </div>
             </CardContent>
           </Card>
-
           <NextActionCard />
         </div>
 
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-base">{t("dashboardPage.quickActions")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">
             {QUICK_ACTION_KEYS.map((action) => (
-              <Button key={action.id} variant="outline" className="w-full justify-between" asChild>
+              <Button
+                key={action.id}
+                variant="outline"
+                className="w-full justify-between hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                asChild
+              >
                 <Link href={action.href}>
                   {t(action.labelKey)}
                   <ArrowRight className="h-4 w-4" />
@@ -228,23 +239,22 @@ export default function DashboardPage() {
         </Card>
 
         <CollaboratorsDashboardCard />
-
         <DashboardInventoryCard />
-
         <DashboardHousingCard />
-
         <RouteWeatherPanel compact />
-
         <DashboardUtilitiesCard />
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+          <Card className="glass-card">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboardPage.alerts")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {alerts.map((alert) => (
-                <div key={alert.id} className="flex gap-3 rounded-lg border p-4">
+                <div
+                  key={alert.id}
+                  className="flex gap-3 rounded-lg border p-4 animate-fade-in hover:border-primary/20 transition-colors"
+                >
                   {alert.type === "warning" && (
                     <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                   )}
@@ -257,7 +267,9 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{alert.title}</p>
-                      <Badge variant="outline" className="text-xs">{alert.type}</Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {alert.type}
+                      </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{alert.message}</p>
                   </div>
@@ -265,7 +277,6 @@ export default function DashboardPage() {
               ))}
             </CardContent>
           </Card>
-
           <MoveActivityFeed />
         </div>
       </PageContainer>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ExternalLink, Loader2, Sparkles, Truck } from "lucide-react";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -18,7 +18,7 @@ import {
   estimateTruckOptions,
 } from "@/lib/trucks/recommendations";
 import type { TruckOption } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 export default function TrucksPage() {
   const t = useT();
@@ -30,6 +30,15 @@ export default function TrucksPage() {
   const trucks = options.filter((o) => o.type === "truck");
   const trailers = options.filter((o) => o.type === "trailer");
   const recommendation = buildTrailerRecommendation(profile, miles ?? 0, vehicles);
+
+  const pickRecommended = (list: TruckOption[]) =>
+    list.length
+      ? list.reduce((best, o) => (o.estimatedPrice < best.estimatedPrice ? o : best)).id
+      : null;
+
+  const trailerRecommendedId = useMemo(() => pickRecommended(trailers), [trailers]);
+  const truckRecommendedId = useMemo(() => pickRecommended(trucks), [trucks]);
+  const allRecommendedId = useMemo(() => pickRecommended(options), [options]);
 
   return (
     <>
@@ -83,6 +92,7 @@ export default function TrucksPage() {
           <TabsContent value="trailers" className="mt-6">
             <OptionGrid
               options={trailers}
+              recommendedId={trailerRecommendedId}
               moveDate={profile.moveDate}
               origin={profile.origin}
               destination={profile.destination}
@@ -93,6 +103,7 @@ export default function TrucksPage() {
           <TabsContent value="trucks" className="mt-6">
             <OptionGrid
               options={trucks}
+              recommendedId={truckRecommendedId}
               moveDate={profile.moveDate}
               origin={profile.origin}
               destination={profile.destination}
@@ -103,6 +114,7 @@ export default function TrucksPage() {
           <TabsContent value="all" className="mt-6">
             <OptionGrid
               options={options}
+              recommendedId={allRecommendedId}
               moveDate={profile.moveDate}
               origin={profile.origin}
               destination={profile.destination}
@@ -118,6 +130,7 @@ export default function TrucksPage() {
 
 function OptionGrid({
   options,
+  recommendedId,
   moveDate,
   origin,
   destination,
@@ -125,6 +138,7 @@ function OptionGrid({
   onSave,
 }: {
   options: TruckOption[];
+  recommendedId?: string | null;
   moveDate: string;
   origin: string;
   destination: string;
@@ -148,12 +162,26 @@ function OptionGrid({
         const isSaved = truckChoice === label;
         const deepLink = buildTruckDeepLink(option.company, origin, destination, moveDate);
 
+        const isRecommended = recommendedId === option.id;
+
         return (
-          <Card key={option.id} className="flex flex-col">
+          <Card
+            key={option.id}
+            className={cn(
+              "flex flex-col transition-all duration-300 hover:scale-[1.01] hover:shadow-lg",
+              isRecommended &&
+                "ring-2 ring-primary/50 shadow-lg shadow-primary/15 bg-gradient-to-br from-primary/8 via-card to-card"
+            )}
+          >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg",
+                      isRecommended ? "bg-primary/15" : "bg-muted"
+                    )}
+                  >
                     <Truck className="h-5 w-5 text-primary" />
                   </div>
                   <div>
@@ -161,9 +189,17 @@ function OptionGrid({
                     <p className="text-sm text-muted-foreground">{option.vehicleSize}</p>
                   </div>
                 </div>
-                <Badge variant={option.type === "trailer" ? "default" : "secondary"}>
-                  {option.type === "trailer" ? t("trucksPage.typeTrailer") : t("trucksPage.typeTruck")}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  {isRecommended && (
+                    <Badge className="gap-1 bg-primary text-primary-foreground shadow-sm">
+                      <Sparkles className="h-3 w-3" />
+                      {t("trucksPage.bestForYou")}
+                    </Badge>
+                  )}
+                  <Badge variant={option.type === "trailer" ? "default" : "secondary"}>
+                    {option.type === "trailer" ? t("trucksPage.typeTrailer") : t("trucksPage.typeTruck")}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="flex-1 space-y-4">

@@ -73,6 +73,16 @@ export default function ChecklistPage() {
     notes: "",
   });
   const [saving, setSaving] = useState(false);
+  const [popTaskId, setPopTaskId] = useState<string | null>(null);
+
+  const handleStatusCycle = (taskId: string, current: TaskStatus) => {
+    const next = cycleStatus(current);
+    void setTaskStatus(taskId, next);
+    if (next === "completed") {
+      setPopTaskId(taskId);
+      window.setTimeout(() => setPopTaskId(null), 400);
+    }
+  };
 
   const completed = tasks.filter((task) => task.status === "completed").length;
   const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
@@ -233,7 +243,8 @@ export default function ChecklistPage() {
                     id={`checklist-task-${task.id}`}
                     className={cn(
                       "flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-lg border p-4 transition-colors",
-                      highlightTaskId === task.id && "border-primary bg-primary/5 ring-1 ring-primary/30"
+                      highlightTaskId === task.id && "border-primary bg-primary/5 ring-1 ring-primary/30",
+                      popTaskId === task.id && "task-complete-pop border-emerald-500/40 bg-emerald-500/5"
                     )}
                   >
                     <div className="space-y-2 flex-1">
@@ -272,7 +283,7 @@ export default function ChecklistPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setTaskStatus(task.id, cycleStatus(task.status))}
+                            onClick={() => handleStatusCycle(task.id, task.status)}
                           >
                             {t("common.update")}
                           </Button>

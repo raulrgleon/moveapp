@@ -2,6 +2,7 @@
 
 import { AiChatProvider } from "@/contexts/ai-chat-context";
 import { AuthProvider } from "@/contexts/auth-context";
+import { ThemeProvider } from "@/contexts/theme-context";
 import { ChecklistProvider } from "@/contexts/checklist-context";
 import { DocumentsProvider } from "@/contexts/documents-context";
 import { InventoryProvider } from "@/contexts/inventory-context";
@@ -13,8 +14,9 @@ import { FloatingPilotLauncher } from "@/components/marketing/floating-pilot-lau
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <LocaleProvider>
-        <MoveProvider>
+      <ThemeProvider>
+        <LocaleProvider>
+          <MoveProvider>
           <InventoryProvider>
             <ChecklistProvider>
               <DocumentsProvider>
@@ -28,7 +30,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             </ChecklistProvider>
           </InventoryProvider>
         </MoveProvider>
-      </LocaleProvider>
+        </LocaleProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

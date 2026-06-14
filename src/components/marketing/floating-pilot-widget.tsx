@@ -9,7 +9,7 @@ import {
   ChatScrollArea,
   QuickQuestions,
 } from "@/components/ai/chat-ui";
-import { PilotBadge } from "@/components/brand/pilot-badge";
+import { PilotAvatar } from "@/components/pilot/pilot-avatar";
 import { useGuestChat, useGuestQuickQuestions } from "@/hooks/use-guest-chat";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
@@ -54,12 +54,14 @@ export function FloatingPilotWidget() {
         aria-label={t("guestChat.title")}
         aria-hidden={!open}
       >
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-3 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent rounded-t-2xl">
-          <PilotBadge
-            title={t("brand.pilotName")}
-            subtitle={t("guestChat.subtitle")}
-            size="sm"
-          />
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 via-primary/10 to-transparent rounded-t-2xl">
+          <div className="flex items-center gap-3 min-w-0">
+            <PilotAvatar size="sm" />
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate">{t("brand.pilotName")}</p>
+              <p className="text-xs text-muted-foreground truncate">{t("guestChat.subtitle")}</p>
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -119,13 +121,13 @@ export function FloatingPilotWidget() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "fixed z-[60] h-14 w-14 rounded-full",
-          "bg-white text-brand-navy border-2 border-white",
-          "shadow-[0_4px_24px_rgba(15,23,42,0.22)] ring-2 ring-brand-navy/20",
-          "hover:bg-white hover:text-brand-navy hover:brightness-[0.98]",
+          "fixed z-[60] h-14 w-14 rounded-full animate-float",
+          "bg-gradient-to-br from-primary via-brand-accent to-primary text-primary-foreground",
+          "border-2 border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.35)] ring-2 ring-primary/30",
+          "hover:brightness-110 hover:scale-105 active:scale-95",
           "right-4 bottom-4 sm:right-6 sm:bottom-6",
-          "transition-transform hover:scale-105 active:scale-95",
-          open && "ring-brand-navy/35"
+          "transition-transform",
+          open && "ring-primary/50 scale-95"
         )}
         size="icon"
         aria-expanded={open}

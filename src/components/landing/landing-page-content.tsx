@@ -176,6 +176,33 @@ export function LandingPageContent() {
         </div>
       </section>
 
+      <section className="py-16 sm:py-20 border-b bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <p className="text-center text-sm font-semibold uppercase tracking-wider text-primary mb-8">
+            {t("landing.socialProofTitle")}
+          </p>
+          <div className="grid gap-6 sm:grid-cols-3 mb-10">
+            {[
+              { stat: t("landing.socialStatMoves"), label: t("landing.socialStatMovesLabel") },
+              { stat: t("landing.socialStatMiles"), label: t("landing.socialStatMilesLabel") },
+              { stat: t("landing.socialStatSaved"), label: t("landing.socialStatSavedLabel") },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="text-center rounded-2xl border bg-card p-6 shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300"
+              >
+                <p className="font-display text-3xl sm:text-4xl font-bold brand-ai">{item.stat}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{item.label}</p>
+              </div>
+            ))}
+          </div>
+          <blockquote className="mx-auto max-w-2xl text-center">
+            <p className="text-lg font-medium text-foreground">{t("landing.socialTestimonial")}</p>
+            <footer className="mt-3 text-sm text-muted-foreground">{t("landing.socialTestimonialAuthor")}</footer>
+          </blockquote>
+        </div>
+      </section>
+
       <section id="pilot" className="border-y bg-brand-navy text-white py-20 sm:py-28 relative overflow-hidden">
         <div className="brand-auth-glow absolute inset-0 pointer-events-none opacity-60" />
         <div className="mx-auto max-w-6xl px-4 sm:px-6 relative">

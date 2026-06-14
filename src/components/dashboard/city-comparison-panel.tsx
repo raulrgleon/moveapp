@@ -39,6 +39,18 @@ function TrendBadge({ trend, destinationLabel }: { trend: HousingTrend; destinat
   return <Badge variant="secondary">{t("cityComparison.similar")}</Badge>;
 }
 
+function MetricCompareBar({ trend }: { trend: HousingTrend }) {
+  const destPct = trend === "better" ? 72 : trend === "worse" ? 28 : 50;
+  return (
+    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-muted-foreground/30 via-primary to-primary transition-all duration-700 ease-out"
+        style={{ width: `${destPct}%` }}
+      />
+    </div>
+  );
+}
+
 function extractZip(text: string): string | undefined {
   const match = text.match(/\b(\d{5})\b/);
   return match?.[1];
@@ -147,7 +159,7 @@ export function CityComparisonPanel() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {highlightMetrics.map((metric) => (
-          <Card key={metric.key}>
+          <Card key={metric.key} className="overflow-hidden">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">{t(metric.labelKey)}</p>
               <div className="mt-2 flex items-center justify-between gap-2 min-w-0">
@@ -155,6 +167,7 @@ export function CityComparisonPanel() {
                 <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                 <span className="text-sm font-semibold truncate min-w-0 text-right">{metric.destinationValue}</span>
               </div>
+              <MetricCompareBar trend={metric.trend} />
               <div className="mt-2">
                 <TrendBadge trend={metric.trend} destinationLabel={profile.destination} />
               </div>
