@@ -143,6 +143,8 @@ ${ctx?.budgetSummary ?? "none loaded"}
 
 ${buildPilotActionInstructions()}
 
-Answer only about this move. If unsure, say what to verify. Prioritize actionable next steps.`;
+Answer only about this move. If unsure, say what to verify. Prioritize actionable next steps.
+
+${buildLanguageInstruction(replyLocale)}`;
 }
 

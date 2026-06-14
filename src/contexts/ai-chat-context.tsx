@@ -13,12 +13,13 @@ import { useMove } from "@/contexts/move-context";
 import { useChecklist } from "@/contexts/checklist-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { useRouteStats } from "@/hooks/use-route-stats";
-import { translate } from "@/lib/i18n";
+import { translate, type Locale } from "@/lib/i18n";
 import {
   formatActionResultMessage,
   parsePilotActions,
   stripPilotActions,
 } from "@/lib/ai/pilot-actions";
+import { resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import type { AIQuickQuestion } from "@/lib/types";
 
@@ -47,9 +48,19 @@ export function useAiQuickQuestions(): AIQuickQuestion[] {
   }));
 }
 
-function findCannedResponse(text: string, questions: AIQuickQuestion[]): string | undefined {
+function findCannedResponse(text: string, appLocale: Locale): string | undefined {
   const trimmed = text.trim();
-  return questions.find((q) => q.question === trimmed)?.response;
+  if (!trimmed) return undefined;
+
+  for (const id of QUICK_QUESTION_IDS) {
+    const enQuestion = translate("en", `chat.quickQ${id}.question`);
+    const esQuestion = translate("es", `chat.quickQ${id}.question`);
+    if (trimmed === enQuestion || trimmed === esQuestion) {
+      const replyLocale = resolveReplyLocale(trimmed, appLocale);
+      return translate(replyLocale, `chat.quickQ${id}.response`);
+    }
+  }
+  return undefined;
 }
 
 export function AiChatProvider({ children }: { children: React.ReactNode }) {
@@ -58,7 +69,6 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
   const { tasks } = useChecklist();
   const { stats } = useRouteStats();
   const { locale } = useLocale();
-  const quickQuestions = useAiQuickQuestions();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -79,7 +89,8 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
 
-      const canned = findCannedResponse(trimmed, quickQuestions);
+      const canned = findCannedResponse(trimmed, locale);
+      const replyLocale = resolveReplyLocale(trimmed, locale);
 
       const userMsg: ChatMessage = {
         id: `u-${Date.now()}`,
@@ -125,6 +136,8 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
             messages: history.map((m) => ({ role: m.role, content: m.content })),
             moveContext: {
               ...getMoveContextForApi(),
+              locale: replyLocale,
+              userMessage: trimmed,
               inventorySummary:
                 boxes.length > 0
                   ? boxes
@@ -142,7 +155,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
                   }
                 : undefined,
             },
-            locale,
+            locale: replyLocale,
           }),
         });
 
@@ -188,7 +201,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
               results.push({ ok: false, label: action.action });
             }
           }
-          const suffix = formatActionResultMessage(locale, results);
+          const suffix = formatActionResultMessage(replyLocale, results);
           if (suffix) {
             setMessages((prev) =>
               prev.map((m) =>
@@ -199,14 +212,14 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        const fallback = findCannedResponse(trimmed, quickQuestions);
+        const fallback = findCannedResponse(trimmed, locale);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
               ? {
                   ...m,
                   content:
-                    fallback ?? translate(locale, "chat.error"),
+                    fallback ?? translate(replyLocale, "chat.error"),
                 }
               : m
           )
@@ -215,7 +228,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [messages, isLoading, getMoveContextForApi, boxes, tasks, stats, locale, quickQuestions]
+    [messages, isLoading, getMoveContextForApi, boxes, tasks, stats, locale]
   );
 
   const value = useMemo(

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChatMessage } from "@/contexts/ai-chat-context";
 import { useLocale } from "@/contexts/locale-context";
 import { translate } from "@/lib/i18n";
+import { resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 
 const STORAGE_KEY = "movepilot_guest_chat_v1";
 
@@ -75,6 +76,7 @@ export function useGuestChat() {
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
+      const replyLocale = resolveReplyLocale(trimmed, locale);
 
       const userMsg: ChatMessage = {
         id: `u-${Date.now()}`,
@@ -102,7 +104,7 @@ export function useGuestChat() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: history.map((m) => ({ role: m.role, content: m.content })),
-            locale,
+            locale: replyLocale,
           }),
         });
 
@@ -126,7 +128,7 @@ export function useGuestChat() {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: translate(locale, "guestChat.error") }
+              ? { ...m, content: translate(replyLocale, "guestChat.error") }
               : m
           )
         );

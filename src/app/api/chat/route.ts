@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildMoveSystemPromptAsync, type MoveContextInput } from "@/lib/ai/move-context";
-import { getLatestUserMessage } from "@/lib/ai/detect-message-locale";
+import { getLatestUserMessage, resolveReplyLocale, buildReplyLanguageReminder } from "@/lib/ai/detect-message-locale";
+import type { Locale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { requireMoveAccess } from "@/lib/api-auth";
@@ -113,11 +114,14 @@ export async function POST(req: NextRequest) {
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     const lastUserText = getLatestUserMessage(messages);
+    const appLocale = (locale ?? moveContext?.locale ?? "en") as Locale;
+    const replyLocale = resolveReplyLocale(lastUserText, appLocale);
     const systemPrompt = await buildMoveSystemPromptAsync({
       ...enrichedContext,
-      locale: locale ?? moveContext?.locale,
+      locale: appLocale,
       userMessage: lastUserText,
     });
+    const languageReminder = buildReplyLanguageReminder(replyLocale);
 
     const lastUser = messages.filter((m) => m.role === "user").pop();
     if (userId && lastUser?.content) {
@@ -136,6 +140,10 @@ export async function POST(req: NextRequest) {
         {
           role: "system",
           content: systemPrompt,
+        },
+        {
+          role: "system",
+          content: languageReminder,
         },
         ...messages.slice(-6).map((m) => ({
           role: m.role,
