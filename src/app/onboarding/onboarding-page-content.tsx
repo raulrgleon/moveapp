@@ -232,6 +232,14 @@ export function OnboardingPageContent() {
 
         <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10 sm:px-6 pb-8 flex-1">
         <div className="mb-8 space-y-4">
+          {completeMode && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 text-sm">
+                <p className="font-medium">{t("onboarding.oauthCompleteTitle")}</p>
+                <p className="text-muted-foreground mt-1">{t("onboarding.oauthCompleteDesc")}</p>
+              </CardContent>
+            </Card>
+          )}
           <div>
             <div className="flex justify-between text-sm mb-2">
               <span className="text-muted-foreground">{t("onboarding.progressLabel")}</span>

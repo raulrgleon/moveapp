@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description:
     "Plan, budget, and execute your move with MovePilotAi. Smart checklists, route planning, inventory, documents, and your AI co-pilot Pilot.",
   applicationName: "MovePilotAi",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "MovePilotAi" },
 };
 
 export default function RootLayout({

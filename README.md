@@ -104,4 +104,4 @@ src/
 
 ## Notes
 
-Persistent data lives in PostgreSQL. Mock data in `src/lib/mock-data.ts` is still used for demo fallbacks and UI seeds.
+Persistent data lives in PostgreSQL. Configure `RESEND_API_KEY` / `TWILIO_*` for email/SMS reminders and `S3_BUCKET` for cloud file storage (optional).

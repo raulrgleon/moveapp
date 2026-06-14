@@ -147,6 +147,10 @@ export async function PATCH(req: NextRequest) {
       rentalPreference: move.rentalPreference,
       needsHousingHelp: move.needsHousingHelp,
       needsVehicleTransport: move.needsVehicleTransport,
+      originLat: move.originLat ?? undefined,
+      originLon: move.originLon ?? undefined,
+      destinationLat: move.destinationLat ?? undefined,
+      destinationLon: move.destinationLon ?? undefined,
     };
     await syncBudgetEstimate(move.id, profile);
   }

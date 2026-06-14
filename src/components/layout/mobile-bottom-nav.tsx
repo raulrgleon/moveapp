@@ -6,6 +6,22 @@ import { MOBILE_NAV_ITEMS } from "@/lib/constants";
 import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 
+const MORE_SECTION_PATHS = [
+  "/more",
+  "/route",
+  "/trucks",
+  "/vehicles",
+  "/utilities",
+  "/city-comparison",
+  "/inventory",
+  "/documents",
+  "/collaboration",
+  "/partner",
+  "/assistant",
+  "/move-day",
+  "/settings",
+];
+
 export function MobileBottomNav() {
   const pathname = usePathname();
   const t = useT();
@@ -17,7 +33,9 @@ export function MobileBottomNav() {
     >
       <div className="flex items-stretch justify-around px-1 pt-1">
         {MOBILE_NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (item.href === "/more" && MORE_SECTION_PATHS.some((p) => pathname.startsWith(p)));
           const Icon = item.icon;
           return (
             <Link

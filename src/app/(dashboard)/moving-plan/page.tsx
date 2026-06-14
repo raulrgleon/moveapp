@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { buildMovingPlanInsight } from "@/lib/moving-plan/insights";
 import { cn } from "@/lib/utils";
 
 export default function MovingPlanPage() {
@@ -22,6 +23,7 @@ export default function MovingPlanPage() {
   const { locale } = useLocale();
   const { profile } = useMove();
   const { weeks, priorityTasks, exportPlan, exportIcal, exportPdf } = useMovingPlan();
+  const insight = buildMovingPlanInsight(profile, locale);
 
   return (
     <>
@@ -52,7 +54,7 @@ export default function MovingPlanPage() {
         />
 
         <div id="moving-plan-print" className="space-y-6 print:space-y-4">
-          <Card>
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-6">
               <p className="font-medium">{t("movingPlanPage.planSummary")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -63,6 +65,10 @@ export default function MovingPlanPage() {
                   rental: profile.rentalPreference,
                 })}
               </p>
+              <div className="mt-4 rounded-lg border bg-background/80 p-4">
+                <p className="text-xs font-semibold text-primary">{t("movingPlanPage.aiInsightTitle")}</p>
+                <p className="text-sm mt-1 text-muted-foreground">{insight}</p>
+              </div>
             </CardContent>
           </Card>
 

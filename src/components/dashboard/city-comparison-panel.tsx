@@ -8,6 +8,8 @@ import {
   Loader2,
   RefreshCw,
   ShoppingCart,
+  Sparkles,
+  Sun,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -166,6 +168,8 @@ export function CityComparisonPanel() {
   const essentials = data?.essentials;
   const hasEssentials =
     essentials?.origin && essentials?.destination && essentials.metrics.length > 0;
+  const qol = data?.qualityOfLife;
+  const hasQoL = qol?.origin && qol?.destination && qol.metrics.length > 0;
 
   return (
     <div className="space-y-4">
@@ -273,8 +277,26 @@ export function CityComparisonPanel() {
             </CardContent>
           </Card>
 
+          {data.verdict && (
+            <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
+              <CardContent className="p-5 flex gap-4 items-start">
+                <Sparkles className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">{t("cityComparison.verdictTitle", { city: rightCity.split(",")[0] })}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {data.verdict.overall === "better"
+                      ? t("cityComparison.verdictBetter", { city: rightCity.split(",")[0] })
+                      : data.verdict.overall === "worse"
+                        ? t("cityComparison.verdictWorse", { city: rightCity.split(",")[0] })
+                        : t("cityComparison.verdictMixed", { city: rightCity.split(",")[0] })}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-auto flex-wrap h-auto">
               <TabsTrigger value="housing" className="gap-2">
                 <Building2 className="h-4 w-4" />
                 {t("cityComparison.tabHousing")}
@@ -282,6 +304,10 @@ export function CityComparisonPanel() {
               <TabsTrigger value="essentials" className="gap-2">
                 <ShoppingCart className="h-4 w-4" />
                 {t("cityComparison.tabEssentials")}
+              </TabsTrigger>
+              <TabsTrigger value="qol" className="gap-2">
+                <Sun className="h-4 w-4" />
+                {t("cityComparison.tabQualityOfLife")}
               </TabsTrigger>
             </TabsList>
 
@@ -496,6 +522,39 @@ export function CityComparisonPanel() {
                       </p>
                     </CardContent>
                   </Card>
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="qol" className="mt-4 space-y-4">
+              {!hasQoL ? (
+                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    {t("cityComparison.unavailableHint")}
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">{t("cityComparison.qolNote")}</p>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {qol!.metrics.map((metric) => (
+                      <Card key={metric.key} className="overflow-hidden">
+                        <CardContent className="p-4">
+                          <p className="text-xs text-muted-foreground">{t(metric.labelKey)}</p>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-sm">{metric.originValue}</span>
+                            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-semibold">{metric.destinationValue}</span>
+                          </div>
+                          <MetricCompareBar trend={metric.trend} />
+                          <div className="mt-2">
+                            <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{t("cityComparison.qolAttribution")}</p>
                 </>
               )}
             </TabsContent>

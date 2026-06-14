@@ -3,6 +3,7 @@ import {
   buildEssentialsComparisonMetrics,
   buildEssentialsSummary,
 } from "@/lib/cost-of-living/essentials";
+import { buildQoLComparison, buildComparisonVerdict } from "@/lib/cost-of-living/qol-metrics";
 import type { CityComparisonResponse } from "@/lib/city-comparison/types";
 import { buildFallbackHousingComparison } from "@/lib/housing/fallback-market";
 import { resolveLocationFromQuery } from "@/lib/geo/resolve-location";
@@ -111,6 +112,18 @@ export async function GET(req: NextRequest) {
       ? buildEssentialsComparisonMetrics(essentialsOrigin, essentialsDest)
       : [];
 
+  const qol =
+    originLoc && destLoc ? buildQoLComparison(originLoc, destLoc) : null;
+
+  const housingBetter = housing.metrics.filter((m) => m.trend === "better").length;
+  const housingWorse = housing.metrics.filter((m) => m.trend === "worse").length;
+  const essBetter = essentialsMetrics.filter((m) => m.trend === "better").length;
+  const essWorse = essentialsMetrics.filter((m) => m.trend === "worse").length;
+
+  const verdict = qol
+    ? buildComparisonVerdict(housingBetter, housingWorse, essBetter, essWorse, qol.metrics)
+    : undefined;
+
   const response: CityComparisonResponse = {
     ...housing,
     essentials: {
@@ -118,6 +131,10 @@ export async function GET(req: NextRequest) {
       destination: essentialsDest,
       metrics: essentialsMetrics,
     },
+    qualityOfLife: qol
+      ? { origin: qol.origin, destination: qol.destination, metrics: qol.metrics }
+      : undefined,
+    verdict,
   };
 
   return NextResponse.json(response);

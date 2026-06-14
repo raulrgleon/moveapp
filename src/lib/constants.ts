@@ -18,6 +18,7 @@ import {
   Activity,
   Wrench,
   Handshake,
+  LayoutGrid,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -59,7 +60,7 @@ export const MOBILE_NAV_ITEMS = [
   { href: "/moving-plan", labelKey: "mobileNav.plan", icon: ClipboardList },
   { href: "/checklist", labelKey: "mobileNav.tasks", icon: CheckSquare },
   { href: "/budget", labelKey: "mobileNav.budget", icon: Wallet },
-  { href: "/settings", labelKey: "mobileNav.settings", icon: Settings },
+  { href: "/more", labelKey: "mobileNav.more", icon: LayoutGrid },
 ] as const;
 
 export const UTILITY_CATEGORIES = [

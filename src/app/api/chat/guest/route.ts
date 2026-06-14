@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       model,
       stream: true,
       temperature: 0.5,
-      max_tokens: 280,
+      max_tokens: 720,
       messages: [
         { role: "system", content: buildGuestSystemPrompt(lang, lastUserText) },
         { role: "system", content: languageReminder },
