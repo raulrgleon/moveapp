@@ -1179,9 +1179,27 @@ export const en = {
   },
 
   cityComparison: {
-    pageDesc: "Rent and home values — origin vs destination",
-    pageDescLong: "Compare housing costs with live market data before you move",
-    loading: "Loading housing market data…",
+    pageDesc: "Compare any two cities — housing and everyday costs",
+    pageDescLong:
+      "Compare rent, home values, and Walmart grocery staples between your move cities or any U.S. cities you choose",
+    pickCities: "Choose cities to compare",
+    pickCitiesDesc: "Defaults to your move route. Change either city to explore other destinations.",
+    cityA: "City A",
+    cityB: "City B",
+    useMoveRoute: "Use my move route",
+    compareNow: "Compare",
+    swapCities: "Swap cities",
+    tabHousing: "Housing",
+    tabEssentials: "Daily essentials",
+    housingUnavailable: "Housing data could not be loaded for these cities.",
+    essentialsUnavailable: "Could not estimate grocery prices for these cities.",
+    essentialsNote:
+      "Estimated Walmart Great Value prices adjusted for state and metro cost-of-living. Gas uses regional averages.",
+    essentialsTableTitle: "Grocery & gas price comparison",
+    essentialsTableDesc: "Everyday staples to help you feel real local prices before you move",
+    essentialsAttribution:
+      "Grocery estimates based on national Walmart baselines × regional COL indices · Gas from state averages",
+    loading: "Loading comparison data…",
     unavailable: "Housing data unavailable",
     unavailableHint:
       "We could not resolve ZIP codes or fetch RentCast data for these cities. Try updating your origin and destination in Settings.",
@@ -1209,6 +1227,32 @@ export const en = {
     originSummary: "{city} market",
     destSummary: "{city} market",
     attribution: "Housing data by RentCast · ZIP-level market statistics",
+    essentials: {
+      milk: "Milk (Great Value)",
+      eggs: "Eggs",
+      bread: "White bread",
+      groundBeef: "Ground beef",
+      chicken: "Chicken breast",
+      bananas: "Bananas",
+      coffee: "Ground coffee",
+      cereal: "Breakfast cereal",
+      water: "Bottled water (24-pack)",
+      gas: "Regular gasoline",
+      weeklyBasket: "Weekly basics basket",
+      monthlyGroceries: "Est. monthly groceries",
+      monthlyHint: "Based on typical weekly quantities × 4.33 weeks (excludes gas)",
+      unit: {
+        gallon: "per gallon",
+        dozen: "per dozen",
+        loaf: "per loaf",
+        lb: "per lb",
+        bag: "12 oz bag",
+        box: "18 oz box",
+        case: "24-pack",
+        week: "per week",
+        month: "per month",
+      },
+    },
   },
 
   weather: {

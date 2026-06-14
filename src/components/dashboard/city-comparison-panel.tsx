@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowRight, Building2, Home, Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ArrowRight,
+  Building2,
+  Home,
+  Loader2,
+  RefreshCw,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
-import type { HousingMarketResponse, HousingTrend } from "@/lib/rentcast/types";
+import type { CityComparisonResponse } from "@/lib/city-comparison/types";
+import type { HousingTrend } from "@/lib/rentcast/types";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import {
   Table,
@@ -17,14 +29,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function TrendBadge({ trend, destinationLabel }: { trend: HousingTrend; destinationLabel: string }) {
+function extractZip(text: string): string | undefined {
+  const match = text.match(/\b(\d{5})\b/);
+  return match?.[0];
+}
+
+function TrendBadge({
+  trend,
+  rightLabel,
+}: {
+  trend: HousingTrend;
+  rightLabel: string;
+}) {
   const t = useT();
+  const city = rightLabel.split(",")[0];
   if (trend === "better") {
     return (
       <Badge variant="success" className="gap-1">
         <TrendingDown className="h-3 w-3" />
-        {t("cityComparison.betterInDest", { city: destinationLabel.split(",")[0] })}
+        {t("cityComparison.betterInDest", { city })}
       </Badge>
     );
   }
@@ -32,7 +57,7 @@ function TrendBadge({ trend, destinationLabel }: { trend: HousingTrend; destinat
     return (
       <Badge variant="warning" className="gap-1">
         <TrendingUp className="h-3 w-3" />
-        {t("cityComparison.higherInDest", { city: destinationLabel.split(",")[0] })}
+        {t("cityComparison.higherInDest", { city })}
       </Badge>
     );
   }
@@ -51,216 +76,491 @@ function MetricCompareBar({ trend }: { trend: HousingTrend }) {
   );
 }
 
-function extractZip(text: string): string | undefined {
-  const match = text.match(/\b(\d{5})\b/);
-  return match?.[1];
-}
-
 export function CityComparisonPanel() {
   const t = useT();
   const { locale } = useLocale();
   const { profile, destinationAddress, destinationPostcode } = useMove();
-  const [data, setData] = useState<HousingMarketResponse | null>(null);
+
+  const [leftCity, setLeftCity] = useState(profile.origin);
+  const [rightCity, setRightCity] = useState(profile.destination);
+  const [leftZip, setLeftZip] = useState<string | undefined>();
+  const [rightZip, setRightZip] = useState<string | undefined>();
+  const [data, setData] = useState<CityComparisonResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [activeTab, setActiveTab] = useState("housing");
 
   useEffect(() => {
-    let cancelled = false;
+    setLeftCity(profile.origin);
+    setRightCity(profile.destination);
+  }, [profile.origin, profile.destination]);
 
-    async function load() {
-      setLoading(true);
-      setError(false);
-      try {
-        const params = new URLSearchParams({
-          origin: profile.origin,
-          destination: profile.destination,
-        });
-        const destZip =
-          destinationPostcode?.match(/\d{5}/)?.[0] ??
-          extractZip(destinationAddress) ??
-          extractZip(profile.destination);
-        const originZip = extractZip(profile.origin);
-        if (destZip) params.set("destZip", destZip);
-        if (originZip) params.set("originZip", originZip);
+  const loadComparison = useCallback(async () => {
+    if (!leftCity.trim() || !rightCity.trim()) return;
 
-        const res = await fetch(`/api/housing-market?${params.toString()}`);
-        if (!res.ok) throw new Error("housing failed");
-        const json = (await res.json()) as HousingMarketResponse;
-        if (!cancelled) setData(json);
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    setLoading(true);
+    setError(false);
+    try {
+      const params = new URLSearchParams({
+        origin: leftCity.trim(),
+        destination: rightCity.trim(),
+      });
+
+      const resolvedLeftZip =
+        leftZip ??
+        extractZip(leftCity) ??
+        (leftCity === profile.origin ? extractZip(profile.origin) : undefined);
+      const resolvedRightZip =
+        rightZip ??
+        extractZip(rightCity) ??
+        (rightCity === profile.destination
+          ? destinationPostcode?.match(/\d{5}/)?.[0] ??
+            extractZip(destinationAddress) ??
+            extractZip(profile.destination)
+          : undefined);
+
+      if (resolvedLeftZip) params.set("originZip", resolvedLeftZip);
+      if (resolvedRightZip) params.set("destZip", resolvedRightZip);
+
+      const res = await fetch(`/api/city-comparison?${params.toString()}`);
+      if (!res.ok) throw new Error("comparison failed");
+      const json = (await res.json()) as CityComparisonResponse;
+      setData(json);
+    } catch {
+      setError(true);
+      setData(null);
+    } finally {
+      setLoading(false);
     }
+  }, [
+    leftCity,
+    rightCity,
+    leftZip,
+    rightZip,
+    profile.origin,
+    profile.destination,
+    destinationAddress,
+    destinationPostcode,
+  ]);
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile.origin, profile.destination, destinationAddress, destinationPostcode]);
+  useEffect(() => {
+    void loadComparison();
+  }, [loadComparison]);
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6 flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">{t("cityComparison.loading")}</span>
-        </CardContent>
-      </Card>
-    );
-  }
+  const useMoveCities = () => {
+    setLeftCity(profile.origin);
+    setRightCity(profile.destination);
+    setLeftZip(undefined);
+    setRightZip(undefined);
+  };
 
-  if (error || !data?.origin || !data?.destination || data.metrics.length === 0) {
-    return (
-      <Card className="border-amber-200 bg-amber-50/50">
-        <CardContent className="p-4">
-          <p className="font-medium text-sm">{t("cityComparison.unavailable")}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {data?.rentcastMissing
-              ? t("cityComparison.rentcastMissing")
-              : t("cityComparison.unavailableHint")}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const swapCities = () => {
+    setLeftCity(rightCity);
+    setRightCity(leftCity);
+    setLeftZip(rightZip);
+    setRightZip(leftZip);
+  };
 
-  const highlightMetrics = data.metrics.slice(0, 4);
+  const hasHousing =
+    data?.origin && data?.destination && (data.metrics.length > 0 || data.source === "fallback");
+  const essentials = data?.essentials;
+  const hasEssentials =
+    essentials?.origin && essentials?.destination && essentials.metrics.length > 0;
 
   return (
     <div className="space-y-4">
-      {data.source === "fallback" && (
-        <p className="text-xs text-muted-foreground">{t("cityComparison.fallbackNote")}</p>
-      )}
-      {data.rentcastMissing && data.source !== "fallback" && (
-        <p className="text-xs text-muted-foreground">{t("cityComparison.rentcastMissing")}</p>
-      )}
-
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
-            <div className="text-center">
-              <Building2 className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="mt-2 font-semibold text-lg">{profile.origin}</p>
-              <p className="text-sm text-muted-foreground">{t("cityComparison.currentCity")}</p>
-              <p className="text-xs text-muted-foreground mt-1">ZIP {data.origin.zipCode}</p>
-            </div>
-            <ArrowRight className="h-6 w-6 text-primary hidden sm:block" />
-            <div className="text-center">
-              <Home className="h-8 w-8 text-primary mx-auto" />
-              <p className="mt-2 font-semibold text-lg">{profile.destination}</p>
-              <p className="text-sm text-muted-foreground">{t("cityComparison.destination")}</p>
-              <p className="text-xs text-muted-foreground mt-1">ZIP {data.destination.zipCode}</p>
-            </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{t("cityComparison.pickCities")}</CardTitle>
+          <CardDescription>{t("cityComparison.pickCitiesDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-end">
+            <CityAutocomplete
+              id="compare-left"
+              label={t("cityComparison.cityA")}
+              value={leftCity}
+              onChange={setLeftCity}
+              onSelect={(city) => {
+                setLeftCity(city.label);
+                setLeftZip(undefined);
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="hidden lg:flex shrink-0 mb-0.5"
+              onClick={swapCities}
+              aria-label={t("cityComparison.swapCities")}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <CityAutocomplete
+              id="compare-right"
+              label={t("cityComparison.cityB")}
+              value={rightCity}
+              onChange={setRightCity}
+              onSelect={(city) => {
+                setRightCity(city.label);
+                setRightZip(undefined);
+              }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={useMoveCities}>
+              {t("cityComparison.useMoveRoute")}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => void loadComparison()}>
+              {t("cityComparison.compareNow")}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="lg:hidden"
+              onClick={swapCities}
+            >
+              {t("cityComparison.swapCities")}
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {highlightMetrics.map((metric) => (
-          <Card key={metric.key} className="overflow-hidden">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">{t(metric.labelKey)}</p>
-              <div className="mt-2 flex items-center justify-between gap-2 min-w-0">
-                <span className="text-sm truncate min-w-0">{metric.originValue}</span>
-                <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                <span className="text-sm font-semibold truncate min-w-0 text-right">{metric.destinationValue}</span>
-              </div>
-              <MetricCompareBar trend={metric.trend} />
-              <div className="mt-2">
-                <TrendBadge trend={metric.trend} destinationLabel={profile.destination} />
+      {loading && (
+        <Card>
+          <CardContent className="p-6 flex items-center gap-3 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm">{t("cityComparison.loading")}</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && error && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <p className="font-medium text-sm">{t("cityComparison.unavailable")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("cityComparison.unavailableHint")}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && data && (
+        <>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
+                <div className="text-center">
+                  <Building2 className="h-8 w-8 text-muted-foreground mx-auto" />
+                  <p className="mt-2 font-semibold text-lg">{leftCity}</p>
+                  <p className="text-sm text-muted-foreground">{t("cityComparison.cityA")}</p>
+                  {data.origin?.zipCode && (
+                    <p className="text-xs text-muted-foreground mt-1">ZIP {data.origin.zipCode}</p>
+                  )}
+                </div>
+                <ArrowRight className="h-6 w-6 text-primary hidden sm:block" />
+                <div className="text-center">
+                  <Home className="h-8 w-8 text-primary mx-auto" />
+                  <p className="mt-2 font-semibold text-lg">{rightCity}</p>
+                  <p className="text-sm text-muted-foreground">{t("cityComparison.cityB")}</p>
+                  {data.destination?.zipCode && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ZIP {data.destination.zipCode}
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("cityComparison.sideBySide")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TableScroll>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("cityComparison.metric")}</TableHead>
-                  <TableHead>{profile.origin}</TableHead>
-                  <TableHead>{profile.destination}</TableHead>
-                  <TableHead>{t("cityComparison.trend")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.metrics.map((metric) => (
-                  <TableRow key={metric.key}>
-                    <TableCell className="font-medium">{t(metric.labelKey)}</TableCell>
-                    <TableCell>{metric.originValue}</TableCell>
-                    <TableCell>{metric.destinationValue}</TableCell>
-                    <TableCell>
-                      <TrendBadge trend={metric.trend} destinationLabel={profile.destination} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableScroll>
-          <p className="mt-4 text-[10px] text-muted-foreground">{t("cityComparison.attribution")}</p>
-        </CardContent>
-      </Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="housing" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                {t("cityComparison.tabHousing")}
+              </TabsTrigger>
+              <TabsTrigger value="essentials" className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                {t("cityComparison.tabEssentials")}
+              </TabsTrigger>
+            </TabsList>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{t("cityComparison.originSummary", { city: profile.origin })}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1 text-muted-foreground">
-            <p>
-              {t("cityComparison.avgRent")}:{" "}
-              {data.origin.averageRent != null
-                ? `${formatCurrency(data.origin.averageRent, locale)}/mo`
-                : "—"}
-            </p>
-            <p>
-              {t("cityComparison.medianHome")}:{" "}
-              {data.origin.medianHomePrice != null
-                ? formatCurrency(data.origin.medianHomePrice, locale)
-                : "—"}
-            </p>
-            <p>
-              {t("cityComparison.rent2Bed")}:{" "}
-              {data.origin.rent2Bed != null
-                ? `${formatCurrency(data.origin.rent2Bed, locale)}/mo`
-                : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{t("cityComparison.destSummary", { city: profile.destination })}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1 text-muted-foreground">
-            <p>
-              {t("cityComparison.avgRent")}:{" "}
-              {data.destination.averageRent != null
-                ? `${formatCurrency(data.destination.averageRent, locale)}/mo`
-                : "—"}
-            </p>
-            <p>
-              {t("cityComparison.medianHome")}:{" "}
-              {data.destination.medianHomePrice != null
-                ? formatCurrency(data.destination.medianHomePrice, locale)
-                : "—"}
-            </p>
-            <p>
-              {t("cityComparison.rent2Bed")}:{" "}
-              {data.destination.rent2Bed != null
-                ? `${formatCurrency(data.destination.rent2Bed, locale)}/mo`
-                : "—"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+            <TabsContent value="housing" className="mt-4 space-y-4">
+              {!hasHousing ? (
+                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    {data.rentcastMissing
+                      ? t("cityComparison.rentcastMissing")
+                      : t("cityComparison.housingUnavailable")}
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {data.source === "fallback" && (
+                    <p className="text-xs text-muted-foreground">{t("cityComparison.fallbackNote")}</p>
+                  )}
+
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {data.metrics.slice(0, 4).map((metric) => (
+                      <Card key={metric.key} className="overflow-hidden">
+                        <CardContent className="p-4">
+                          <p className="text-xs text-muted-foreground">{t(metric.labelKey)}</p>
+                          <div className="mt-2 flex items-center justify-between gap-2 min-w-0">
+                            <span className="text-sm truncate min-w-0">{metric.originValue}</span>
+                            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-semibold truncate min-w-0 text-right">
+                              {metric.destinationValue}
+                            </span>
+                          </div>
+                          <MetricCompareBar trend={metric.trend} />
+                          <div className="mt-2">
+                            <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">{t("cityComparison.sideBySide")}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <TableScroll>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{t("cityComparison.metric")}</TableHead>
+                              <TableHead>{leftCity}</TableHead>
+                              <TableHead>{rightCity}</TableHead>
+                              <TableHead>{t("cityComparison.trend")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {data.metrics.map((metric) => (
+                              <TableRow key={metric.key}>
+                                <TableCell className="font-medium">{t(metric.labelKey)}</TableCell>
+                                <TableCell>{metric.originValue}</TableCell>
+                                <TableCell>{metric.destinationValue}</TableCell>
+                                <TableCell>
+                                  <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableScroll>
+                      <p className="mt-4 text-[10px] text-muted-foreground">
+                        {t("cityComparison.attribution")}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="essentials" className="mt-4 space-y-4">
+              {!hasEssentials ? (
+                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    {t("cityComparison.essentialsUnavailable")}
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">{t("cityComparison.essentialsNote")}</p>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Card className="border-primary/20 bg-primary/5">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground">
+                          {t("cityComparison.essentials.weeklyBasket")}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground truncate">{leftCity}</p>
+                            <p className="text-xl font-bold">
+                              {formatCurrency(essentials!.origin!.weeklyBasketTotal, locale)}
+                            </p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground truncate">{rightCity}</p>
+                            <p className="text-xl font-bold">
+                              {formatCurrency(essentials!.destination!.weeklyBasketTotal, locale)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground">
+                          {t("cityComparison.essentials.monthlyGroceries")}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <p className="text-lg font-semibold">
+                            {formatCurrency(essentials!.origin!.monthlyGroceriesEstimate, locale)}
+                          </p>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <p className="text-lg font-semibold">
+                            {formatCurrency(
+                              essentials!.destination!.monthlyGroceriesEstimate,
+                              locale
+                            )}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-[10px] text-muted-foreground">
+                          {t("cityComparison.essentials.monthlyHint")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {essentials!.metrics
+                      .filter((m) => !["weekly_basket", "monthly_groceries"].includes(m.key))
+                      .slice(0, 6)
+                      .map((metric) => (
+                        <Card key={metric.key} className="overflow-hidden">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium">{t(metric.labelKey)}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {t(metric.unitKey)}
+                                </p>
+                              </div>
+                              {metric.key !== "gas_gallon" && (
+                                <Badge variant="outline" className="text-[10px] shrink-0">
+                                  Walmart
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-2">
+                              <span className="text-sm">{metric.originValue}</span>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm font-semibold">{metric.destinationValue}</span>
+                            </div>
+                            <div className="mt-2">
+                              <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        {t("cityComparison.essentialsTableTitle")}
+                      </CardTitle>
+                      <CardDescription>{t("cityComparison.essentialsTableDesc")}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <TableScroll>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{t("cityComparison.metric")}</TableHead>
+                              <TableHead>{leftCity}</TableHead>
+                              <TableHead>{rightCity}</TableHead>
+                              <TableHead>{t("cityComparison.trend")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {essentials!.metrics.map((metric) => (
+                              <TableRow key={metric.key}>
+                                <TableCell>
+                                  <div className="font-medium">{t(metric.labelKey)}</div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {t(metric.unitKey)}
+                                    {metric.key !== "gas_gallon" &&
+                                      metric.key !== "weekly_basket" &&
+                                      metric.key !== "monthly_groceries" &&
+                                      " · Walmart"}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{metric.originValue}</TableCell>
+                                <TableCell>{metric.destinationValue}</TableCell>
+                                <TableCell>
+                                  <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableScroll>
+                      <p className="mt-4 text-[10px] text-muted-foreground">
+                        {t("cityComparison.essentialsAttribution")}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {hasHousing && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">
+                    {t("cityComparison.originSummary", { city: leftCity })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1 text-muted-foreground">
+                  <p>
+                    {t("cityComparison.avgRent")}:{" "}
+                    {data.origin!.averageRent != null
+                      ? `${formatCurrency(data.origin!.averageRent, locale)}/mo`
+                      : "—"}
+                  </p>
+                  <p>
+                    {t("cityComparison.medianHome")}:{" "}
+                    {data.origin!.medianHomePrice != null
+                      ? formatCurrency(data.origin!.medianHomePrice, locale)
+                      : "—"}
+                  </p>
+                  {hasEssentials && (
+                    <p>
+                      {t("cityComparison.essentials.weeklyBasket")}:{" "}
+                      {formatCurrency(essentials!.origin!.weeklyBasketTotal, locale)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">
+                    {t("cityComparison.destSummary", { city: rightCity })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1 text-muted-foreground">
+                  <p>
+                    {t("cityComparison.avgRent")}:{" "}
+                    {data.destination!.averageRent != null
+                      ? `${formatCurrency(data.destination!.averageRent, locale)}/mo`
+                      : "—"}
+                  </p>
+                  <p>
+                    {t("cityComparison.medianHome")}:{" "}
+                    {data.destination!.medianHomePrice != null
+                      ? formatCurrency(data.destination!.medianHomePrice, locale)
+                      : "—"}
+                  </p>
+                  {hasEssentials && (
+                    <p>
+                      {t("cityComparison.essentials.weeklyBasket")}:{" "}
+                      {formatCurrency(essentials!.destination!.weeklyBasketTotal, locale)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

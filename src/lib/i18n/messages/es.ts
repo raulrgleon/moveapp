@@ -1182,9 +1182,27 @@ export const es = {
   },
 
   cityComparison: {
-    pageDesc: "Rentas y valor de casas — origen vs destino",
-    pageDescLong: "Compara costos de vivienda con datos de mercado antes de mudarte",
-    loading: "Cargando datos del mercado inmobiliario…",
+    pageDesc: "Compara dos ciudades — vivienda y costos del día a día",
+    pageDescLong:
+      "Compara rentas, valor de casas y precios básicos de Walmart entre las ciudades de tu mudanza o cualquier par de ciudades en EE. UU.",
+    pickCities: "Elige ciudades para comparar",
+    pickCitiesDesc: "Por defecto usa tu ruta de mudanza. Cambia cualquier ciudad para explorar otras opciones.",
+    cityA: "Ciudad A",
+    cityB: "Ciudad B",
+    useMoveRoute: "Usar mi ruta de mudanza",
+    compareNow: "Comparar",
+    swapCities: "Intercambiar ciudades",
+    tabHousing: "Vivienda",
+    tabEssentials: "Gastos básicos",
+    housingUnavailable: "No se pudieron cargar datos de vivienda para estas ciudades.",
+    essentialsUnavailable: "No se pudieron estimar precios de supermercado para estas ciudades.",
+    essentialsNote:
+      "Precios estimados de Walmart Great Value ajustados por estado y área metropolitana. La gasolina usa promedios regionales.",
+    essentialsTableTitle: "Comparación de supermercado y gasolina",
+    essentialsTableDesc: "Productos básicos para tener una idea real de precios locales antes de mudarte",
+    essentialsAttribution:
+      "Estimaciones basadas en precios nacionales de Walmart × índices regionales · Gasolina según promedios estatales",
+    loading: "Cargando comparación…",
     unavailable: "Datos de vivienda no disponibles",
     unavailableHint:
       "No pudimos obtener códigos ZIP o datos de RentCast. Actualiza origen y destino en Ajustes.",
@@ -1212,6 +1230,32 @@ export const es = {
     originSummary: "Mercado en {city}",
     destSummary: "Mercado en {city}",
     attribution: "Datos de vivienda por RentCast · estadísticas por código ZIP",
+    essentials: {
+      milk: "Leche (Great Value)",
+      eggs: "Huevos",
+      bread: "Pan blanco",
+      groundBeef: "Carne molida",
+      chicken: "Pechuga de pollo",
+      bananas: "Plátanos",
+      coffee: "Café molido",
+      cereal: "Cereal de desayuno",
+      water: "Agua embotellada (24-pack)",
+      gas: "Gasolina regular",
+      weeklyBasket: "Canasta básica semanal",
+      monthlyGroceries: "Est. supermercado mensual",
+      monthlyHint: "Según cantidades semanales típicas × 4.33 semanas (sin gasolina)",
+      unit: {
+        gallon: "por galón",
+        dozen: "por docena",
+        loaf: "por barra",
+        lb: "por lb",
+        bag: "bolsa 12 oz",
+        box: "caja 18 oz",
+        case: "paquete 24",
+        week: "por semana",
+        month: "por mes",
+      },
+    },
   },
 
   weather: {
