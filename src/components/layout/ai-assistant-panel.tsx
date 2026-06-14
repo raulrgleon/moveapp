@@ -14,7 +14,7 @@ import { PilotAvatar } from "@/components/pilot/pilot-avatar";
 import { useAiChat, useAiQuickQuestions } from "@/contexts/ai-chat-context";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export function AIAssistantPanel() {
   const t = useT();
@@ -30,18 +30,18 @@ export function AIAssistantPanel() {
     if (!input.trim()) return;
     const text = input;
     setInput("");
-    setOpen(true);
     await sendMessage(text);
   };
 
   const handleQuick = async (question: string) => {
-    setOpen(true);
     await sendMessage(question);
   };
 
+  const scrollDeps = [messages, isLoading];
+
   const panelBody = (
     <>
-      <ChatScrollArea>
+      <ChatScrollArea autoScrollDeps={scrollDeps}>
         <ChatMessages messages={messages} isLoading={isLoading} compact />
       </ChatScrollArea>
       <div className="border-t p-4 space-y-3 shrink-0 bg-muted/20">
@@ -82,16 +82,23 @@ export function AIAssistantPanel() {
       </aside>
 
       <div className="xl:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button
-              className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg shadow-primary/40 brand-cta-gradient hover:opacity-90 animate-float mobile-nav-offset lg:bottom-6"
-              size="icon"
-            >
-              <Bot className="h-6 w-6" />
-              <span className="sr-only">{t("aiPanel.open")}</span>
-            </Button>
-          </SheetTrigger>
+        <Button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg shadow-primary/40 brand-cta-gradient hover:opacity-90 animate-float mobile-nav-offset lg:bottom-6"
+          size="icon"
+        >
+          <Bot className="h-6 w-6" />
+          <span className="sr-only">{t("aiPanel.open")}</span>
+        </Button>
+
+        <Sheet
+          open={open}
+          onOpenChange={(next) => {
+            if (isLoading && !next) return;
+            setOpen(next);
+          }}
+        >
           <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
             <SheetHeader className="border-b p-4 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent">
               <SheetTitle asChild>

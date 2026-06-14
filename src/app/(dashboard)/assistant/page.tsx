@@ -39,7 +39,7 @@ export default function AssistantPage() {
           />
         </div>
         <div className="flex flex-1 flex-col rounded-xl border bg-card min-h-0 shadow-sm">
-          <ChatScrollArea className="min-h-[50vh]">
+          <ChatScrollArea className="min-h-[50vh]" autoScrollDeps={[messages, isLoading]}>
             <ChatMessages messages={messages} isLoading={isLoading} />
           </ChatScrollArea>
           <div className="border-t p-4 space-y-3 shrink-0 bg-muted/20">

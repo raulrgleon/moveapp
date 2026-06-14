@@ -61,7 +61,6 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
   const quickQuestions = useAiQuickQuestions();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
     setMessages((prev) => {
@@ -74,37 +73,6 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
       );
     });
   }, [locale]);
-
-  useEffect(() => {
-    if (historyLoaded) return;
-    let cancelled = false;
-    async function loadHistory() {
-      try {
-        const res = await fetch("/api/chat", { credentials: "include" });
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          messages: { id: string; role: "user" | "assistant"; content: string }[];
-        };
-        if (cancelled || data.messages.length === 0) return;
-        setMessages([
-          { id: "welcome", role: "assistant", content: translate(locale, "chat.welcome") },
-          ...data.messages.map((m) => ({
-            id: m.id,
-            role: m.role,
-            content: m.content,
-          })),
-        ]);
-      } catch {
-        /* keep welcome */
-      } finally {
-        if (!cancelled) setHistoryLoaded(true);
-      }
-    }
-    void loadHistory();
-    return () => {
-      cancelled = true;
-    };
-  }, [historyLoaded, locale]);
 
   const sendMessage = useCallback(
     async (text: string) => {

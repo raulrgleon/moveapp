@@ -1,12 +1,12 @@
 "use client";
 
 import { Loader2, Send } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useT } from "@/contexts/locale-context";
 import { MarkdownMessage } from "@/components/ai/markdown-message";
 import type { ChatMessage } from "@/hooks/use-ai-chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface ChatMessagesProps {
@@ -68,19 +68,24 @@ export function ChatInputBar({
   const t = useT();
 
   return (
-    <div className="flex gap-2">
+    <form
+      className="flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!isLoading && value.trim()) onSend();
+      }}
+    >
       <Input
         placeholder={placeholder ?? t("chat.placeholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && !isLoading && onSend()}
         disabled={isLoading}
         className={compact ? "h-9" : undefined}
       />
       <Button
+        type="submit"
         size="icon"
         className={cn("shrink-0", compact && "h-9 w-9")}
-        onClick={onSend}
         disabled={isLoading || !value.trim()}
       >
         {isLoading ? (
@@ -89,7 +94,7 @@ export function ChatInputBar({
           <Send className="h-4 w-4" />
         )}
       </Button>
-    </div>
+    </form>
   );
 }
 
@@ -120,13 +125,31 @@ export function QuickQuestions({ questions, onSelect, isLoading }: QuickQuestion
 export function ChatScrollArea({
   children,
   className,
+  autoScrollDeps = [],
 }: {
   children: React.ReactNode;
   className?: string;
+  /** Re-scroll to bottom when these values change (e.g. messages, loading). */
+  autoScrollDeps?: readonly unknown[];
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isFirstScroll = useRef(true);
+  const depsKey = autoScrollDeps.map((d) => String(d)).join("\0");
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const behavior = isFirstScroll.current ? "auto" : "smooth";
+    isFirstScroll.current = false;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, [depsKey]);
+
   return (
-    <ScrollArea className={cn("flex-1", className)}>
+    <div
+      ref={scrollRef}
+      className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain", className)}
+    >
       <div className="p-4">{children}</div>
-    </ScrollArea>
+    </div>
   );
 }

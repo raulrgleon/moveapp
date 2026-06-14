@@ -73,7 +73,7 @@ export function FloatingPilotWidget() {
           </Button>
         </div>
 
-        <ChatScrollArea className="min-h-0 flex-1">
+        <ChatScrollArea className="min-h-0 flex-1" autoScrollDeps={[messages, isLoading]}>
           <ChatMessages messages={messages} isLoading={isLoading} compact />
         </ChatScrollArea>
 
