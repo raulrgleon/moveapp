@@ -80,7 +80,14 @@ export function generateAlerts(input: GenerateAlertsInput): AlertItem[] {
     });
   }
 
-  if (input.totalActual > input.budgetTarget) {
+  if (input.totalEstimated > input.budgetTarget && input.budgetTarget > 0) {
+    alerts.push({
+      id: "budget-estimate-over-target",
+      type: "warning",
+      title: t(locale, "dashboardPage.alertBudgetEstimateOverTargetTitle"),
+      message: t(locale, "dashboardPage.alertBudgetEstimateOverTargetMessage"),
+    });
+  } else if (input.totalActual > input.budgetTarget && input.budgetTarget > 0) {
     alerts.push({
       id: "budget-target",
       type: "warning",

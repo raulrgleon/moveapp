@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
+import { resolveRequestLocale } from "@/lib/api-errors";
+import { canEditMoveData } from "@/lib/db/move-access";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { estimateBudget } from "@/lib/budget/estimator";
 import { resolveRouteDistanceMiles } from "@/lib/geo/route-service";
@@ -7,70 +9,29 @@ import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
 import type { MoveProfile } from "@/lib/move-profile";
 
-export async function GET(req: NextRequest) {
-  const result = await requireMoveAccess(req);
-  if (result instanceof NextResponse) return result;
-
-  const move = await prisma.move.findUnique({
-    where: { id: result.access.moveId },
-    include: {
-      budgetItems: { orderBy: { sortOrder: "asc" } },
-      user: { select: { name: true, email: true } },
-    },
-  });
-
-  if (!move) {
-    return NextResponse.json({ items: [], totalEstimated: 0, totalActual: 0, notes: [] });
-  }
-
-  let items = move.budgetItems;
-  if (items.length === 0) {
-    const profile: MoveProfile = {
-      name: move.user.name,
-      email: move.user.email,
-      origin: move.origin,
-      destination: move.destination,
-      moveDate: move.moveDate.toISOString().slice(0, 10),
-      household: move.household,
-      pets: move.pets,
-      petDetails: move.petDetails ?? "",
-      budget: move.budget,
-      rentalPreference: move.rentalPreference,
-      needsHousingHelp: move.needsHousingHelp,
-      needsVehicleTransport: move.needsVehicleTransport,
-      originLat: move.originLat ?? undefined,
-      originLon: move.originLon ?? undefined,
-      destinationLat: move.destinationLat ?? undefined,
-      destinationLon: move.destinationLon ?? undefined,
-    };
-    const est = await syncBudgetEstimate(move.id, profile);
-    const distanceMiles = await resolveRouteDistanceMiles(profile);
-    items = est.items.map((i, idx) => ({
-      id: `temp-${idx}`,
-      moveId: move.id,
-      category: i.category,
-      estimated: i.estimated,
-      actual: 0,
-      cheapestOption: i.cheapestOption ?? null,
-      notes: null,
-      sortOrder: i.sortOrder,
-    }));
-    return NextResponse.json({
-      items,
-      totalEstimated: est.totalEstimated,
-      totalActual: 0,
-      notes: est.notes,
-      distanceMiles,
-      isEstimate: true,
-    });
-  }
-
-  const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
-  const totalActual = items.reduce((s, i) => s + i.actual, 0);
-
-  const profileForEst: MoveProfile = {
-    name: move.user.name,
-    email: move.user.email,
+function buildProfile(
+  move: {
+    origin: string;
+    destination: string;
+    moveDate: Date;
+    household: string;
+    pets: boolean;
+    petDetails: string | null;
+    budget: number;
+    rentalPreference: string;
+    needsHousingHelp: boolean;
+    needsVehicleTransport: boolean;
+    originLat: number | null;
+    originLon: number | null;
+    destinationLat: number | null;
+    destinationLon: number | null;
+    truckChoice: string | null;
+  },
+  user: { name: string; email: string }
+): MoveProfile {
+  return {
+    name: user.name,
+    email: user.email,
     origin: move.origin,
     destination: move.destination,
     moveDate: move.moveDate.toISOString().slice(0, 10),
@@ -86,9 +47,53 @@ export async function GET(req: NextRequest) {
     destinationLat: move.destinationLat ?? undefined,
     destinationLon: move.destinationLon ?? undefined,
   };
+}
 
-  const distanceMiles = await resolveRouteDistanceMiles(profileForEst);
-  const est = estimateBudget(profileForEst, { distanceMiles });
+export async function GET(req: NextRequest) {
+  const locale = resolveRequestLocale(req);
+  const result = await requireMoveAccess(req);
+  if (result instanceof NextResponse) return result;
+
+  const move = await prisma.move.findUnique({
+    where: { id: result.access.moveId },
+    include: {
+      budgetItems: { orderBy: { sortOrder: "asc" } },
+      user: { select: { name: true, email: true } },
+    },
+  });
+
+  if (!move) {
+    return NextResponse.json({
+      items: [],
+      totalEstimated: 0,
+      totalActual: 0,
+      notes: [],
+      budgetTarget: 0,
+    });
+  }
+
+  const profile = buildProfile(move, move.user);
+  const vehicles = await prisma.vehicle.findMany({ where: { moveId: move.id } });
+  const vehicleCount = Math.max(1, vehicles.length);
+
+  let items = move.budgetItems;
+  if (items.length === 0) {
+    await syncBudgetEstimate(move.id, profile, 0, vehicleCount, locale);
+    items = await prisma.budgetItem.findMany({
+      where: { moveId: move.id },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
+  const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
+  const totalActual = items.reduce((s, i) => s + i.actual, 0);
+  const distanceMiles = await resolveRouteDistanceMiles(profile);
+  const est = estimateBudget(profile, {
+    distanceMiles,
+    vehicleCount,
+    truckChoice: move.truckChoice,
+    locale,
+  });
 
   return NextResponse.json({
     items,
@@ -96,11 +101,13 @@ export async function GET(req: NextRequest) {
     totalActual,
     notes: est.notes,
     distanceMiles,
+    budgetTarget: move.budget,
     isEstimate: true,
   });
 }
 
 export async function PATCH(req: NextRequest) {
+  const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -119,37 +126,29 @@ export async function PATCH(req: NextRequest) {
   });
   if (!move) return NextResponse.json({ error: "No move" }, { status: 404 });
 
-  if (body.recalculate && result.access.role === "owner") {
-    const profile: MoveProfile = {
-      name: move.user.name,
-      email: move.user.email,
-      origin: move.origin,
-      destination: move.destination,
-      moveDate: move.moveDate.toISOString().slice(0, 10),
-      household: move.household,
-      pets: move.pets,
-      petDetails: move.petDetails ?? "",
-      budget: move.budget,
-      rentalPreference: move.rentalPreference,
-      needsHousingHelp: move.needsHousingHelp,
-      needsVehicleTransport: move.needsVehicleTransport,
-      originLat: move.originLat ?? undefined,
-      originLon: move.originLon ?? undefined,
-      destinationLat: move.destinationLat ?? undefined,
-      destinationLon: move.destinationLon ?? undefined,
-    };
+  if (body.recalculate && canEditMoveData(result.access.role)) {
+    const profile = buildProfile(move, move.user);
     const vehicles = await prisma.vehicle.findMany({ where: { moveId: move.id } });
     const routeIndex = typeof body.routeIndex === "number" ? body.routeIndex : 0;
-    await syncBudgetEstimate(move.id, profile, routeIndex, Math.max(1, vehicles.length));
+    await syncBudgetEstimate(
+      move.id,
+      profile,
+      routeIndex,
+      Math.max(1, vehicles.length),
+      locale
+    );
   }
 
   if (body.items) {
     for (const item of body.items) {
       if (item.actual !== undefined) {
-        await prisma.budgetItem.updateMany({
+        const updated = await prisma.budgetItem.updateMany({
           where: { id: item.id, moveId: move.id },
           data: { actual: item.actual },
         });
+        if (updated.count === 0) {
+          return NextResponse.json({ error: "Budget item not found" }, { status: 404 });
+        }
       }
     }
     await logMoveActivity(move.id, result.user.id, "budget_updated");

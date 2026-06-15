@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Car,
   ExternalLink,
@@ -67,6 +68,15 @@ export default function VehiclesPage() {
           title={t("vehicles.pageTitle")}
           description={getMultiVehicleSummary(vehicles, locale)}
         />
+
+        <Card className="border-dashed bg-muted/30">
+          <CardContent className="flex flex-col gap-3 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>{t("vehicles.householdGoodsBanner")}</p>
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href="/trucks">{t("vehicles.trucksLink")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {vehicleTransportChoice && (
           <Card className="border-primary/20 bg-primary/5">

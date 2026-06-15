@@ -2,26 +2,12 @@ import type { Locale } from "@/lib/i18n";
 import { translate } from "@/lib/i18n";
 import type { VehicleInfo, VehicleTip } from "./types";
 
-const TOWING_SUV_KEYWORDS = [
-  "atlas", "explorer", "expedition", "tahoe", "suburban", "highlander", "pilot",
-  "pathfinder", "4runner", "grand cherokee", "durango", "traverse", "equinox",
-  "blazer", "outback", "xc90", "xc60", "telluride", "palisade", "santa fe", "sorento",
-];
-
-const TRUCK_KEYWORDS = [
-  "f-150", "f150", "silverado", "ram 1500", "tundra", "tacoma", "colorado",
-  "ranger", "frontier", "titan", "maverick",
-];
-
-const SMALL_CAR_KEYWORDS = [
-  "civic", "corolla", "camry", "accord", "elantra", "sentra", "versa",
-  "fit", "yaris", "spark", "fortwo", "mini",
-];
-
-const EV_KEYWORDS = [
-  "tesla", "leaf", "bolt", "ioniq", "mach-e", "id.4", "rivian",
-  "model 3", "model y", "model s", "model x",
-];
+import {
+  EV_KEYWORDS,
+  SMALL_CAR_KEYWORDS,
+  TOWING_SUV_KEYWORDS,
+  TRUCK_KEYWORDS,
+} from "./tow-keywords";
 
 const KNOWN_SPECS: Record<string, { tow?: number; notesKey: string }> = {
   "volkswagen atlas": { tow: 5000, notesKey: "vehicleTips.atlasNotes" },
@@ -29,7 +15,7 @@ const KNOWN_SPECS: Record<string, { tow?: number; notesKey: string }> = {
   "toyota highlander": { tow: 5000, notesKey: "vehicleTips.highlanderNotes" },
 };
 
-function includesKeyword(text: string, keywords: string[]): boolean {
+function includesKeyword(text: string, keywords: readonly string[]): boolean {
   const lower = text.toLowerCase();
   return keywords.some((k) => lower.includes(k));
 }

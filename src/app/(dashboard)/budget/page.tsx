@@ -39,17 +39,19 @@ interface BudgetResponse {
   totalActual: number;
   notes: string[];
   distanceMiles?: number;
+  budgetTarget?: number;
   isEstimate?: boolean;
 }
 
 export default function BudgetPage() {
   const t = useT();
-  const { truckChoice } = useMove();
+  const { truckChoice, profile } = useMove();
   const [data, setData] = useState<BudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [draftActuals, setDraftActuals] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -79,12 +81,19 @@ export default function BudgetPage() {
 
   const recalculate = async () => {
     setRecalculating(true);
+    setError(null);
     try {
       const res = await apiFetch("/api/budget", {
         method: "PATCH",
         body: JSON.stringify({ recalculate: true, routeIndex: getStoredRouteIndex() }),
       });
+      if (!res.ok) {
+        setError(t("budget.recalculateFailed"));
+        return;
+      }
       setData((await res.json()) as BudgetResponse);
+    } catch {
+      setError(t("budget.recalculateFailed"));
     } finally {
       setRecalculating(false);
     }
@@ -96,12 +105,19 @@ export default function BudgetPage() {
     if (!Number.isFinite(actual) || actual < 0) return;
 
     setSavingId(item.id);
+    setError(null);
     try {
       const res = await apiFetch("/api/budget", {
         method: "PATCH",
         body: JSON.stringify({ items: [{ id: item.id, actual }] }),
       });
+      if (!res.ok) {
+        setError(t("budget.saveFailed"));
+        return;
+      }
       setData((await res.json()) as BudgetResponse);
+    } catch {
+      setError(t("budget.saveFailed"));
     } finally {
       setSavingId(null);
     }
@@ -110,9 +126,11 @@ export default function BudgetPage() {
   const items = data?.items ?? [];
   const totalEstimated = data?.totalEstimated ?? 0;
   const totalActual = data?.totalActual ?? 0;
+  const budgetTarget = data?.budgetTarget ?? profile.budget ?? 0;
   const difference = totalEstimated - totalActual;
   const isOverBudget = totalActual > totalEstimated && totalActual > 0;
-  const chartMax = Math.max(totalEstimated, totalActual, 1);
+  const isOverTarget = budgetTarget > 0 && totalEstimated > budgetTarget;
+  const chartMax = Math.max(totalEstimated, totalActual, budgetTarget, 1);
 
   return (
     <>
@@ -137,6 +155,23 @@ export default function BudgetPage() {
           </CardContent>
         </Card>
 
+        {error && (
+          <Card className="border-destructive/40 bg-destructive/5">
+            <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+          </Card>
+        )}
+
+        {isOverTarget && (
+          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+            <CardContent className="flex items-start gap-3 p-4">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-900 dark:text-amber-100">
+                {t("budget.overTargetBanner", { amount: formatCurrency(budgetTarget) })}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {isOverBudget && (
           <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
             <CardContent className="flex items-start gap-3 p-4">
@@ -155,7 +190,12 @@ export default function BudgetPage() {
           </Card>
         )}
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label={t("budget.targetBudget")}
+            value={formatCurrency(budgetTarget)}
+            icon={PiggyBank}
+          />
           <StatCard
             label={t("budget.estimatedTotal")}
             value={formatCurrency(totalEstimated)}

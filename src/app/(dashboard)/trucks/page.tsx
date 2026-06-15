@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { ExternalLink, Loader2, Sparkles, Truck } from "lucide-react";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -10,26 +11,35 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMove } from "@/contexts/move-context";
-import { useT } from "@/contexts/locale-context";
+import { useLocale, useT } from "@/contexts/locale-context";
 import { useRouteStats } from "@/hooks/use-route-stats";
 import { buildTruckDeepLink } from "@/lib/trucks/deep-links";
 import {
   buildTrailerRecommendation,
   estimateTruckOptions,
 } from "@/lib/trucks/recommendations";
+import { truckOptionLabel } from "@/lib/trucks/truck-choice";
+import { anyVehicleCanTow } from "@/lib/vehicles/tow-capacity";
 import type { TruckOption } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export default function TrucksPage() {
   const t = useT();
+  const { locale } = useLocale();
   const { profile, vehicles, truckChoice, setTruckChoice } = useMove();
   const { stats, loading } = useRouteStats();
   const hasRoute = stats != null && stats.distanceMiles > 0;
   const miles = hasRoute ? stats.distanceMiles : null;
-  const options = estimateTruckOptions(profile, miles ?? profile.budget / 5);
+  const canTow = anyVehicleCanTow(vehicles);
+  const options = estimateTruckOptions(
+    profile,
+    miles ?? profile.budget / 5,
+    locale,
+    vehicles
+  );
   const trucks = options.filter((o) => o.type === "truck");
   const trailers = options.filter((o) => o.type === "trailer");
-  const recommendation = buildTrailerRecommendation(profile, miles ?? 0, vehicles);
+  const recommendation = buildTrailerRecommendation(profile, miles ?? 0, vehicles, locale);
 
   const pickRecommended = (list: TruckOption[]) =>
     list.length
@@ -58,6 +68,23 @@ export default function TrucksPage() {
         />
 
         <Card className="border-dashed bg-muted/30">
+          <CardContent className="flex flex-col gap-3 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>{t("trucksPage.householdGoodsBanner")}</p>
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href="/vehicles">{t("trucksPage.vehiclesLink")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {vehicles.length > 0 && !canTow && (
+          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+            <CardContent className="p-4 text-sm text-amber-900 dark:text-amber-100">
+              {t("trucksPage.noTowBanner")}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="border-dashed bg-muted/30">
           <CardContent className="p-4 text-sm text-muted-foreground">
             {hasRoute
               ? t("trucksPage.estimateBannerMiles", { miles: stats!.distanceMiles.toLocaleString() })
@@ -82,12 +109,18 @@ export default function TrucksPage() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="trailers">
+        <Tabs defaultValue={canTow ? "trailers" : "trucks"}>
           <TabsList className="flex h-auto w-full flex-wrap gap-1">
-            <TabsTrigger value="trailers">{t("trucksPage.trailers")}</TabsTrigger>
+            <TabsTrigger value="trailers" disabled={trailers.length === 0}>
+              {t("trucksPage.trailers")}
+            </TabsTrigger>
             <TabsTrigger value="trucks">{t("trucksPage.trucks")}</TabsTrigger>
             <TabsTrigger value="all">{t("trucksPage.allOptions")}</TabsTrigger>
           </TabsList>
+
+          {trailers.length === 0 && vehicles.length > 0 && (
+            <p className="mt-4 text-sm text-muted-foreground">{t("trucksPage.trailerHiddenNote")}</p>
+          )}
 
           <TabsContent value="trailers" className="mt-6">
             <OptionGrid
@@ -149,7 +182,7 @@ function OptionGrid({
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const handleSave = async (option: TruckOption) => {
-    const label = `${option.company} — ${option.vehicleSize}`;
+    const label = truckOptionLabel(option);
     setSavingId(option.id);
     onSave(label);
     setSavingId(null);
@@ -158,7 +191,7 @@ function OptionGrid({
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {options.map((option) => {
-        const label = `${option.company} — ${option.vehicleSize}`;
+        const label = truckOptionLabel(option);
         const isSaved = truckChoice === label;
         const deepLink = buildTruckDeepLink(option.company, origin, destination, moveDate);
 

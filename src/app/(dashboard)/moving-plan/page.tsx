@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Download, FileDown, Printer } from "lucide-react";
 import { MovingPlanSuppliesCard } from "@/components/moving-plan/moving-plan-supplies-card";
 import { isPackingSuppliesTask } from "@/lib/inventory/supplies";
@@ -16,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildMovingPlanInsight } from "@/lib/moving-plan/insights";
+import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export default function MovingPlanPage() {
@@ -24,6 +26,38 @@ export default function MovingPlanPage() {
   const { profile } = useMove();
   const { weeks, priorityTasks, exportPlan, exportIcal, exportPdf } = useMovingPlan();
   const insight = buildMovingPlanInsight(profile, locale);
+  const [finance, setFinance] = useState({
+    totalEstimated: 0,
+    totalActual: 0,
+    budgetTarget: profile.budget,
+  });
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await apiFetch("/api/budget");
+        const json = (await res.json()) as {
+          totalEstimated?: number;
+          totalActual?: number;
+          budgetTarget?: number;
+        };
+        setFinance({
+          totalEstimated: json.totalEstimated ?? 0,
+          totalActual: json.totalActual ?? 0,
+          budgetTarget: json.budgetTarget ?? profile.budget,
+        });
+      } catch {
+        setFinance({
+          totalEstimated: 0,
+          totalActual: 0,
+          budgetTarget: profile.budget,
+        });
+      }
+    })();
+  }, [profile.budget]);
+
+  const overTarget =
+    finance.budgetTarget > 0 && finance.totalEstimated > finance.budgetTarget;
 
   return (
     <>
@@ -69,6 +103,43 @@ export default function MovingPlanPage() {
                 <p className="text-xs font-semibold text-primary">{t("movingPlanPage.aiInsightTitle")}</p>
                 <p className="text-sm mt-1 text-muted-foreground">{insight}</p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{t("movingPlanPage.financeTitle")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("movingPlanPage.financeTarget")}</p>
+                  <p className="font-semibold">{formatCurrency(finance.budgetTarget, locale)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("movingPlanPage.financeEstimated")}</p>
+                  <p className="font-semibold">{formatCurrency(finance.totalEstimated, locale)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("movingPlanPage.financeSpent")}</p>
+                  <p className="font-semibold">{formatCurrency(finance.totalActual, locale)}</p>
+                </div>
+              </div>
+              <p
+                className={cn(
+                  "text-sm",
+                  overTarget ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"
+                )}
+              >
+                {overTarget
+                  ? t("movingPlanPage.financeOverTarget", {
+                      amount: formatCurrency(finance.totalEstimated - finance.budgetTarget, locale),
+                    })
+                  : t("movingPlanPage.financeOnTrack")}
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/budget">{t("movingPlanPage.financeViewBudget")}</Link>
+              </Button>
             </CardContent>
           </Card>
 

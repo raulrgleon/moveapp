@@ -12,6 +12,7 @@ import {
   generateStarterDocuments,
 } from "@/lib/move/generate-checklist";
 import { estimateBudget } from "@/lib/budget/estimator";
+import { mergeRentalPreference } from "@/lib/trucks/truck-choice";
 import { fetchRouteStops } from "@/lib/geo/route-stops";
 import {
   computeRouteStatsWithAlternatives,
@@ -159,8 +160,14 @@ export async function syncBudgetEstimate(
   moveId: string,
   profile: MoveProfile,
   routeIndex = 0,
-  vehicleCount = 1
+  vehicleCount = 1,
+  locale: Locale = "en"
 ) {
+  const moveMeta = await prisma.move.findUnique({
+    where: { id: moveId },
+    select: { truckChoice: true },
+  });
+
   const points = resolveRoutePoints(profile);
   let distanceMiles: number | undefined;
   let durationHours: number | undefined;
@@ -189,24 +196,56 @@ export async function syncBudgetEstimate(
     distanceMiles = await resolveRouteDistanceMiles(profile, undefined, undefined, routeIndex);
   }
 
+  const existing = await prisma.budgetItem.findMany({ where: { moveId } });
+  const existingByCategory = new Map(existing.map((row) => [row.category, row]));
+
   const estimate = estimateBudget(profile, {
     distanceMiles,
     durationHours,
     routeStops,
     vehicleCount,
+    truckChoice: moveMeta?.truckChoice,
+    locale,
   });
-  await prisma.budgetItem.deleteMany({ where: { moveId } });
-  if (estimate.items.length > 0) {
-    await prisma.budgetItem.createMany({
-      data: estimate.items.map((item) => ({
-        moveId,
-        category: item.category,
-        estimated: item.estimated,
-        cheapestOption: item.cheapestOption ?? null,
-        sortOrder: item.sortOrder,
-      })),
-    });
+
+  const nextCategories = estimate.items.map((item) => item.category);
+
+  for (const item of estimate.items) {
+    const prev = existingByCategory.get(item.category);
+    if (prev) {
+      await prisma.budgetItem.update({
+        where: { id: prev.id },
+        data: {
+          estimated: item.estimated,
+          cheapestOption: item.cheapestOption ?? null,
+          sortOrder: item.sortOrder,
+        },
+      });
+    } else {
+      await prisma.budgetItem.create({
+        data: {
+          moveId,
+          category: item.category,
+          estimated: item.estimated,
+          actual: 0,
+          cheapestOption: item.cheapestOption ?? null,
+          sortOrder: item.sortOrder,
+        },
+      });
+    }
   }
+
+  if (nextCategories.length > 0) {
+    await prisma.budgetItem.deleteMany({
+      where: {
+        moveId,
+        category: { notIn: nextCategories },
+      },
+    });
+  } else {
+    await prisma.budgetItem.deleteMany({ where: { moveId } });
+  }
+
   return estimate;
 }
 
@@ -583,6 +622,17 @@ export async function updateMoveForUserId(
 
   const p = data.profile;
 
+  let rentalPreferencePatch: string | undefined;
+  if (data.truckChoice) {
+    const current = await prisma.move.findUnique({
+      where: { id: moveId },
+      select: { rentalPreference: true },
+    });
+    if (current) {
+      rentalPreferencePatch = mergeRentalPreference(current.rentalPreference, data.truckChoice);
+    }
+  }
+
   await prisma.move.update({
     where: { id: moveId },
     data: {
@@ -593,7 +643,9 @@ export async function updateMoveForUserId(
       ...(p?.pets !== undefined && { pets: p.pets }),
       ...(p?.petDetails !== undefined && { petDetails: p.petDetails }),
       ...(p?.budget !== undefined && { budget: p.budget }),
-      ...(p?.rentalPreference !== undefined && { rentalPreference: p.rentalPreference }),
+      ...(rentalPreferencePatch !== undefined && { rentalPreference: rentalPreferencePatch }),
+      ...(p?.rentalPreference !== undefined &&
+        rentalPreferencePatch === undefined && { rentalPreference: p.rentalPreference }),
       ...(p?.needsHousingHelp !== undefined && { needsHousingHelp: p.needsHousingHelp }),
       ...(p?.needsVehicleTransport !== undefined && {
         needsVehicleTransport: p.needsVehicleTransport,
@@ -664,9 +716,9 @@ export async function updateMoveForUserId(
       ...(data.destinationLat !== undefined && { destinationLat: data.destinationLat }),
       ...(data.destinationLon !== undefined && { destinationLon: data.destinationLon }),
     });
-    await syncBudgetEstimate(moveId, merged);
+    const locale = await getUserLocale(userId);
+    await syncBudgetEstimate(moveId, merged, 0, undefined, locale);
     if (profileChangeRequiresChecklistSync(p)) {
-      const locale = await getUserLocale(userId);
       await syncChecklistFromProfile(moveId, merged, locale);
     }
   } else if (
@@ -679,7 +731,15 @@ export async function updateMoveForUserId(
       destinationLat: data.destinationLat,
       destinationLon: data.destinationLon,
     });
-    await syncBudgetEstimate(moveId, merged);
+    const locale = await getUserLocale(userId);
+    await syncBudgetEstimate(moveId, merged, 0, undefined, locale);
+  } else if (data.truckChoice !== undefined) {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
+    const vehicles = await prisma.vehicle.findMany({ where: { moveId } });
+    const merged = mergeProfileForSync(user, move);
+    const locale = await getUserLocale(userId);
+    await syncBudgetEstimate(moveId, merged, 0, Math.max(1, vehicles.length), locale);
   }
 }
 

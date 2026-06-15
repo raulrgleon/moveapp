@@ -1,7 +1,10 @@
 import type { MoveProfile } from "@/lib/move-profile";
 import { parseRentalPreferenceKey } from "@/lib/move-profile";
 import { estimateFuelCost } from "@/lib/budget/fuel-cost";
+import { buildBudgetNotes } from "@/lib/budget/notes";
 import { hotelEstimatesFromStops, totalHotelCost } from "@/lib/budget/hotel-cost";
+import { rentalPreferenceForTruckChoice, resolveTruckChoiceOption } from "@/lib/trucks/truck-choice";
+import type { Locale } from "@/lib/i18n";
 import type { RouteStop } from "@/lib/types";
 
 export interface BudgetEstimateLine {
@@ -23,6 +26,8 @@ export interface BudgetEstimateContext {
   durationHours?: number;
   routeStops?: RouteStop[];
   vehicleCount?: number;
+  truckChoice?: string | null;
+  locale?: Locale;
 }
 
 function estimateDistanceMiles(origin: string, destination: string): number {
@@ -48,8 +53,24 @@ function householdMultiplier(household: string): number {
 function rentalLineItem(
   rentalKey: ReturnType<typeof parseRentalPreferenceKey>,
   miles: number,
-  mult: number
+  mult: number,
+  truckChoice?: string | null,
+  profile?: MoveProfile
 ): BudgetEstimateLine | null {
+  const saved =
+    profile && truckChoice
+      ? resolveTruckChoiceOption(profile, truckChoice, miles)
+      : null;
+
+  if (saved) {
+    return {
+      category: saved.type === "trailer" ? "Trailer rental" : "Truck rental",
+      estimated: saved.estimatedPrice,
+      cheapestOption: truckChoice ?? undefined,
+      sortOrder: 1,
+    };
+  }
+
   switch (rentalKey) {
     case "movers":
       return {
@@ -95,15 +116,20 @@ export function estimateBudget(
   profile: MoveProfile,
   context: BudgetEstimateContext = {}
 ): BudgetEstimate {
+  const locale = context.locale ?? "en";
   const miles = context.distanceMiles ?? estimateDistanceMiles(profile.origin, profile.destination);
   const mult = householdMultiplier(profile.household);
-  const rentalKey = parseRentalPreferenceKey(profile.rentalPreference);
+  let rentalKey = parseRentalPreferenceKey(profile.rentalPreference);
   const vehicleCount = context.vehicleCount ?? 1;
+
+  if (context.truckChoice) {
+    rentalKey = parseRentalPreferenceKey(rentalPreferenceForTruckChoice(context.truckChoice));
+  }
 
   const items: BudgetEstimateLine[] = [];
   let sortOrder = 1;
 
-  const rental = rentalLineItem(rentalKey, miles, mult);
+  const rental = rentalLineItem(rentalKey, miles, mult, context.truckChoice, profile);
   if (rental) {
     items.push({ ...rental, sortOrder: sortOrder++ });
   }
@@ -182,21 +208,15 @@ export function estimateBudget(
   items.push({ category: "Miscellaneous", estimated: Math.round(150 * mult), sortOrder: sortOrder++ });
 
   const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
-  const notes = [
-    `Estimate based on ~${miles.toLocaleString()} mi and ${profile.household || "your household"}.`,
-    rentalKey === "own"
-      ? "No rental cost — using your own vehicle."
-      : `Rental preference: ${profile.rentalPreference}.`,
-    fuel.note,
-  ];
-
-  if (hotelNights.length > 0) {
-    notes.push(
-      `Hotels: ${hotelNights.map((h) => `Night ${h.night} — ${h.name} (~$${h.pricePerNight})`).join("; ")}`
-    );
-  }
-
-  notes.push("Fuel uses regional gas prices along your route. Hotel rates reflect property type and state averages.");
+  const notes = buildBudgetNotes(locale, {
+    distanceMiles: miles,
+    household: profile.household,
+    rentalKey,
+    rentalPreference: profile.rentalPreference,
+    fuelNote: fuel.note,
+    routeStops,
+    truckChoice: context.truckChoice,
+  });
 
   return { items, totalEstimated, distanceMiles: miles, notes };
 }
