@@ -23,6 +23,10 @@ echo "==> Install dependencies"
 npm install
 
 echo "==> Prisma client"
+set -a
+# shellcheck disable=SC1091
+source "$APP_DIR/.env.local"
+set +a
 npx prisma generate
 
 if [[ "${DEPLOY_DB_PUSH:-0}" == "1" ]]; then
