@@ -1,24 +1,45 @@
-import { estimateFuelCost } from "@/lib/trucks/recommendations";
+import { estimateFuelCostSync } from "@/lib/budget/fuel-cost";
 import type { VehicleOption } from "@/lib/types";
+import type { VehicleInfo } from "@/lib/vehicles/types";
 
 export function estimateVehicleTransportOptions(
   distanceMiles: number,
-  vehicleCount: number
+  vehicles: VehicleInfo[],
+  origin = "",
+  destination = ""
 ): VehicleOption[] {
   const miles = Math.max(50, distanceMiles);
-  const count = Math.max(1, vehicleCount);
-  const fuel = estimateFuelCost(miles, count);
+  const count = Math.max(1, vehicles.length);
+  const fuel = estimateFuelCostSync({
+    distanceMiles: miles,
+    rentalKey: "combo",
+    vehicleCount: count,
+    origin,
+    destination,
+    vehicles,
+  }).total;
+  const driveFuel = estimateFuelCostSync({
+    distanceMiles: miles,
+    rentalKey: "own",
+    vehicleCount: count,
+    origin,
+    destination,
+    vehicles,
+  }).total;
   const trailer = Math.round(89 + miles * 0.32);
   const ship = Math.round(900 + miles * 0.15 * count);
   const dolly = Math.round(120 + miles * 0.08);
+  const primary = vehicles[0];
 
   return [
     {
       id: "1",
       title: "Drive your vehicle",
-      description: "Tow a trailer with your own vehicle. Best balance of cost and control on long routes.",
-      estimatedCost: fuel + trailer + Math.round(miles * 0.12),
-      fuelEstimate: fuel,
+      description: primary?.combMpg
+        ? `Tow a trailer with your ${primary.displayLabel} (${primary.combMpg} MPG EPA).`
+        : "Tow a trailer with your own vehicle. Best balance of cost and control on long routes.",
+      estimatedCost: driveFuel + trailer + Math.round(miles * 0.12),
+      fuelEstimate: driveFuel,
       wearAndTear: Math.round(miles * 0.11),
       recommended: true,
     },
@@ -41,8 +62,8 @@ export function estimateVehicleTransportOptions(
       id: "4",
       title: "Use a tow dolly",
       description: "Tow a second vehicle behind your primary car. Limited combo with trailers.",
-      estimatedCost: dolly + Math.round(fuel * 0.2),
-      fuelEstimate: Math.round(fuel * 0.2),
+      estimatedCost: dolly + Math.round(driveFuel * 0.2),
+      fuelEstimate: Math.round(driveFuel * 0.2),
       wearAndTear: Math.round(miles * 0.06),
     },
   ];

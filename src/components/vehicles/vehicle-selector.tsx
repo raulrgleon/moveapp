@@ -178,7 +178,42 @@ export function VehicleSelector({
   useEffect(() => {
     const vehicle = buildVehicle();
     if (!vehicle || sameVehicle(value, vehicle)) return;
-    onChange(vehicle);
+
+    let cancelled = false;
+    void (async () => {
+      let enriched = vehicle;
+      try {
+        const params = new URLSearchParams({
+          year: vehicle.year,
+          make: vehicle.make,
+          model: vehicle.model,
+        });
+        if (vehicle.trim) params.set("trim", vehicle.trim);
+        const res = await fetch(`/api/vehicles/fuel-economy?${params.toString()}`);
+        if (res.ok) {
+          const mpg = (await res.json()) as {
+            combMpg?: number;
+            cityMpg?: number;
+            highwayMpg?: number;
+            fuelType?: string;
+          };
+          enriched = {
+            ...vehicle,
+            combMpg: mpg.combMpg,
+            cityMpg: mpg.cityMpg,
+            highwayMpg: mpg.highwayMpg,
+            fuelType: mpg.fuelType,
+          };
+        }
+      } catch {
+        /* use vehicle without mpg */
+      }
+      if (!cancelled) onChange(enriched);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [buildVehicle, onChange, value]);
 
   const notifyPartial = useCallback(

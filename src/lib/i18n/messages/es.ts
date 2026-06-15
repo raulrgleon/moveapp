@@ -384,6 +384,7 @@ export const es = {
     towDolly: "Usar tow dolly",
     estCost: "Costo est.",
     fuel: "Combustible",
+    mpg: "MPG EPA",
     wear: "Desgaste",
     comparison: "Resumen comparativo",
     driveTrailer: "Manejar + trailer:",
@@ -606,6 +607,7 @@ export const es = {
     summaryCompact: "Auto compacto · Mejor rentar camión o enviar el vehículo",
     summaryEv: "Vehículo eléctrico · Planifica cargadores; remolque poco común",
     summaryDefault: "Afinamos opciones de remolque según tu versión",
+    summaryMpg: "EPA {mpg} MPG combinado ({fuel})",
     multiNone: "Sin vehículos registrados",
     multiCount: "{count} vehículos: {labels}",
   },
@@ -1219,6 +1221,7 @@ export const es = {
     routeOption: "Ruta {n}",
     pickRouteHint: "Elige una ruta abajo para verla en el mapa",
     updateBudgetForRoute: "Actualizar presupuesto con esta ruta",
+    liveGasPrice: "promedio regional en vivo",
     stopType: {
       gas: "Gasolinera",
       hotel: "Hotel",

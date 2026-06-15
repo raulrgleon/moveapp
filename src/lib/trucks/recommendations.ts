@@ -4,7 +4,7 @@ import type { MoveProfile } from "@/lib/move-profile";
 import type { TruckOption } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import { anyVehicleCanTow } from "@/lib/vehicles/tow-capacity";
-import { estimateFuelCost as estimateRouteFuel } from "@/lib/budget/fuel-cost";
+import { estimateFuelCostSync } from "@/lib/budget/fuel-cost";
 
 function t(locale: Locale, key: string, params?: Record<string, string | number>) {
   return translate(locale, key, params);
@@ -196,12 +196,11 @@ export function buildTrailerRecommendation(
 }
 
 export function estimateFuelCost(distanceMiles: number, vehicleCount: number): number {
-  const { total } = estimateRouteFuel({
+  return estimateFuelCostSync({
     distanceMiles,
     rentalKey: "own",
     vehicleCount,
     origin: "",
     destination: "",
-  });
-  return total;
+  }).total;
 }

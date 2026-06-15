@@ -1,5 +1,6 @@
 import type { RouteStats } from "@/lib/geo/route-service";
 import { fetchNearbyGasStation, fetchNearbyHotel, pointAlongRouteByMiles } from "@/lib/geo/route-pois";
+import { fetchLiveRegularGasPrice } from "@/lib/budget/gas-prices";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { RouteStop } from "@/lib/types";
 
@@ -61,6 +62,7 @@ export async function fetchRouteStops(
   const days = Math.max(1, Math.ceil(stats.durationHours / 8));
   const stops: RouteStop[] = [];
   const usedIds = new Set<string>();
+  const liveGas = await fetchLiveRegularGasPrice();
 
   const gasInterval = Math.max(250, Math.floor(miles / Math.max(2, Math.floor(miles / 350))));
   const gasMileMarkers: number[] = [];
@@ -73,7 +75,7 @@ export async function fetchRouteStops(
     gasMileMarkers.map(async (mile) => {
       const point = pointAlongRouteByMiles(coords, mile);
       if (!point) return null;
-      const poi = await fetchNearbyGasStation(point.lat, point.lon, usedIds);
+      const poi = await fetchNearbyGasStation(point.lat, point.lon, usedIds, liveGas);
       return poi ? { mile, poi } : null;
     })
   );
@@ -87,7 +89,8 @@ export async function fetchRouteStops(
       location: result.poi.location,
       lat: result.poi.lat,
       lon: result.poi.lon,
-      notes: `~${result.mile} mi from ${profile.origin.split(",")[0]?.trim() || "origin"} · 20–30 min break`,
+      gasPricePerGallon: result.poi.gasPricePerGallon,
+      notes: `~${result.mile} mi from ${profile.origin.split(",")[0]?.trim() || "origin"} · $${result.poi.gasPricePerGallon.toFixed(2)}/gal · 20–30 min break`,
     });
   }
 
@@ -124,7 +127,7 @@ export async function fetchRouteStops(
   if (stops.length === 0) {
     const mid = pointAlongRouteByMiles(coords, miles / 2);
     if (mid) {
-      const gas = await fetchNearbyGasStation(mid.lat, mid.lon, usedIds);
+      const gas = await fetchNearbyGasStation(mid.lat, mid.lon, usedIds, liveGas);
       if (gas) {
         stops.push({
           id: `rest-${gas.osmId}`,
@@ -133,6 +136,7 @@ export async function fetchRouteStops(
           location: gas.location,
           lat: gas.lat,
           lon: gas.lon,
+          gasPricePerGallon: gas.gasPricePerGallon,
           notes: "Mid-route break",
         });
       }

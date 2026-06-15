@@ -319,6 +319,11 @@ export default function RoutePage() {
                             ~${stop.estimatedPrice}/night
                           </p>
                         )}
+                        {stop.gasPricePerGallon != null && stop.gasPricePerGallon > 0 && (
+                          <p className="text-sm font-medium text-foreground mt-1">
+                            ${stop.gasPricePerGallon.toFixed(2)}/gal · {t("routePage.liveGasPrice")}
+                          </p>
+                        )}
                         {stop.notes && (
                           <p className="text-xs text-muted-foreground mt-1">{stop.notes}</p>
                         )}

@@ -131,6 +131,12 @@ export function getVehicleTips(vehicle: VehicleInfo, locale: Locale = "en"): Veh
 }
 
 export function getVehicleSummaryLine(vehicle: VehicleInfo, locale: Locale = "en"): string {
+  if (vehicle.combMpg && vehicle.combMpg > 0) {
+    return tl(locale, "vehicleTips.summaryMpg", {
+      mpg: vehicle.combMpg.toLocaleString(locale === "es" ? "es-US" : "en-US"),
+      fuel: vehicle.fuelType ?? "gas",
+    });
+  }
   const known = getKnownSpec(vehicle.make, vehicle.model);
   if (known?.tow) {
     return tl(locale, "vehicleTips.summaryTow", { lbs: known.tow.toLocaleString() });

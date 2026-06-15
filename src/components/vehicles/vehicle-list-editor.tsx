@@ -177,6 +177,11 @@ export function VehicleListEditor({
                   {vehicle.year && vehicle.make && (
                     <span className="truncate text-sm font-semibold">{vehicle.displayLabel}</span>
                   )}
+                  {vehicle.combMpg && vehicle.combMpg > 0 && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {vehicle.combMpg} MPG
+                    </Badge>
+                  )}
                   {(!vehicle.year || !vehicle.make) && (
                     <span className="text-sm text-muted-foreground">
                       {t("vehicleSelector.selectMake")}

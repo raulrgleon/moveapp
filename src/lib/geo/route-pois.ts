@@ -1,4 +1,5 @@
 import { estimateHotelNightlyRate } from "@/lib/budget/hotel-cost";
+import { gasPriceForLocation, fetchLiveRegularGasPrice } from "@/lib/budget/gas-prices";
 
 const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
@@ -170,8 +171,16 @@ function pickClosestNamed(
 export async function fetchNearbyGasStation(
   lat: number,
   lon: number,
-  usedIds: Set<string>
-): Promise<{ name: string; location: string; lat: number; lon: number; osmId: string } | null> {
+  usedIds: Set<string>,
+  liveGasPrice?: number
+): Promise<{
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  osmId: string;
+  gasPricePerGallon: number;
+} | null> {
   const ql = `[out:json][timeout:15];
 (
   nwr["amenity"="fuel"](around:12000,${lat},${lon});
@@ -186,12 +195,17 @@ out center tags 8;`;
   const osmId = `${picked.type}/${picked.id}`;
   usedIds.add(osmId);
 
+  const location = await resolveLocation(picked.tags, coords.lat, coords.lon);
+  const live = liveGasPrice ?? (await fetchLiveRegularGasPrice());
+  const gasPricePerGallon = await gasPriceForLocation(location, live);
+
   return {
     name: formatOsmName(picked.tags, "Gas station"),
-    location: await resolveLocation(picked.tags, coords.lat, coords.lon),
+    location,
     lat: coords.lat,
     lon: coords.lon,
     osmId,
+    gasPricePerGallon,
   };
 }
 

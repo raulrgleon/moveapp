@@ -18,6 +18,10 @@ export interface VehicleInfo {
   trim?: string;
   displayLabel: string;
   needsTransport?: boolean;
+  combMpg?: number;
+  cityMpg?: number;
+  highwayMpg?: number;
+  fuelType?: string;
 }
 
 export function createVehicleId(): string {

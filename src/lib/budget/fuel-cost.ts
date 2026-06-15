@@ -1,9 +1,13 @@
-import { parseCityStateLabel, normalizeUsState } from "@/lib/geo/address-region";
-import {
-  STATE_GAS_PRICE,
-  US_AVG_GAS_PRICE,
-} from "@/lib/cost-of-living/state-data";
 import type { RentalPreferenceKey } from "@/lib/move-profile";
+import type { RouteStop } from "@/lib/types";
+import type { VehicleInfo } from "@/lib/vehicles/types";
+import {
+  effectiveFuelMiles,
+  mpgForVehicle,
+} from "@/lib/vehicles/fuel-economy";
+import { averageGasPriceAlongRoute, fetchLiveElectricPricePerKwh } from "@/lib/budget/gas-prices";
+
+export const FUEL_MILES_ADJUSTMENT = 4;
 
 export interface FuelCostInput {
   distanceMiles: number;
@@ -11,71 +15,127 @@ export interface FuelCostInput {
   vehicleCount: number;
   origin: string;
   destination: string;
+  routeStops?: RouteStop[];
+  vehicles?: VehicleInfo[];
+  locale?: "en" | "es";
 }
 
-function stateFromLabel(label: string): string | null {
-  const { state } = parseCityStateLabel(label);
-  return state ? normalizeUsState(state) : null;
-}
-
-/** Weighted average gas price along the route (origin + midpoint + destination states). */
-export function averageGasPriceAlongRoute(origin: string, destination: string): number {
-  const originState = stateFromLabel(origin);
-  const destState = stateFromLabel(destination);
-  const prices: number[] = [];
-
-  if (originState && STATE_GAS_PRICE[originState]) {
-    prices.push(STATE_GAS_PRICE[originState]);
-  }
-  if (destState && STATE_GAS_PRICE[destState]) {
-    prices.push(STATE_GAS_PRICE[destState]);
-  }
-
-  if (originState && destState && originState !== destState) {
-    const mid =
-      ((STATE_GAS_PRICE[originState] ?? US_AVG_GAS_PRICE) +
-        (STATE_GAS_PRICE[destState] ?? US_AVG_GAS_PRICE)) /
-      2;
-    prices.push(mid);
-  }
-
-  if (prices.length === 0) return US_AVG_GAS_PRICE;
-  return Math.round((prices.reduce((a, b) => a + b, 0) / prices.length) * 100) / 100;
-}
-
-function mpgForRental(rentalKey: RentalPreferenceKey): number {
+function mpgForRental(rentalKey: RentalPreferenceKey, vehicles: VehicleInfo[]): number {
   switch (rentalKey) {
     case "truck":
       return 10;
     case "trailer":
-    case "combo":
+    case "combo": {
+      const towVehicle = vehicles.find((v) => v.make?.trim() && v.model?.trim());
+      if (towVehicle) return Math.round(mpgForVehicle(towVehicle) * 0.72 * 10) / 10;
       return 14;
+    }
     case "movers":
-      return 28;
+      return vehicles.length
+        ? vehicles.reduce((sum, v) => sum + mpgForVehicle(v), 0) / vehicles.length
+        : 28;
     case "own":
     default:
-      return 26;
+      return vehicles.length
+        ? vehicles.reduce((sum, v) => sum + mpgForVehicle(v), 0) / vehicles.length
+        : 26;
   }
 }
 
-export function estimateFuelCost(input: FuelCostInput): {
+function drivenVehicleCount(rentalKey: RentalPreferenceKey, vehicleCount: number, vehicles: VehicleInfo[]): number {
+  if (rentalKey === "truck") return 1;
+  if (rentalKey === "movers") return 0;
+  const count = vehicles.length || vehicleCount;
+  return Math.max(1, count);
+}
+
+export async function estimateFuelCost(input: FuelCostInput): Promise<{
   total: number;
   pricePerGallon: number;
   gallons: number;
   mpg: number;
+  fuelMiles: number;
   note: string;
-} {
-  const miles = Math.max(1, input.distanceMiles);
-  const pricePerGallon = averageGasPriceAlongRoute(input.origin, input.destination);
-  const mpg = mpgForRental(input.rentalKey);
-  const vehicles = input.rentalKey === "movers" ? Math.max(1, input.vehicleCount) : Math.max(1, input.vehicleCount);
-  const gallons = (miles / mpg) * vehicles;
+  isElectric: boolean;
+}> {
+  const vehicles = (input.vehicles ?? []).filter((v) => v.make?.trim() && v.model?.trim());
+  const fuelMiles = effectiveFuelMiles(input.distanceMiles);
+  const pricePerGallon = await averageGasPriceAlongRoute(
+    input.origin,
+    input.destination,
+    input.routeStops ?? []
+  );
+
+  const primaryEv = vehicles.find((v) => /electric/i.test(v.fuelType ?? ""));
+  if (primaryEv && input.rentalKey !== "truck" && input.rentalKey !== "trailer" && input.rentalKey !== "combo") {
+    const kwhPerMile = primaryEv.combMpg ? 33.7 / Math.max(primaryEv.combMpg, 1) : 0.3;
+    const kwh = fuelMiles * kwhPerMile * drivenVehicleCount(input.rentalKey, input.vehicleCount, vehicles);
+    const pricePerKwh = await fetchLiveElectricPricePerKwh();
+    const total = Math.round(kwh * pricePerKwh);
+    const note =
+      input.locale === "es"
+        ? `~${Math.round(kwh)} kWh @ $${pricePerKwh.toFixed(2)}/kWh (${primaryEv.displayLabel}, ${fuelMiles} mi efectivas).`
+        : `~${Math.round(kwh)} kWh @ $${pricePerKwh.toFixed(2)}/kWh (${primaryEv.displayLabel}, ${fuelMiles} effective mi).`;
+    return {
+      total,
+      pricePerGallon: pricePerKwh,
+      gallons: Math.round(kwh),
+      mpg: primaryEv.combMpg ?? 100,
+      fuelMiles,
+      note,
+      isElectric: true,
+    };
+  }
+
+  const mpg = mpgForRental(input.rentalKey, vehicles);
+  const count = drivenVehicleCount(input.rentalKey, input.vehicleCount, vehicles);
+  const gallons = (fuelMiles / mpg) * count;
   const total = Math.round(gallons * pricePerGallon);
 
-  const note =
-    input.rentalKey === "movers"
-      ? `Personal vehicle fuel (~${mpg} MPG × ${vehicles} vehicle${vehicles > 1 ? "s" : ""} @ $${pricePerGallon.toFixed(2)}/gal avg along route).`
-      : `~${Math.round(gallons)} gal @ $${pricePerGallon.toFixed(2)}/gal (${mpg} MPG${vehicles > 1 ? ` × ${vehicles} vehicles` : ""}, regional avg).`;
+  const vehicleLabel =
+    vehicles.length === 1
+      ? vehicles[0].displayLabel
+      : vehicles.length > 1
+        ? `${vehicles.length} vehicles`
+        : null;
 
-  return { total, pricePerGallon, gallons: Math.round(gallons), mpg, note };
+  const note =
+    input.locale === "es"
+      ? vehicleLabel
+        ? `~${Math.round(gallons)} gal @ $${pricePerGallon.toFixed(2)}/gal (${vehicleLabel}, ${mpg} MPG combinado, ${fuelMiles} mi efectivas).`
+        : `~${Math.round(gallons)} gal @ $${pricePerGallon.toFixed(2)}/gal (${mpg} MPG, ${fuelMiles} mi efectivas).`
+      : vehicleLabel
+        ? `~${Math.round(gallons)} gal @ $${pricePerGallon.toFixed(2)}/gal (${vehicleLabel}, ${mpg} MPG blended, ${fuelMiles} effective mi).`
+        : `~${Math.round(gallons)} gal @ $${pricePerGallon.toFixed(2)}/gal (${mpg} MPG, ${fuelMiles} effective mi).`;
+
+  return {
+    total,
+    pricePerGallon,
+    gallons: Math.round(gallons * 10) / 10,
+    mpg,
+    fuelMiles,
+    note,
+    isElectric: false,
+  };
+}
+
+/** Sync wrapper for client-side estimates without route stop gas prices. */
+export function estimateFuelCostSync(
+  input: Omit<FuelCostInput, "routeStops"> & { pricePerGallon?: number }
+): { total: number; pricePerGallon: number; gallons: number; mpg: number; fuelMiles: number; note: string } {
+  const vehicles = (input.vehicles ?? []).filter((v) => v.make?.trim() && v.model?.trim());
+  const fuelMiles = effectiveFuelMiles(input.distanceMiles);
+  const pricePerGallon = input.pricePerGallon ?? 3.45;
+  const mpg = mpgForRental(input.rentalKey, vehicles);
+  const count = drivenVehicleCount(input.rentalKey, input.vehicleCount, vehicles);
+  const gallons = (fuelMiles / mpg) * count;
+  const total = Math.round(gallons * pricePerGallon);
+  return {
+    total,
+    pricePerGallon,
+    gallons: Math.round(gallons * 10) / 10,
+    mpg,
+    fuelMiles,
+    note: `~${Math.round(gallons)} gal @ $${pricePerGallon.toFixed(2)}/gal (${mpg} MPG, ${fuelMiles} mi).`,
+  };
 }

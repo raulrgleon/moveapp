@@ -2,10 +2,11 @@ import type { MoveProfile } from "@/lib/move-profile";
 import { parseRentalPreferenceKey } from "@/lib/move-profile";
 import { estimateFuelCost } from "@/lib/budget/fuel-cost";
 import { buildBudgetNotes } from "@/lib/budget/notes";
-import { hotelEstimatesFromStops, totalHotelCost } from "@/lib/budget/hotel-cost";
+import { hotelEstimatesFromStops, regionalHotelNightlyRate, totalHotelCost } from "@/lib/budget/hotel-cost";
 import { rentalPreferenceForTruckChoice, resolveTruckChoiceOption } from "@/lib/trucks/truck-choice";
 import type { Locale } from "@/lib/i18n";
 import type { RouteStop } from "@/lib/types";
+import type { VehicleInfo } from "@/lib/vehicles/types";
 
 export interface BudgetEstimateLine {
   category: string;
@@ -28,6 +29,7 @@ export interface BudgetEstimateContext {
   vehicleCount?: number;
   truckChoice?: string | null;
   locale?: Locale;
+  vehicles?: VehicleInfo[];
 }
 
 function estimateDistanceMiles(origin: string, destination: string): number {
@@ -112,15 +114,16 @@ function fallbackHotelNights(miles: number, durationHours?: number): number {
   return Math.max(0, Math.ceil(miles / 500) - 1);
 }
 
-export function estimateBudget(
+export async function estimateBudget(
   profile: MoveProfile,
   context: BudgetEstimateContext = {}
-): BudgetEstimate {
+): Promise<BudgetEstimate> {
   const locale = context.locale ?? "en";
   const miles = context.distanceMiles ?? estimateDistanceMiles(profile.origin, profile.destination);
   const mult = householdMultiplier(profile.household);
   let rentalKey = parseRentalPreferenceKey(profile.rentalPreference);
   const vehicleCount = context.vehicleCount ?? 1;
+  const vehicles = context.vehicles ?? [];
 
   if (context.truckChoice) {
     rentalKey = parseRentalPreferenceKey(rentalPreferenceForTruckChoice(context.truckChoice));
@@ -134,12 +137,15 @@ export function estimateBudget(
     items.push({ ...rental, sortOrder: sortOrder++ });
   }
 
-  const fuel = estimateFuelCost({
+  const fuel = await estimateFuelCost({
     distanceMiles: miles,
     rentalKey,
     vehicleCount,
     origin: profile.origin,
     destination: profile.destination,
+    routeStops: context.routeStops,
+    vehicles,
+    locale,
   });
   items.push({
     category: "Fuel",
@@ -168,7 +174,7 @@ export function estimateBudget(
   } else {
     const nights = fallbackHotelNights(miles, context.durationHours);
     if (nights > 0) {
-      const perNight = 129;
+      const perNight = regionalHotelNightlyRate(profile.origin, profile.destination, profile.pets);
       items.push({
         category: "Hotels",
         estimated: nights * perNight,

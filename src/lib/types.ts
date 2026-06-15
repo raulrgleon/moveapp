@@ -94,6 +94,7 @@ export interface RouteStop {
   lat?: number;
   lon?: number;
   estimatedPrice?: number;
+  gasPricePerGallon?: number;
 }
 
 export interface CityMetric {

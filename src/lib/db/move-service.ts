@@ -12,13 +12,9 @@ import {
   generateStarterDocuments,
 } from "@/lib/move/generate-checklist";
 import { estimateBudget } from "@/lib/budget/estimator";
+import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
+import { enrichVehicleMpg } from "@/lib/vehicles/fuel-economy";
 import { mergeRentalPreference } from "@/lib/trucks/truck-choice";
-import { fetchRouteStops } from "@/lib/geo/route-stops";
-import {
-  computeRouteStatsWithAlternatives,
-  resolveRoutePoints,
-  resolveRouteDistanceMiles,
-} from "@/lib/geo/route-service";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import type { InventoryBox } from "@/lib/inventory/types";
 import type { ChecklistTask, DocumentItem } from "@/lib/types";
@@ -95,7 +91,7 @@ export async function buildMoveDataFromProfile(
 ) {
   const checklist = generateChecklistFromProfile(profile, locale);
   const documents = generateStarterDocuments(profile, locale);
-  const budget = estimateBudget(profile);
+  const budget = await estimateBudget(profile);
 
   return {
     origin: profile.origin,
@@ -160,7 +156,7 @@ export async function syncBudgetEstimate(
   moveId: string,
   profile: MoveProfile,
   routeIndex = 0,
-  vehicleCount = 1,
+  _vehicleCount = 1,
   locale: Locale = "en"
 ) {
   const moveMeta = await prisma.move.findUnique({
@@ -168,42 +164,17 @@ export async function syncBudgetEstimate(
     select: { truckChoice: true },
   });
 
-  const points = resolveRoutePoints(profile);
-  let distanceMiles: number | undefined;
-  let durationHours: number | undefined;
-  let routeStops: Awaited<ReturnType<typeof fetchRouteStops>> = [];
-
-  if (points) {
-    const stats = await computeRouteStatsWithAlternatives(points.from, points.to, profile.pets);
-    const route = stats?.alternatives[routeIndex] ?? stats?.alternatives[0];
-    if (route && stats) {
-      distanceMiles = Math.round(route.distanceMiles);
-      durationHours = route.durationHours;
-      routeStops = await fetchRouteStops(
-        {
-          distanceMiles,
-          durationHours,
-          driveTimeLabel: stats.driveTimeLabel,
-          stopCount: stats.stopCount,
-          geometry: route,
-        },
-        profile
-      );
-    }
-  }
-
-  if (distanceMiles == null) {
-    distanceMiles = await resolveRouteDistanceMiles(profile, undefined, undefined, routeIndex);
-  }
+  const routeCtx = await resolveBudgetRouteContext(moveId, profile, routeIndex);
 
   const existing = await prisma.budgetItem.findMany({ where: { moveId } });
   const existingByCategory = new Map(existing.map((row) => [row.category, row]));
 
-  const estimate = estimateBudget(profile, {
-    distanceMiles,
-    durationHours,
-    routeStops,
-    vehicleCount,
+  const estimate = await estimateBudget(profile, {
+    distanceMiles: routeCtx.distanceMiles,
+    durationHours: routeCtx.durationHours,
+    routeStops: routeCtx.routeStops,
+    vehicleCount: Math.max(1, routeCtx.vehicles.length),
+    vehicles: routeCtx.vehicles,
     truckChoice: moveMeta?.truckChoice,
     locale,
   });
@@ -481,6 +452,10 @@ function dbToVehicle(v: {
   trim: string | null;
   displayLabel: string;
   needsTransport?: boolean;
+  combMpg?: number | null;
+  cityMpg?: number | null;
+  highwayMpg?: number | null;
+  fuelType?: string | null;
 }): VehicleInfo {
   return {
     id: v.id,
@@ -492,6 +467,10 @@ function dbToVehicle(v: {
     trim: v.trim ?? undefined,
     displayLabel: v.displayLabel,
     needsTransport: v.needsTransport ?? false,
+    combMpg: v.combMpg ?? undefined,
+    cityMpg: v.cityMpg ?? undefined,
+    highwayMpg: v.highwayMpg ?? undefined,
+    fuelType: v.fuelType ?? undefined,
   };
 }
 
@@ -689,7 +668,11 @@ export async function updateMoveForUserId(
   }
 
   if (data.vehicles) {
-    const complete = data.vehicles.filter((v) => v.make?.trim() && v.model?.trim());
+    const complete = await Promise.all(
+      data.vehicles
+        .filter((v) => v.make?.trim() && v.model?.trim())
+        .map((v) => enrichVehicleMpg(v))
+    );
     await prisma.vehicle.deleteMany({ where: { moveId } });
     if (complete.length > 0) {
       await prisma.vehicle.createMany({
@@ -703,9 +686,18 @@ export async function updateMoveForUserId(
           trim: v.trim ?? null,
           displayLabel: v.displayLabel,
           needsTransport: v.needsTransport ?? false,
+          combMpg: v.combMpg ?? null,
+          cityMpg: v.cityMpg ?? null,
+          highwayMpg: v.highwayMpg ?? null,
+          fuelType: v.fuelType ?? null,
         })),
       });
     }
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
+    const merged = mergeProfileForSync(user, move);
+    const locale = await getUserLocale(userId);
+    await syncBudgetEstimate(moveId, merged, 0, Math.max(1, complete.length), locale);
   }
 
   if (p && profileChangeRequiresRecalc(p)) {

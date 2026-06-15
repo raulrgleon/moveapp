@@ -196,6 +196,10 @@ model Vehicle {
   trim           String?
   displayLabel   String  @map("display_label")
   needsTransport Boolean @default(false) @map("needs_transport")
+  combMpg        Float?  @map("comb_mpg")
+  cityMpg        Float?  @map("city_mpg")
+  highwayMpg     Float?  @map("highway_mpg")
+  fuelType       String? @map("fuel_type")
 
   @@index([moveId])
   @@map("vehicles")

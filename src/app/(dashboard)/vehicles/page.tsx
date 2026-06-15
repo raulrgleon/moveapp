@@ -48,7 +48,7 @@ export default function VehiclesPage() {
   } = useMove();
   const { stats } = useRouteStats();
   const miles = stats?.distanceMiles ?? 800;
-  const transportOptions = estimateVehicleTransportOptions(miles, vehicles.length);
+  const transportOptions = estimateVehicleTransportOptions(miles, vehicles, profile.origin, profile.destination);
   const recommended = transportOptions.find((o) => o.recommended);
   const otherOptions = transportOptions.filter((o) => !o.recommended);
   const ushipUrl = buildUshipSearchUrl(profile.origin, profile.destination);

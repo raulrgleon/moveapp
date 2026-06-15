@@ -3,8 +3,8 @@ import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { resolveRequestLocale } from "@/lib/api-errors";
 import { canEditMoveData } from "@/lib/db/move-access";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
+import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
 import { estimateBudget } from "@/lib/budget/estimator";
-import { resolveRouteDistanceMiles } from "@/lib/geo/route-service";
 import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
 import type { MoveProfile } from "@/lib/move-profile";
@@ -73,12 +73,10 @@ export async function GET(req: NextRequest) {
   }
 
   const profile = buildProfile(move, move.user);
-  const vehicles = await prisma.vehicle.findMany({ where: { moveId: move.id } });
-  const vehicleCount = Math.max(1, vehicles.length);
 
   let items = move.budgetItems;
   if (items.length === 0) {
-    await syncBudgetEstimate(move.id, profile, 0, vehicleCount, locale);
+    await syncBudgetEstimate(move.id, profile, 0, 1, locale);
     items = await prisma.budgetItem.findMany({
       where: { moveId: move.id },
       orderBy: { sortOrder: "asc" },
@@ -87,10 +85,13 @@ export async function GET(req: NextRequest) {
 
   const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
   const totalActual = items.reduce((s, i) => s + i.actual, 0);
-  const distanceMiles = await resolveRouteDistanceMiles(profile);
-  const est = estimateBudget(profile, {
-    distanceMiles,
-    vehicleCount,
+  const routeCtx = await resolveBudgetRouteContext(move.id, profile);
+  const est = await estimateBudget(profile, {
+    distanceMiles: routeCtx.distanceMiles,
+    durationHours: routeCtx.durationHours,
+    routeStops: routeCtx.routeStops,
+    vehicleCount: Math.max(1, routeCtx.vehicles.length),
+    vehicles: routeCtx.vehicles,
     truckChoice: move.truckChoice,
     locale,
   });
@@ -100,8 +101,9 @@ export async function GET(req: NextRequest) {
     totalEstimated,
     totalActual,
     notes: est.notes,
-    distanceMiles,
+    distanceMiles: routeCtx.distanceMiles,
     budgetTarget: move.budget,
+    fuelMiles: est.notes.length ? routeCtx.distanceMiles - 4 : undefined,
     isEstimate: true,
   });
 }

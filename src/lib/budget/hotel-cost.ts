@@ -1,4 +1,4 @@
-import { normalizeUsState } from "@/lib/geo/address-region";
+import { parseCityStateLabel, normalizeUsState } from "@/lib/geo/address-region";
 import {
   STATE_HOTEL_NIGHTLY,
   US_AVG_HOTEL_NIGHTLY,
@@ -19,6 +19,21 @@ function stateFromLocation(location: string): string | null {
     return normalizeUsState(statePart);
   }
   return null;
+}
+
+export function regionalHotelNightlyRate(origin: string, destination: string, pets = false): number {
+  const states = new Set<string>();
+  for (const label of [origin, destination]) {
+    const { state } = parseCityStateLabel(label);
+    const norm = state ? normalizeUsState(state) : null;
+    if (norm) states.add(norm);
+  }
+  const rates = Array.from(states).map((s) => STATE_HOTEL_NIGHTLY[s] ?? US_AVG_HOTEL_NIGHTLY);
+  const base =
+    rates.length > 0
+      ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length)
+      : US_AVG_HOTEL_NIGHTLY;
+  return pets ? Math.round(base * 1.12) : base;
 }
 
 /** Estimate nightly rate from OSM tags and regional averages. */

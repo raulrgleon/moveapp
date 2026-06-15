@@ -1,0 +1,138 @@
+import { estimateBudget } from "@/lib/budget/estimator";
+import { fetchRouteStops } from "@/lib/geo/route-stops";
+import {
+  computeRouteStatsWithAlternatives,
+  resolveRoutePoints,
+  resolveRouteDistanceMiles,
+} from "@/lib/geo/route-service";
+import type { MoveProfile } from "@/lib/move-profile";
+import type { RouteStop } from "@/lib/types";
+import type { VehicleInfo } from "@/lib/vehicles/types";
+import { enrichVehicleMpg } from "@/lib/vehicles/fuel-economy";
+import { prisma } from "@/lib/prisma";
+
+function dbToVehicle(v: {
+  id: string;
+  year: string;
+  makeId: number | null;
+  make: string;
+  modelId: number | null;
+  model: string;
+  trim: string | null;
+  displayLabel: string;
+  needsTransport?: boolean;
+  combMpg?: number | null;
+  cityMpg?: number | null;
+  highwayMpg?: number | null;
+  fuelType?: string | null;
+}): VehicleInfo {
+  return {
+    id: v.id,
+    year: v.year,
+    makeId: v.makeId ?? 0,
+    make: v.make,
+    modelId: v.modelId ?? 0,
+    model: v.model,
+    trim: v.trim ?? undefined,
+    displayLabel: v.displayLabel,
+    needsTransport: v.needsTransport ?? false,
+    combMpg: v.combMpg ?? undefined,
+    cityMpg: v.cityMpg ?? undefined,
+    highwayMpg: v.highwayMpg ?? undefined,
+    fuelType: v.fuelType ?? undefined,
+  };
+}
+
+export async function loadVehiclesWithMpg(moveId: string): Promise<VehicleInfo[]> {
+  const rows = await prisma.vehicle.findMany({ where: { moveId } });
+  return Promise.all(
+    rows.map(async (row) => {
+      const info = dbToVehicle(row);
+      if (info.combMpg && info.combMpg > 0) return info;
+      const enriched = await enrichVehicleMpg(info);
+      if (enriched.combMpg && enriched.combMpg > 0) {
+        await prisma.vehicle.update({
+          where: { id: row.id },
+          data: {
+            combMpg: enriched.combMpg,
+            cityMpg: enriched.cityMpg ?? null,
+            highwayMpg: enriched.highwayMpg ?? null,
+            fuelType: enriched.fuelType ?? null,
+          },
+        });
+      }
+      return enriched;
+    })
+  );
+}
+
+export interface BudgetRouteContext {
+  distanceMiles: number;
+  durationHours?: number;
+  routeStops: RouteStop[];
+  vehicles: VehicleInfo[];
+}
+
+export async function resolveBudgetRouteContext(
+  moveId: string,
+  profile: MoveProfile,
+  routeIndex = 0
+): Promise<BudgetRouteContext> {
+  const vehicles = await loadVehiclesWithMpg(moveId);
+  const points = resolveRoutePoints(profile);
+  let distanceMiles: number | undefined;
+  let durationHours: number | undefined;
+  let routeStops: RouteStop[] = [];
+
+  if (points) {
+    const stats = await computeRouteStatsWithAlternatives(points.from, points.to, profile.pets);
+    const route = stats?.alternatives[routeIndex] ?? stats?.alternatives[0];
+    if (route && stats) {
+      distanceMiles = Math.round(route.distanceMiles);
+      durationHours = route.durationHours;
+      routeStops = await fetchRouteStops(
+        {
+          distanceMiles,
+          durationHours,
+          driveTimeLabel: stats.driveTimeLabel,
+          stopCount: stats.stopCount,
+          geometry: route,
+        },
+        profile
+      );
+    }
+  }
+
+  if (distanceMiles == null) {
+    distanceMiles = (await resolveRouteDistanceMiles(profile, undefined, undefined, routeIndex)) ?? 800;
+  }
+
+  return {
+    distanceMiles,
+    durationHours,
+    routeStops,
+    vehicles,
+  };
+}
+
+export async function estimateBudgetForMove(
+  moveId: string,
+  profile: MoveProfile,
+  options: {
+    routeIndex?: number;
+    truckChoice?: string | null;
+    locale?: "en" | "es";
+  } = {}
+) {
+  const routeIndex = options.routeIndex ?? 0;
+  const ctx = await resolveBudgetRouteContext(moveId, profile, routeIndex);
+  return estimateBudget(profile, {
+    distanceMiles: ctx.distanceMiles,
+    durationHours: ctx.durationHours,
+    routeStops: ctx.routeStops,
+    vehicleCount: Math.max(1, ctx.vehicles.length),
+    vehicles: ctx.vehicles,
+    truckChoice: options.truckChoice,
+    locale: options.locale,
+  });
+}
