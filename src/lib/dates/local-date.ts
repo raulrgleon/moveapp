@@ -1,6 +1,7 @@
-/** Parse YYYY-MM-DD as local calendar date (avoids UTC timezone shift). */
+/** Parse YYYY-MM-DD (or ISO datetime) as local calendar date (avoids UTC shift). */
 export function parseLocalDate(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number);
+  const datePart = iso.slice(0, 10);
+  const [y, m, d] = datePart.split("-").map(Number);
   return startOfDay(new Date(y, (m ?? 1) - 1, d ?? 1));
 }
 

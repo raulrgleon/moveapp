@@ -67,26 +67,8 @@ export async function GET(req: NextRequest) {
 
   const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
   const totalActual = items.reduce((s, i) => s + i.actual, 0);
-  const est = estimateBudget({
-    name: move.user.name,
-    email: move.user.email,
-    origin: move.origin,
-    destination: move.destination,
-    moveDate: move.moveDate.toISOString().slice(0, 10),
-    household: move.household,
-    pets: move.pets,
-    petDetails: move.petDetails ?? "",
-    budget: move.budget,
-    rentalPreference: move.rentalPreference,
-    needsHousingHelp: move.needsHousingHelp,
-    needsVehicleTransport: move.needsVehicleTransport,
-    originLat: move.originLat ?? undefined,
-    originLon: move.originLon ?? undefined,
-    destinationLat: move.destinationLat ?? undefined,
-    destinationLon: move.destinationLon ?? undefined,
-  });
 
-  const distanceMiles = await resolveRouteDistanceMiles({
+  const profileForEst: MoveProfile = {
     name: move.user.name,
     email: move.user.email,
     origin: move.origin,
@@ -103,7 +85,10 @@ export async function GET(req: NextRequest) {
     originLon: move.originLon ?? undefined,
     destinationLat: move.destinationLat ?? undefined,
     destinationLon: move.destinationLon ?? undefined,
-  });
+  };
+
+  const distanceMiles = await resolveRouteDistanceMiles(profileForEst);
+  const est = estimateBudget(profileForEst, { distanceMiles });
 
   return NextResponse.json({
     items,
@@ -125,6 +110,7 @@ export async function PATCH(req: NextRequest) {
   const body = (await req.json()) as {
     items?: { id: string; actual?: number }[];
     recalculate?: boolean;
+    routeIndex?: number;
   };
 
   const move = await prisma.move.findUnique({
@@ -152,7 +138,9 @@ export async function PATCH(req: NextRequest) {
       destinationLat: move.destinationLat ?? undefined,
       destinationLon: move.destinationLon ?? undefined,
     };
-    await syncBudgetEstimate(move.id, profile);
+    const vehicles = await prisma.vehicle.findMany({ where: { moveId: move.id } });
+    const routeIndex = typeof body.routeIndex === "number" ? body.routeIndex : 0;
+    await syncBudgetEstimate(move.id, profile, routeIndex, Math.max(1, vehicles.length));
   }
 
   if (body.items) {

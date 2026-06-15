@@ -1,5 +1,11 @@
 import type { MoveProfile } from "@/lib/move-profile";
-import { fetchOsrmRoute, type GeoPoint, type RouteGeometry } from "@/lib/geo/coordinates";
+import {
+  fetchOsrmRoute,
+  fetchOsrmRoutes,
+  type GeoPoint,
+  type RouteAlternative,
+  type RouteGeometry,
+} from "@/lib/geo/coordinates";
 
 export interface RouteStats {
   distanceMiles: number;
@@ -7,6 +13,10 @@ export interface RouteStats {
   driveTimeLabel: string;
   stopCount: number;
   geometry?: RouteGeometry;
+}
+
+export interface RouteStatsWithAlternatives extends RouteStats {
+  alternatives: RouteAlternative[];
 }
 
 export function formatDriveTime(hours: number): string {
@@ -48,14 +58,7 @@ export function resolveRoutePoints(
   };
 }
 
-export async function computeRouteStats(
-  from: GeoPoint,
-  to: GeoPoint,
-  hasPets = false
-): Promise<RouteStats | null> {
-  const route = await fetchOsrmRoute(from, to);
-  if (!route) return null;
-
+function statsFromRoute(route: RouteGeometry, hasPets: boolean): RouteStats {
   return {
     distanceMiles: Math.round(route.distanceMiles),
     durationHours: route.durationHours,
@@ -65,13 +68,41 @@ export async function computeRouteStats(
   };
 }
 
+export async function computeRouteStats(
+  from: GeoPoint,
+  to: GeoPoint,
+  hasPets = false
+): Promise<RouteStats | null> {
+  const route = await fetchOsrmRoute(from, to);
+  if (!route) return null;
+  return statsFromRoute(route, hasPets);
+}
+
+export async function computeRouteStatsWithAlternatives(
+  from: GeoPoint,
+  to: GeoPoint,
+  hasPets = false
+): Promise<RouteStatsWithAlternatives | null> {
+  const alternatives = await fetchOsrmRoutes(from, to, 3);
+  if (!alternatives.length) return null;
+
+  const primary = alternatives[0];
+  return {
+    ...statsFromRoute(primary, hasPets),
+    alternatives,
+  };
+}
+
 export async function resolveRouteDistanceMiles(
   profile: MoveProfile,
   destLat?: number,
-  destLon?: number
+  destLon?: number,
+  routeIndex = 0
 ): Promise<number | undefined> {
   const points = resolveRoutePoints(profile, destLat, destLon);
   if (!points) return undefined;
-  const stats = await computeRouteStats(points.from, points.to, profile.pets);
-  return stats?.distanceMiles;
+
+  const alternatives = await fetchOsrmRoutes(points.from, points.to, 3);
+  const route = alternatives[routeIndex] ?? alternatives[0];
+  return route ? Math.round(route.distanceMiles) : undefined;
 }

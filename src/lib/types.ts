@@ -93,6 +93,7 @@ export interface RouteStop {
   notes?: string;
   lat?: number;
   lon?: number;
+  estimatedPrice?: number;
 }
 
 export interface CityMetric {

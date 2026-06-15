@@ -12,7 +12,12 @@ import {
   generateStarterDocuments,
 } from "@/lib/move/generate-checklist";
 import { estimateBudget } from "@/lib/budget/estimator";
-import { resolveRouteDistanceMiles } from "@/lib/geo/route-service";
+import { fetchRouteStops } from "@/lib/geo/route-stops";
+import {
+  computeRouteStatsWithAlternatives,
+  resolveRoutePoints,
+  resolveRouteDistanceMiles,
+} from "@/lib/geo/route-service";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import type { InventoryBox } from "@/lib/inventory/types";
 import type { ChecklistTask, DocumentItem } from "@/lib/types";
@@ -150,9 +155,46 @@ export async function buildDefaultMoveData() {
   return buildMoveDataFromProfile(DEFAULT_PROFILE, []);
 }
 
-export async function syncBudgetEstimate(moveId: string, profile: MoveProfile) {
-  const distanceMiles = await resolveRouteDistanceMiles(profile);
-  const estimate = estimateBudget(profile, distanceMiles);
+export async function syncBudgetEstimate(
+  moveId: string,
+  profile: MoveProfile,
+  routeIndex = 0,
+  vehicleCount = 1
+) {
+  const points = resolveRoutePoints(profile);
+  let distanceMiles: number | undefined;
+  let durationHours: number | undefined;
+  let routeStops: Awaited<ReturnType<typeof fetchRouteStops>> = [];
+
+  if (points) {
+    const stats = await computeRouteStatsWithAlternatives(points.from, points.to, profile.pets);
+    const route = stats?.alternatives[routeIndex] ?? stats?.alternatives[0];
+    if (route && stats) {
+      distanceMiles = Math.round(route.distanceMiles);
+      durationHours = route.durationHours;
+      routeStops = await fetchRouteStops(
+        {
+          distanceMiles,
+          durationHours,
+          driveTimeLabel: stats.driveTimeLabel,
+          stopCount: stats.stopCount,
+          geometry: route,
+        },
+        profile
+      );
+    }
+  }
+
+  if (distanceMiles == null) {
+    distanceMiles = await resolveRouteDistanceMiles(profile, undefined, undefined, routeIndex);
+  }
+
+  const estimate = estimateBudget(profile, {
+    distanceMiles,
+    durationHours,
+    routeStops,
+    vehicleCount,
+  });
   await prisma.budgetItem.deleteMany({ where: { moveId } });
   if (estimate.items.length > 0) {
     await prisma.budgetItem.createMany({

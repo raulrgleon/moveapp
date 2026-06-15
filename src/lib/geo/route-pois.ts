@@ -1,3 +1,5 @@
+import { estimateHotelNightlyRate } from "@/lib/budget/hotel-cost";
+
 const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
 interface OverpassElement {
@@ -198,7 +200,16 @@ export async function fetchNearbyHotel(
   lon: number,
   usedIds: Set<string>,
   petFriendly: boolean
-): Promise<{ name: string; location: string; lat: number; lon: number; osmId: string; petFriendly: boolean } | null> {
+): Promise<{
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  osmId: string;
+  petFriendly: boolean;
+  estimatedPrice: number;
+  tags: Record<string, string>;
+} | null> {
   const ql = `[out:json][timeout:15];
 (
   nwr["tourism"~"hotel|motel"](around:15000,${lat},${lon});
@@ -212,13 +223,17 @@ out center tags 10;`;
   const coords = elementCoords(picked)!;
   const osmId = `${picked.type}/${picked.id}`;
   usedIds.add(osmId);
+  const location = await resolveLocation(picked.tags, coords.lat, coords.lon);
+  const isPet = isPetFriendly(picked.tags);
 
   return {
     name: formatOsmName(picked.tags, petFriendly ? "Pet-friendly hotel" : "Hotel"),
-    location: await resolveLocation(picked.tags, coords.lat, coords.lon),
+    location,
     lat: coords.lat,
     lon: coords.lon,
     osmId,
-    petFriendly: isPetFriendly(picked.tags),
+    petFriendly: isPet,
+    estimatedPrice: estimateHotelNightlyRate(picked.tags, location, petFriendly && isPet),
+    tags: picked.tags,
   };
 }

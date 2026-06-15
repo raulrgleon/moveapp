@@ -6,8 +6,12 @@ import {
   statesMatch,
 } from "@/lib/geo/address-region";
 import { parseNominatimResult } from "@/lib/geo/nominatim";
+import { searchUsCities } from "@/lib/geo/city-search";
 
 const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
+
+const searchCache = new Map<string, { expires: number; data: unknown }>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 function parseCoord(value: string | null): number | undefined {
   if (value == null || value === "") return undefined;
@@ -27,32 +31,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
+  if (type === "city") {
+    const cacheKey = `city:${q.toLowerCase()}`;
+    const cached = searchCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return NextResponse.json(cached.data);
+    }
+    try {
+      const payload = await searchUsCities(q);
+      searchCache.set(cacheKey, { expires: Date.now() + CACHE_TTL_MS, data: payload });
+      return NextResponse.json(payload);
+    } catch (error) {
+      console.error("City search error:", error);
+      return NextResponse.json([], { status: 500 });
+    }
+  }
+
+  const cacheKey = `${type ?? "addr"}:${q.toLowerCase()}:${stateParam ?? ""}:${cityParam ?? ""}`;
+  const cached = searchCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return NextResponse.json(cached.data);
+  }
+
   try {
     const url = new URL("https://nominatim.openstreetmap.org/search");
-    const isCity = type === "city";
-
-    if (isCity) {
-      url.searchParams.set("q", q);
-    } else {
-      url.searchParams.set(
-        "q",
-        buildRegionalAddressQuery(q, {
-          state: stateParam,
-          city: cityParam,
-          lat,
-          lon,
-        })
-      );
-    }
-
+    url.searchParams.set(
+      "q",
+      buildRegionalAddressQuery(q, {
+        state: stateParam,
+        city: cityParam,
+        lat,
+        lon,
+      })
+    );
     url.searchParams.set("format", "json");
     url.searchParams.set("addressdetails", "1");
-    url.searchParams.set("limit", isCity ? "8" : "8");
+    url.searchParams.set("limit", "8");
     url.searchParams.set("countrycodes", "us");
 
-    if (isCity) {
-      url.searchParams.set("featuretype", "city");
-    } else if (lat != null && lon != null) {
+    if (lat != null && lon != null) {
       url.searchParams.set("viewbox", buildViewbox(lat, lon));
       url.searchParams.set("bounded", "1");
     }
@@ -71,22 +88,14 @@ export async function GET(req: NextRequest) {
       parseNominatimResult
     );
 
-    if (isCity) {
-      const seen = new Set<string>();
-      suggestions = suggestions.filter((s) => {
-        const city = s.city || s.displayName.split(",")[0]?.trim();
-        const state = s.state || "";
-        const key = `${city}|${state}`.toLowerCase();
-        if (!city || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    } else if (stateParam) {
+    if (stateParam) {
       const targetState = normalizeUsState(stateParam);
       suggestions = suggestions.filter((s) => statesMatch(s.state, targetState));
     }
 
-    return NextResponse.json(suggestions.slice(0, 6));
+    const payload = suggestions.slice(0, 6);
+    searchCache.set(cacheKey, { expires: Date.now() + CACHE_TTL_MS, data: payload });
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("Address search error:", error);
     return NextResponse.json([], { status: 500 });

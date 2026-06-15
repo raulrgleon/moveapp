@@ -10,15 +10,16 @@ const BYPASS_PREFIXES = ["/settings", "/onboarding"];
 export function MoveSetupGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, isHydrated } = useMove();
+  const { profile, isHydrated, canEditProfile, moveRole } = useMove();
 
   useEffect(() => {
     if (!isHydrated) return;
     const bypass = BYPASS_PREFIXES.some((p) => pathname.startsWith(p));
-    if (!bypass && isMoveSetupIncomplete(profile)) {
+    const isOwner = moveRole === "owner" && canEditProfile;
+    if (!bypass && isOwner && isMoveSetupIncomplete(profile)) {
       router.replace("/onboarding?complete=1");
     }
-  }, [isHydrated, profile, pathname, router]);
+  }, [isHydrated, profile, pathname, router, canEditProfile, moveRole]);
 
   return <>{children}</>;
 }

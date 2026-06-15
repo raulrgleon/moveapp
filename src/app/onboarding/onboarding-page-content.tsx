@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/move-profile";
 import { useT } from "@/contexts/locale-context";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatLocalISO, startOfDay } from "@/lib/dates/local-date";
 import { useLocale } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +48,7 @@ export function OnboardingPageContent() {
   const searchParams = useSearchParams();
   const t = useT();
   const { locale } = useLocale();
-  const { register, isAuthenticated } = useAuth();
+  const { register, isAuthenticated, isAdmin, isHydrated: authHydrated } = useAuth();
   const {
     profile,
     updateProfile,
@@ -55,8 +56,11 @@ export function OnboardingPageContent() {
     isAddressConfirmed,
     destinationAddress,
     setVehicles,
+    isHydrated: moveHydrated,
+    canEditProfile,
   } = useMove();
-  const completeMode = searchParams.get("complete") === "1" && isAuthenticated;
+  const completeMode =
+    authHydrated && searchParams.get("complete") === "1" && isAuthenticated;
   const [step, setStep] = useState(1);
   const [onboardingVehicles, setOnboardingVehicles] = useState<VehicleInfo[]>([]);
 
@@ -67,7 +71,7 @@ export function OnboardingPageContent() {
   const [adults, setAdults] = useState(0);
   const [children, setChildren] = useState(0);
   const [petCount, setPetCount] = useState(0);
-  const [rentalKey, setRentalKey] = useState("trailer");
+  const [rentalKey, setRentalKey] = useState("own");
   const [needsVehicleTransport, setNeedsVehicleTransport] = useState(
     profile.needsVehicleTransport
   );
@@ -78,7 +82,10 @@ export function OnboardingPageContent() {
   const [accountPassword, setAccountPassword] = useState("");
   const [accountError, setAccountError] = useState("");
   const [moveDateError, setMoveDateError] = useState("");
+  const [stepError, setStepError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [stepLoading, setStepLoading] = useState(false);
+  const profileSyncedRef = useRef(false);
 
   const household = formatHousehold(adults, children);
   const petDetails = formatPetDetails(petCount);
@@ -93,8 +100,23 @@ export function OnboardingPageContent() {
     ...(completeMode ? [] : [{ id: 6, title: t("onboarding.stepAccount") }]),
   ];
   const lastStep = STEPS[STEPS.length - 1]?.id ?? 5;
+  const currentStepMeta = STEPS[Math.min(step, STEPS.length) - 1] ?? STEPS[0];
 
   const progressPercent = Math.round((step / STEPS.length) * 100);
+
+  useEffect(() => {
+    if (authHydrated && isAdmin) {
+      router.replace("/admin");
+    }
+  }, [authHydrated, isAdmin, router]);
+
+  useEffect(() => {
+    if (!moveHydrated || profileSyncedRef.current) return;
+    profileSyncedRef.current = true;
+    if (profile.origin?.trim()) setOrigin(profile.origin);
+    if (profile.destination?.trim()) setDestination(profile.destination);
+    if (profile.moveDate) setMoveDate(profile.moveDate);
+  }, [moveHydrated, profile.origin, profile.destination, profile.moveDate]);
 
   useEffect(() => {
     const parsed = parseCityStateLabel(destination);
@@ -115,32 +137,59 @@ export function OnboardingPageContent() {
             .join(" + ")
         : onboardingVehicles[0]?.displayLabel || t("onboarding.noVehicleSelected");
 
-  const saveStepData = async () => {
-    await updateProfile({
-      origin,
-      destination,
-      moveDate,
-      household,
-      pets,
-      petDetails,
-      budget: Number(budget) || profile.budget,
-      rentalPreference: rentalPreferenceFromKey(rentalKey),
-      needsHousingHelp,
-      needsVehicleTransport,
-    });
+  const formatClientError = (message: string) => {
+    const key = message.trim().toLowerCase();
+    if (key === "forbidden") return t("apiErrors.forbidden");
+    if (key === "unauthorized") return t("apiErrors.unauthorized");
+    if (key.includes("no move found")) return t("apiErrors.noMove");
+    return message || t("onboarding.stepSaveFailed");
+  };
+
+  const saveStepData = async (sync = false) => {
+    await updateProfile(
+      {
+        origin,
+        destination,
+        moveDate,
+        household,
+        pets,
+        petDetails,
+        budget: Number(budget) || profile.budget,
+        rentalPreference: rentalPreferenceFromKey(rentalKey),
+        needsHousingHelp,
+        needsVehicleTransport,
+      },
+      false,
+      sync
+    );
   };
 
   const handleNext = async () => {
+    setStepError("");
     if (step === 1) {
-      const today = new Date().toISOString().slice(0, 10);
+      if (!origin.trim() || !destination.trim()) {
+        setStepError(t("onboarding.routeRequired"));
+        return;
+      }
+      const today = formatLocalISO(startOfDay(new Date()));
       if (moveDate < today) {
         setMoveDateError(t("onboarding.moveDatePast"));
         return;
       }
       setMoveDateError("");
     }
-    await saveStepData();
-    setStep((s) => Math.min(STEPS.length, s + 1));
+
+    setStepLoading(true);
+    try {
+      await saveStepData();
+      setStep((s) => Math.min(STEPS.length, s + 1));
+    } catch (err) {
+      setStepError(
+        formatClientError(err instanceof Error ? err.message : t("onboarding.stepSaveFailed"))
+      );
+    } finally {
+      setStepLoading(false);
+    }
   };
 
   const handleComplete = async () => {
@@ -185,12 +234,14 @@ export function OnboardingPageContent() {
     setSubmitting(true);
     setAccountError("");
     try {
-      await saveStepData();
+      await saveStepData(true);
       setVehicles(onboardingVehicles.filter((v) => v.make?.trim() && v.model?.trim()));
       sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
     } catch (err) {
-      setAccountError(err instanceof Error ? err.message : t("apiErrors.saveFailed"));
+      setAccountError(
+        formatClientError(err instanceof Error ? err.message : t("apiErrors.saveFailed"))
+      );
     } finally {
       setSubmitting(false);
     }
@@ -207,6 +258,9 @@ export function OnboardingPageContent() {
     budget: Number(budget) || profile.budget,
     rentalPreference: rentalPreferenceFromKey(rentalKey),
   };
+
+  const setupBlocked =
+    completeMode && authHydrated && moveHydrated && isAuthenticated && !canEditProfile;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
@@ -271,19 +325,28 @@ export function OnboardingPageContent() {
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
             {t("onboarding.stepOf", {
-              step,
+              step: Math.min(step, STEPS.length),
               total: STEPS.length,
-              title: STEPS[step - 1].title,
+              title: currentStepMeta.title,
             })}
           </p>
         </div>
 
         <Card className="shadow-xl border-border/60">
           <CardHeader>
-            <CardTitle>{STEPS[step - 1].title}</CardTitle>
+            <CardTitle>{currentStepMeta.title}</CardTitle>
             <CardDescription>{t("onboarding.personalize")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {setupBlocked ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                <p>{t("onboarding.noEditPermission")}</p>
+                <Button className="mt-4" variant="outline" asChild>
+                  <Link href="/dashboard">{t("nav.dashboard")}</Link>
+                </Button>
+              </div>
+            ) : (
+              <>
             {step === 1 && (
               <>
                 <CityAutocomplete
@@ -295,6 +358,7 @@ export function OnboardingPageContent() {
                     setOrigin(city.label);
                     void updateProfile(
                       { origin: city.label, originLat: city.lat, originLon: city.lon },
+                      false,
                       false
                     );
                   }}
@@ -319,6 +383,7 @@ export function OnboardingPageContent() {
                         destinationLat: city.lat,
                         destinationLon: city.lon,
                       },
+                      false,
                       false
                     );
                   }}
@@ -346,6 +411,9 @@ export function OnboardingPageContent() {
                 />
                 {moveDateError && (
                   <p className="text-sm text-destructive">{moveDateError}</p>
+                )}
+                {stepError && step === 1 && (
+                  <p className="text-sm text-destructive">{stepError}</p>
                 )}
               </>
             )}
@@ -398,6 +466,7 @@ export function OnboardingPageContent() {
                       <SelectValue placeholder={t("onboarding.selectOption")} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="own">{t("onboarding.ownVehicle")}</SelectItem>
                       <SelectItem value="truck">{t("onboarding.rentTruck")}</SelectItem>
                       <SelectItem value="trailer">{t("onboarding.rentTrailer")}</SelectItem>
                       <SelectItem value="movers">{t("onboarding.hireMovers")}</SelectItem>
@@ -542,24 +611,35 @@ export function OnboardingPageContent() {
               <p className="text-sm text-destructive">{accountError}</p>
             )}
 
+            {stepError && step !== 1 && (
+              <p className="text-sm text-destructive">{stepError}</p>
+            )}
+
             <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pt-4">
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setStep((s) => Math.max(1, s - 1))}
-                disabled={step === 1}
+                disabled={step === 1 || stepLoading}
                 className="w-full sm:w-auto"
               >
                 {t("common.previous")}
               </Button>
               {step < lastStep ? (
-                <Button onClick={handleNext} className="w-full sm:w-auto">
-                  {t("common.continue")}
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button
+                  type="button"
+                  onClick={() => void handleNext()}
+                  disabled={stepLoading || !authHydrated}
+                  className="w-full sm:w-auto"
+                >
+                  {stepLoading ? t("common.saving") : t("common.continue")}
+                  {!stepLoading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               ) : (
                 <Button
+                  type="button"
                   onClick={completeMode ? handleFinishSetup : handleComplete}
-                  disabled={submitting}
+                  disabled={submitting || !authHydrated}
                   className="w-full sm:w-auto"
                 >
                   {submitting
@@ -571,6 +651,8 @@ export function OnboardingPageContent() {
                 </Button>
               )}
             </div>
+              </>
+            )}
           </CardContent>
         </Card>
         </div>

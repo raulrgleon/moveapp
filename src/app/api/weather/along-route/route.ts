@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchOsrmRoute, type GeoPoint } from "@/lib/geo/coordinates";
+import { fetchOsrmRoutes, type GeoPoint } from "@/lib/geo/coordinates";
 import { fetchCurrentWeather } from "@/lib/weather/weatherapi";
 import { samplePointsAlongRoute, weatherSampleCount } from "@/lib/weather/route-sampling";
 
@@ -40,7 +40,12 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    const route = await fetchOsrmRoute(origin, destination);
+    const routeIndex = Math.max(
+      0,
+      parseInt(req.nextUrl.searchParams.get("routeIndex") ?? "0", 10) || 0
+    );
+    const routes = await fetchOsrmRoutes(origin, destination, 3);
+    const route = routes[routeIndex] ?? routes[0];
     if (!route?.coordinates.length) {
       return NextResponse.json({ points: [] });
     }

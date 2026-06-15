@@ -37,15 +37,13 @@ import { parseHouseholdCounts } from "@/lib/move/household";
 import {
   formatHousehold,
   formatPetDetails,
+  parseRentalPreferenceKey,
   rentalPreferenceFromKey,
 } from "@/lib/move-profile";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 function rentalKeyFromProfile(preference: string): string {
-  if (/mover|profesional/i.test(preference)) return "movers";
-  if (/combo|remolque.*suv|trailer.*vehicle/i.test(preference)) return "combo";
-  if (/truck|camión|u-haul/i.test(preference)) return "truck";
-  return "trailer";
+  return parseRentalPreferenceKey(preference);
 }
 
 export default function SettingsPage() {
@@ -249,6 +247,7 @@ export default function SettingsPage() {
                   <SelectValue placeholder={t("onboarding.selectOption")} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="own">{t("onboarding.ownVehicle")}</SelectItem>
                   <SelectItem value="truck">{t("onboarding.rentTruck")}</SelectItem>
                   <SelectItem value="trailer">{t("onboarding.rentTrailer")}</SelectItem>
                   <SelectItem value="movers">{t("onboarding.hireMovers")}</SelectItem>

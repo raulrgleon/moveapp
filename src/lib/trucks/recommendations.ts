@@ -1,6 +1,7 @@
 import type { MoveProfile } from "@/lib/move-profile";
 import type { TruckOption } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
+import { estimateFuelCost as estimateRouteFuel } from "@/lib/budget/fuel-cost";
 
 export function estimateTruckOptions(
   profile: MoveProfile,
@@ -87,8 +88,12 @@ export function buildTrailerRecommendation(
 }
 
 export function estimateFuelCost(distanceMiles: number, vehicleCount: number): number {
-  const mpg = 22;
-  const pricePerGallon = 3.45;
-  const gallons = distanceMiles / mpg;
-  return Math.round(gallons * pricePerGallon * Math.max(1, vehicleCount));
+  const { total } = estimateRouteFuel({
+    distanceMiles,
+    rentalKey: "own",
+    vehicleCount,
+    origin: "",
+    destination: "",
+  });
+  return total;
 }

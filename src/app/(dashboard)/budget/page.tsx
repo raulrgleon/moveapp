@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getStoredRouteIndex } from "@/hooks/use-route-stats";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 import { AlertTriangle, DollarSign, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
@@ -81,7 +82,7 @@ export default function BudgetPage() {
     try {
       const res = await apiFetch("/api/budget", {
         method: "PATCH",
-        body: JSON.stringify({ recalculate: true }),
+        body: JSON.stringify({ recalculate: true, routeIndex: getStoredRouteIndex() }),
       });
       setData((await res.json()) as BudgetResponse);
     } finally {

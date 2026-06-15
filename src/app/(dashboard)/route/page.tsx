@@ -2,7 +2,19 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { ExternalLink, Fuel, Hotel, Loader2, MapPin, Maximize2, Minimize2, PawPrint, Route as RouteIcon } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
+import {
+  ExternalLink,
+  Fuel,
+  Hotel,
+  Loader2,
+  MapPin,
+  Maximize2,
+  Minimize2,
+  PawPrint,
+  RefreshCw,
+  Route as RouteIcon,
+} from "lucide-react";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
@@ -73,8 +85,21 @@ function buildAppleMapsUrl(
 export default function RoutePage() {
   const t = useT();
   const { profile } = useMove();
-  const { stats, loading } = useRouteStats();
+  const { stats, loading, routeIndex, setRouteIndex } = useRouteStats();
   const [cinematic, setCinematic] = useState(false);
+  const [budgetUpdating, setBudgetUpdating] = useState(false);
+
+  const updateBudgetForRoute = async () => {
+    setBudgetUpdating(true);
+    try {
+      await apiFetch("/api/budget", {
+        method: "PATCH",
+        body: JSON.stringify({ recalculate: true, routeIndex }),
+      });
+    } finally {
+      setBudgetUpdating(false);
+    }
+  };
 
   const distanceLabel = stats
     ? `${stats.distanceMiles.toLocaleString()} ${t("routePage.miles")}`
@@ -179,6 +204,10 @@ export default function RoutePage() {
                   : "min-h-[280px] sm:min-h-[360px]"
               }
               showNewHome
+              alternatives={stats?.alternatives}
+              selectedRouteIndex={routeIndex}
+              onSelectRoute={setRouteIndex}
+              stops={stats?.stops}
             />
             {!cinematic && (
               <Button
@@ -214,6 +243,45 @@ export default function RoutePage() {
           </div>
         </div>
 
+        {stats && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{t("routePage.alternativeRoutes")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">{t("routePage.alternativeRoutesDesc")}</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {stats.alternatives.slice(0, 3).map((alt) => (
+                  <button
+                    key={alt.index}
+                    type="button"
+                    onClick={() => setRouteIndex(alt.index)}
+                    className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                      alt.index === routeIndex
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <p className="font-medium">{t("routePage.routeOption", { n: alt.index + 1 })}</p>
+                    <p className="text-muted-foreground mt-1">
+                      {alt.distanceMiles.toLocaleString()} {t("routePage.miles")} · {alt.driveTimeLabel}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={budgetUpdating}
+                onClick={() => void updateBudgetForRoute()}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${budgetUpdating ? "animate-spin" : ""}`} />
+                {t("routePage.updateBudgetForRoute")}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("routePage.recommendedStops")}</CardTitle>
@@ -244,6 +312,11 @@ export default function RoutePage() {
                         {stop.location && (
                           <p className="text-sm text-foreground/80 mt-1.5 leading-snug break-words">
                             {stop.location}
+                          </p>
+                        )}
+                        {stop.estimatedPrice != null && stop.estimatedPrice > 0 && (
+                          <p className="text-sm font-medium text-foreground mt-1">
+                            ~${stop.estimatedPrice}/night
                           </p>
                         )}
                         {stop.notes && (

@@ -2,6 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { formatLocalISO, startOfDay } from "@/lib/dates/local-date";
 import { cn } from "@/lib/utils";
 
 interface MoveDatePickerProps {
@@ -19,7 +20,7 @@ export function MoveDatePicker({
   onChange,
   className,
 }: MoveDatePickerProps) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatLocalISO(startOfDay(new Date()));
 
   return (
     <div className={cn("space-y-2", className)}>

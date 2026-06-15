@@ -59,7 +59,7 @@ interface MoveContextValue {
   clearAddress: () => void;
   setVehicles: (vehicles: VehicleInfo[]) => void;
   setVehicle: (vehicle: VehicleInfo) => void;
-  updateProfile: (patch: Partial<MoveProfile>, geocode?: boolean) => Promise<void>;
+  updateProfile: (patch: Partial<MoveProfile>, geocode?: boolean, sync?: boolean) => Promise<void>;
   getMoveContextForApi: () => {
     profile: MoveProfile;
     destinationAddress: string;
@@ -88,8 +88,8 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   const [profileVersion, setProfileVersion] = useState(0);
   const [moveRole, setMoveRole] = useState<"owner" | "editor" | "viewer">("owner");
   const [ownerName, setOwnerName] = useState("");
-  const [canEdit, setCanEdit] = useState(true);
-  const [canEditProfile, setCanEditProfile] = useState(true);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canEditProfile, setCanEditProfile] = useState(false);
   const [truckChoice, setTruckChoiceState] = useState<string | null>(null);
   const [vehicleTransportChoice, setVehicleTransportChoiceState] = useState<string | null>(null);
 
@@ -130,7 +130,9 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       truckChoice?: string | null;
       vehicleTransportChoice?: string | null;
     }) => {
-      if (!isAuthenticated || !user?.email || !canEditProfile) return;
+      if (!isAuthenticated || !user?.email || user.role === "admin" || !canEditProfile) {
+        return;
+      }
       await apiFetch("/api/move", {
         method: "PATCH",
         body: JSON.stringify(payload),
@@ -138,7 +140,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       await refreshMoveData(user.email);
       bumpProfileVersion();
     },
-    [isAuthenticated, user?.email, bumpProfileVersion, canEditProfile]
+    [isAuthenticated, user?.email, user?.role, bumpProfileVersion, canEditProfile]
   );
 
   useEffect(() => {
@@ -235,7 +237,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateProfile = useCallback(
-    async (patch: Partial<MoveProfile>, geocode = true) => {
+    async (patch: Partial<MoveProfile>, geocode = true, sync = true) => {
       const next = { ...profile, ...patch };
       if (geocode) {
         if (patch.origin !== undefined) {
@@ -254,13 +256,13 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setProfile(next);
-      if (isAuthenticated) {
-        await syncToDb({ profile: next, vehicles });
-      } else {
-        saveProfileToStorage(next);
+      saveProfileToStorage(next);
+      if (!sync || !isAuthenticated || user?.role === "admin" || !canEditProfile) {
+        return;
       }
+      await syncToDb({ profile: next, vehicles });
     },
-    [profile, isAuthenticated, syncToDb, vehicles]
+    [profile, isAuthenticated, user?.role, canEditProfile, syncToDb, vehicles]
   );
 
   const value = useMemo<MoveContextValue>(() => {

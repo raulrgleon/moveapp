@@ -5,6 +5,7 @@ import { Loader2, MapPin, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownPortal } from "@/components/ui/dropdown-portal";
+import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 
 export interface CitySelection {
@@ -58,10 +59,12 @@ export function CityAutocomplete({
   disabled,
   className,
 }: CityAutocompleteProps) {
+  const t = useT();
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -75,6 +78,7 @@ export function CityAutocomplete({
     if (text.trim().length < 2) {
       setSuggestions([]);
       setOpen(false);
+      setHasSearched(false);
       return;
     }
 
@@ -85,11 +89,13 @@ export function CityAutocomplete({
       );
       const data = (await res.json()) as CitySuggestion[];
       setSuggestions(data);
-      setOpen(data.length > 0);
+      setHasSearched(true);
+      setOpen(true);
       setActiveIndex(-1);
     } catch {
       setSuggestions([]);
-      setOpen(false);
+      setHasSearched(true);
+      setOpen(true);
     } finally {
       setLoading(false);
     }
@@ -131,6 +137,9 @@ export function CityAutocomplete({
   const handleInputChange = (text: string) => {
     setQuery(text);
     onChange(text);
+    if (text.trim().length >= 2) {
+      setOpen(true);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -155,13 +164,16 @@ export function CityAutocomplete({
       <Label htmlFor={id} className="text-sm font-medium">
         {label}
       </Label>
+      <p className="text-xs text-muted-foreground">{t("cityAutocomplete.hint")}</p>
       <div ref={anchorRef} className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           id={id}
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onFocus={() => {
+            if (query.trim().length >= 2) setOpen(true);
+          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
@@ -203,13 +215,13 @@ export function CityAutocomplete({
 
       <DropdownPortal
         anchorRef={anchorRef}
-        open={query.trim().length >= 2 && !loading && suggestions.length === 0 && open}
+        open={open && hasSearched && !loading && suggestions.length === 0 && query.trim().length >= 2}
       >
         <div
           data-dropdown-portal
           className="w-full rounded-xl border bg-popover px-3 py-2.5 text-sm text-muted-foreground shadow-lg"
         >
-          No cities found. Try &quot;Austin, TX&quot; format.
+          {t("cityAutocomplete.noResults")}
         </div>
       </DropdownPortal>
     </div>

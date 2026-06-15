@@ -31,17 +31,31 @@ export const DEFAULT_PROFILE: MoveProfile = {
   pets: false,
   petDetails: "",
   budget: 5000,
-  rentalPreference: "Trailer rental",
+  rentalPreference: "Use my own vehicle (no rental)",
   needsHousingHelp: false,
   needsVehicleTransport: false,
 };
 
 export const RENTAL_PREFERENCE_LABELS: Record<string, string> = {
+  own: "Use my own vehicle (no rental)",
   truck: "Rent a moving truck",
   trailer: "Trailer rental with own SUV",
   movers: "Hire professional movers",
   combo: "Trailer + own vehicle combo",
 };
+
+export type RentalPreferenceKey = keyof typeof RENTAL_PREFERENCE_LABELS;
+
+/** Normalize stored label or key to a rental preference key. */
+export function parseRentalPreferenceKey(preference: string): RentalPreferenceKey {
+  const p = preference.trim().toLowerCase();
+  if (!p || p === "own" || /own vehicle|sin renta|no rental|mi propio/i.test(p)) return "own";
+  if (/mover|profesional|hire/i.test(p)) return "movers";
+  if (/combo|remolque.*suv|trailer.*vehicle/i.test(p)) return "combo";
+  if (/truck|camión|u-haul|rent a truck|rentar camión/i.test(p)) return "truck";
+  if (/trailer|remolque/i.test(p)) return "trailer";
+  return "own";
+}
 
 export function rentalPreferenceFromKey(key: string): string {
   return RENTAL_PREFERENCE_LABELS[key] ?? key;

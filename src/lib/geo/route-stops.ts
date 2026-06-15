@@ -112,9 +112,11 @@ export async function fetchRouteStops(
         location: result.poi.location,
         lat: result.poi.lat,
         lon: result.poi.lon,
-        notes: profile.pets && !result.poi.petFriendly
-          ? `Night ${result.day} · Verify pet policy when booking`
-          : `Night ${result.day} · ~${Math.round(result.mile)} mi`,
+        estimatedPrice: result.poi.estimatedPrice,
+        notes:
+          profile.pets && !result.poi.petFriendly
+            ? `Night ${result.day} · ~$${result.poi.estimatedPrice}/night · Verify pet policy`
+            : `Night ${result.day} · ~$${result.poi.estimatedPrice}/night · ~${Math.round(result.mile)} mi`,
       });
     }
   }
