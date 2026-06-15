@@ -1,0 +1,40 @@
+---
+description: Production deploy workflow for MovePilot (moveapp)
+alwaysApply: true
+---
+
+# MovePilot deploy workflow
+
+After **any substantive code change** to this project (`moveapp`), always complete the full release loop unless the user explicitly says not to deploy.
+
+## Steps (in order)
+
+1. **Verify** — `npm run build` locally when changes are non-trivial.
+2. **Commit** — only when there are changes to ship; never commit `.env.local`, `.gh-config/`, or secrets.
+3. **Push** — `git push origin main` (or the branch the user is working on).
+4. **Deploy on server** — SSH and run:
+   ```bash
+   ssh moveapp '/var/www/moveapp/scripts/deploy.sh'
+   ```
+5. **Confirm** — report commit hash, push status, deploy output, and HTTPS check on `https://movepilotai.com/dashboard` (or the relevant path).
+
+## Server details
+
+| Item | Value |
+|------|--------|
+| SSH alias | `moveapp` |
+| App path | `/var/www/moveapp` |
+| Deploy script | `./scripts/deploy.sh` |
+| Production URL | `https://movepilotai.com` |
+
+## Do not
+
+- Edit production code only on the server without committing to GitHub first.
+- Use `git reset --hard` on the server unless recovering from a broken deploy.
+- Commit or push secrets (`.env.local` stays on the server only).
+
+## Exceptions
+
+- Skip deploy if the user says "no deploy", "solo local", or similar.
+- Docs-only or `.cursor/rules` changes: push is enough; deploy optional unless the user wants it.
+- `.env.local` changes on server: `pm2 restart moveapp` only, no full deploy required.
