@@ -3,7 +3,13 @@ import { parseRentalPreferenceKey } from "@/lib/move-profile";
 import type { VehicleFuelFill } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import { mpgForVehicle } from "@/lib/vehicles/fuel-economy";
-import { drivenVehicleCount, mpgForRental } from "@/lib/budget/fuel-cost";
+import {
+  drivenVehicleCount,
+  drivingVehiclesForFuel,
+  isElectricVehicle,
+  mpgForRental,
+  mpgOnTrip,
+} from "@/lib/budget/fuel-cost";
 
 /** Refuel / recharge when remaining capacity drops to this fraction. */
 const FUEL_RESERVE_FRACTION = 0.15;
@@ -35,10 +41,6 @@ interface VehicleFuelProfile {
   tankGallons: number;
   isElectric: boolean;
   usableRangeMiles: number;
-}
-
-function isElectricVehicle(vehicle: VehicleInfo): boolean {
-  return /electric|bev|battery/i.test(vehicle.fuelType ?? "");
 }
 
 function vehicleHaystack(vehicle: VehicleInfo): string {
@@ -73,47 +75,11 @@ export function estimateTankGallons(
   return 26;
 }
 
-function mpgForDrivingVehicle(
-  vehicle: VehicleInfo,
-  rentalKey: RentalPreferenceKey
-): number {
-  if (rentalKey === "trailer" || rentalKey === "combo") {
-    return Math.round(mpgForVehicle(vehicle) * 0.72 * 10) / 10;
-  }
-  return mpgForVehicle(vehicle);
-}
-
 function evRangeMiles(vehicle: VehicleInfo): number {
   if (vehicle.combMpg && vehicle.combMpg > 60) {
     return Math.round(Math.min(360, Math.max(130, vehicle.combMpg * 2.2)));
   }
   return 240;
-}
-
-function drivingVehicles(
-  rentalKey: RentalPreferenceKey,
-  vehicles: VehicleInfo[]
-): VehicleInfo[] {
-  if (rentalKey === "movers") return [];
-  if (rentalKey === "truck") {
-    return [
-      {
-        id: "rental-truck",
-        year: "",
-        makeId: 0,
-        make: "Rental",
-        modelId: 0,
-        model: "Moving truck",
-        displayLabel: "Rental moving truck",
-        combMpg: 10,
-        highwayMpg: 11,
-        cityMpg: 8,
-        fuelType: "Regular",
-      },
-    ];
-  }
-  const configured = vehicles.filter((v) => v.make?.trim() && v.model?.trim() && !v.needsTransport);
-  return configured.length ? configured : vehicles.filter((v) => v.make?.trim() && v.model?.trim());
 }
 
 function buildVehicleProfiles(
@@ -125,7 +91,7 @@ function buildVehicleProfiles(
     return [];
   }
 
-  const drivers = drivingVehicles(rentalKey, vehicles);
+  const drivers = drivingVehiclesForFuel(rentalKey, vehicles);
   if (!drivers.length) {
     const mpg = mpgForRental(rentalKey, vehicles);
     const tank = estimateTankGallons(null, rentalKey);
@@ -140,8 +106,8 @@ function buildVehicleProfiles(
     ];
   }
 
-  return drivers.map((vehicle) => {
-    const mpg = mpgForDrivingVehicle(vehicle, rentalKey);
+  return drivers.map((vehicle, index) => {
+    const mpg = mpgOnTrip(vehicle, rentalKey, index);
     if (isElectricVehicle(vehicle)) {
       const range = evRangeMiles(vehicle);
       return {

@@ -5,6 +5,7 @@ import { useMove } from "@/contexts/move-context";
 import { useAuth } from "@/contexts/auth-context";
 import type { RouteStop } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 
 export interface RouteBudgetDelta {
   previousEstimated: number;
@@ -47,6 +48,11 @@ const routeStatsCache = new Map<string, CachedRoutePayload>();
 const routeStatsInflight = new Map<string, Promise<RouteStatsResponse>>();
 const routeStopsAllCache = new Map<string, CachedStopsPayload>();
 const routeStopsAllInflight = new Map<string, Promise<Record<number, RouteStop[]>>>();
+
+export function invalidateRouteStatsCache() {
+  routeStatsCache.clear();
+  routeStopsAllCache.clear();
+}
 
 function buildRouteParams(
   profile: {
@@ -158,7 +164,7 @@ function pickAlternative(
 
 export function useRouteStats() {
   const { isAuthenticated } = useAuth();
-  const { profile, lat, lon, isHydrated, vehicles, canEdit } = useMove();
+  const { profile, lat, lon, isHydrated, vehicles, canEdit, profileVersion } = useMove();
   const [baseStats, setBaseStats] = useState<Omit<
     RouteStatsResponse,
     "distanceMiles" | "durationHours" | "driveTimeLabel" | "stops" | "selectedRouteIndex"
@@ -230,6 +236,17 @@ export function useRouteStats() {
     [isAuthenticated, canEdit]
   );
 
+  const vehicleFingerprint = useMemo(
+    () =>
+      vehicles
+        .map(
+          (v) =>
+            `${v.id}:${v.make}:${v.model}:${v.combMpg ?? ""}:${v.needsTransport ? 1 : 0}:${v.fuelType ?? ""}`
+        )
+        .join("|"),
+    [vehicles]
+  );
+
   const routeQueryKey = useMemo(
     () =>
       [
@@ -240,6 +257,8 @@ export function useRouteStats() {
         destLat,
         destLon,
         profile.pets,
+        profile.rentalPreference,
+        vehicleFingerprint,
       ].join("|"),
     [
       profile.origin,
@@ -249,8 +268,20 @@ export function useRouteStats() {
       destLat,
       destLon,
       profile.pets,
+      profile.rentalPreference,
+      vehicleFingerprint,
     ]
   );
+
+  useEffect(() => {
+    return subscribeProfileUpdated(() => {
+      invalidateRouteStatsCache();
+    });
+  }, []);
+
+  useEffect(() => {
+    invalidateRouteStatsCache();
+  }, [vehicleFingerprint, profileVersion]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -322,8 +353,11 @@ export function useRouteStats() {
     profile.originLat,
     profile.originLon,
     profile.pets,
+    profile.rentalPreference,
     destLat,
     destLon,
+    vehicleFingerprint,
+    profileVersion,
   ]);
 
   const selectedAlternative = useMemo(

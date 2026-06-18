@@ -34,10 +34,20 @@ export function buildBudgetBreakdowns(
         destination: profile.destination,
       });
       lines.push(`Distance: ${miles.toLocaleString()} mi`);
-      lines.push(`Avg MPG: ${fuel.mpg}`);
+      if (fuel.vehicleLines.length > 1) {
+        for (const line of fuel.vehicleLines) {
+          if (line.isElectric) {
+            lines.push(`${line.vehicleLabel}: ~${line.kwh} kWh (${line.mpg} MPGe)`);
+          } else {
+            lines.push(`${line.vehicleLabel}: ~${line.gallons} gal @ ${line.mpg} MPG`);
+          }
+        }
+      } else {
+        lines.push(`Avg MPG: ${fuel.mpg}`);
+      }
       lines.push(`Fuel price: $${fuel.pricePerGallon.toFixed(2)}/gal`);
       lines.push(`Gallons: ~${fuel.gallons}`);
-      lines.push(`Formula: gallons × regional price`);
+      lines.push(`Formula: sum per vehicle (miles ÷ MPG) × regional price`);
     } else if (cat.includes("rental") || cat.includes("trailer") || cat.includes("truck")) {
       const saved = context.truckChoice
         ? resolveTruckChoiceOption(profile, context.truckChoice, miles, context.locale ?? "en", vehicles)
