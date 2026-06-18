@@ -7,6 +7,7 @@ import {
 } from "@/lib/geo/route-service";
 import { fetchOsrmRoutes, type RouteAlternative } from "@/lib/geo/coordinates";
 import { simplifyRouteCoordinates } from "@/lib/geo/simplify-coordinates";
+import type { RouteStop } from "@/lib/types";
 
 function parseCoord(value: string | null): number | undefined {
   if (!value?.trim()) return undefined;
@@ -88,6 +89,38 @@ export async function GET(req: NextRequest) {
         stopCount,
         stops: [],
         alternatives: mapAlternativesForClient(alternatives),
+        selectedRouteIndex: routeIndex,
+      });
+    }
+
+    const stopsAll = params.get("stopsAll") === "1";
+    if (stopsAll) {
+      const stopsByIndex: Record<number, RouteStop[]> = {};
+      const stopsResults = await Promise.all(
+        alternatives.map(async (alt) => {
+          const altStopCount = estimateStopCount(
+            alt.distanceMiles,
+            alt.durationHours,
+            hasPets
+          );
+          const altStops = await fetchRouteStops(
+            {
+              distanceMiles: Math.round(alt.distanceMiles),
+              durationHours: alt.durationHours,
+              driveTimeLabel: formatDriveTime(alt.durationHours),
+              stopCount: altStopCount,
+              geometry: alt,
+            },
+            profile
+          );
+          return { index: alt.index, stops: altStops };
+        })
+      );
+      for (const { index, stops: altStops } of stopsResults) {
+        stopsByIndex[index] = altStops;
+      }
+      return NextResponse.json({
+        stopsByIndex,
         selectedRouteIndex: routeIndex,
       });
     }

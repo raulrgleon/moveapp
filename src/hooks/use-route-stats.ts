@@ -5,7 +5,6 @@ import { useMove } from "@/contexts/move-context";
 import { useAuth } from "@/contexts/auth-context";
 import type { RouteStop } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
-import { dispatchProfileUpdated } from "@/lib/move/profile-events";
 
 export interface RouteBudgetDelta {
   previousEstimated: number;
@@ -39,10 +38,39 @@ interface CachedRoutePayload {
   data: RouteStatsResponse;
 }
 
+interface CachedStopsPayload {
+  at: number;
+  stopsByIndex: Record<number, RouteStop[]>;
+}
+
 const routeStatsCache = new Map<string, CachedRoutePayload>();
 const routeStatsInflight = new Map<string, Promise<RouteStatsResponse>>();
-const routeStopsCache = new Map<string, { at: number; stops: RouteStop[] }>();
-const routeStopsInflight = new Map<string, Promise<RouteStop[]>>();
+const routeStopsAllCache = new Map<string, CachedStopsPayload>();
+const routeStopsAllInflight = new Map<string, Promise<Record<number, RouteStop[]>>>();
+
+function buildRouteParams(
+  profile: {
+    origin: string;
+    destination: string;
+    originLat?: number | null;
+    originLon?: number | null;
+    pets: boolean;
+  },
+  destLat: number,
+  destLon: number,
+  extra?: Record<string, string>
+): URLSearchParams {
+  return new URLSearchParams({
+    origin: profile.origin,
+    destination: profile.destination,
+    originLat: String(profile.originLat),
+    originLon: String(profile.originLon),
+    destinationLat: String(destLat),
+    destinationLon: String(destLon),
+    pets: String(profile.pets),
+    ...extra,
+  });
+}
 
 async function fetchRouteStatsCached(
   params: URLSearchParams
@@ -73,31 +101,33 @@ async function fetchRouteStatsCached(
   return promise;
 }
 
-async function fetchRouteStopsCached(params: URLSearchParams): Promise<RouteStop[]> {
+async function fetchAllRouteStopsCached(
+  params: URLSearchParams
+): Promise<Record<number, RouteStop[]>> {
   const key = params.toString();
-  const cached = routeStopsCache.get(key);
+  const cached = routeStopsAllCache.get(key);
   if (cached && Date.now() - cached.at < CLIENT_ROUTE_CACHE_TTL_MS) {
-    return cached.stops;
+    return cached.stopsByIndex;
   }
 
-  const inflight = routeStopsInflight.get(key);
+  const inflight = routeStopsAllInflight.get(key);
   if (inflight) return inflight;
 
   const promise = fetch(`/api/route?${key}`)
     .then(async (res) => {
       if (!res.ok) throw new Error("stops failed");
-      const json = (await res.json()) as Pick<RouteStatsResponse, "stops">;
-      return json.stops;
+      const json = (await res.json()) as { stopsByIndex?: Record<number, RouteStop[]> };
+      return json.stopsByIndex ?? {};
     })
-    .then((stops) => {
-      routeStopsCache.set(key, { at: Date.now(), stops });
-      return stops;
+    .then((stopsByIndex) => {
+      routeStopsAllCache.set(key, { at: Date.now(), stopsByIndex });
+      return stopsByIndex;
     })
     .finally(() => {
-      routeStopsInflight.delete(key);
+      routeStopsAllInflight.delete(key);
     });
 
-  routeStopsInflight.set(key, promise);
+  routeStopsAllInflight.set(key, promise);
   return promise;
 }
 
@@ -128,18 +158,17 @@ function pickAlternative(
 
 export function useRouteStats() {
   const { isAuthenticated } = useAuth();
-  const { profile, lat, lon, isHydrated, profileVersion, vehicles, canEdit } = useMove();
+  const { profile, lat, lon, isHydrated, vehicles, canEdit } = useMove();
   const [baseStats, setBaseStats] = useState<Omit<
     RouteStatsResponse,
     "distanceMiles" | "durationHours" | "driveTimeLabel" | "stops" | "selectedRouteIndex"
   > | null>(null);
-  const [stops, setStops] = useState<RouteStop[]>([]);
+  const [stopsByIndex, setStopsByIndex] = useState<Record<number, RouteStop[]>>({});
   const [loading, setLoading] = useState(true);
   const [stopsLoading, setStopsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeIndex, setRouteIndexState] = useState(0);
   const routeIndexRef = useRef(0);
-  const lastStopsRouteIndexRef = useRef<number | null>(null);
 
   const destLat = profile.destinationLat ?? lat;
   const destLon = profile.destinationLon ?? lon;
@@ -166,7 +195,7 @@ export function useRouteStats() {
         /* use localStorage fallback */
       }
     })();
-  }, [isHydrated, isAuthenticated, profileVersion]);
+  }, [isHydrated, isAuthenticated]);
 
   const setRouteIndex = useCallback(
     (index: number) => {
@@ -186,7 +215,6 @@ export function useRouteStats() {
           });
           if (!res.ok) return;
           const json = (await res.json()) as { budgetDelta?: RouteBudgetDelta | null };
-          dispatchProfileUpdated();
           if (typeof window !== "undefined") {
             window.dispatchEvent(
               new CustomEvent("movepilot:budget-route-sync", {
@@ -212,7 +240,6 @@ export function useRouteStats() {
         destLat,
         destLon,
         profile.pets,
-        profileVersion,
       ].join("|"),
     [
       profile.origin,
@@ -222,7 +249,6 @@ export function useRouteStats() {
       destLat,
       destLon,
       profile.pets,
-      profileVersion,
     ]
   );
 
@@ -237,48 +263,50 @@ export function useRouteStats() {
 
     if (!hasCoords) {
       setBaseStats(null);
-      setStops([]);
+      setStopsByIndex({});
       setLoading(false);
       setError("missing_coords");
-      lastStopsRouteIndexRef.current = null;
       return;
     }
 
     let cancelled = false;
-    lastStopsRouteIndexRef.current = null;
 
     async function load() {
       setLoading(true);
+      setStopsLoading(true);
       setError(null);
+      setStopsByIndex({});
+
       try {
-        const initialIndex = routeIndexRef.current;
-        const params = new URLSearchParams({
-          origin: profile.origin,
-          destination: profile.destination,
-          originLat: String(profile.originLat),
-          originLon: String(profile.originLon),
-          destinationLat: String(destLat),
-          destinationLon: String(destLon),
-          pets: String(profile.pets),
-          routeIndex: String(initialIndex),
+        const geometryParams = buildRouteParams(profile, destLat!, destLon!, {
           geometryOnly: "1",
         });
-        const res = await fetchRouteStatsCached(params);
+        const res = await fetchRouteStatsCached(geometryParams);
         if (cancelled) return;
+
         setBaseStats({
           stopCount: res.stopCount,
           alternatives: res.alternatives,
         });
-        setStops([]);
-        lastStopsRouteIndexRef.current = null;
+        setLoading(false);
+
+        const stopsParams = buildRouteParams(profile, destLat!, destLon!, {
+          stopsAll: "1",
+          routeIndex: "0",
+        });
+        const allStops = await fetchAllRouteStopsCached(stopsParams);
+        if (!cancelled) setStopsByIndex(allStops);
       } catch {
         if (!cancelled) {
           setBaseStats(null);
-          setStops([]);
+          setStopsByIndex({});
           setError("fetch_failed");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setStopsLoading(false);
+        }
       }
     }
 
@@ -298,68 +326,12 @@ export function useRouteStats() {
     destLon,
   ]);
 
-  useEffect(() => {
-    if (!isHydrated || !baseStats?.alternatives.length) return;
-
-    const hasCoords =
-      profile.originLat != null &&
-      profile.originLon != null &&
-      destLat != null &&
-      destLon != null;
-    if (!hasCoords) return;
-
-    if (lastStopsRouteIndexRef.current === routeIndex) return;
-
-    let cancelled = false;
-
-    async function loadStopsForRoute() {
-      setStopsLoading(true);
-      try {
-        const params = new URLSearchParams({
-          origin: profile.origin,
-          destination: profile.destination,
-          originLat: String(profile.originLat),
-          originLon: String(profile.originLon),
-          destinationLat: String(destLat),
-          destinationLon: String(destLon),
-          pets: String(profile.pets),
-          routeIndex: String(routeIndex),
-          stopsOnly: "1",
-        });
-        const nextStops = await fetchRouteStopsCached(params);
-        if (!cancelled) {
-          setStops(nextStops);
-          lastStopsRouteIndexRef.current = routeIndex;
-        }
-      } catch {
-        /* keep previous stops */
-      } finally {
-        if (!cancelled) setStopsLoading(false);
-      }
-    }
-
-    void loadStopsForRoute();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    routeIndex,
-    isHydrated,
-    baseStats?.alternatives.length,
-    routeQueryKey,
-    profile.origin,
-    profile.destination,
-    profile.originLat,
-    profile.originLon,
-    profile.pets,
-    destLat,
-    destLon,
-  ]);
-
   const selectedAlternative = useMemo(
     () => pickAlternative(baseStats?.alternatives ?? [], routeIndex),
     [baseStats?.alternatives, routeIndex]
   );
+
+  const stops = stopsByIndex[routeIndex] ?? stopsByIndex[0] ?? [];
 
   const stats: RouteStatsResponse | null = useMemo(() => {
     if (!baseStats || !selectedAlternative) return null;
