@@ -98,7 +98,12 @@ export async function resolveBudgetRouteContext(
           stopCount: stats.stopCount,
           geometry: route,
         },
-        profile
+        profile,
+        {
+          vehicles,
+          rentalPreference: profile.rentalPreference,
+          vehicleCount: Math.max(1, vehicles.length),
+        }
       );
     }
   }

@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchRouteStops } from "@/lib/geo/route-stops";
+import { getSessionUser, requireMoveAccess } from "@/lib/api-auth";
+import { loadVehiclesWithMpg } from "@/lib/budget/route-context";
+import { fetchRouteStops, type RouteStopsContext } from "@/lib/geo/route-stops";
 import {
   estimateStopCount,
   formatDriveTime,
   resolveRoutePoints,
 } from "@/lib/geo/route-service";
+import { computeFuelStopMarkers } from "@/lib/geo/fuel-stop-planner";
 import { fetchOsrmRoutes, type RouteAlternative } from "@/lib/geo/coordinates";
 import { simplifyRouteCoordinates } from "@/lib/geo/simplify-coordinates";
 import type { RouteStop } from "@/lib/types";
+import { prisma } from "@/lib/prisma";
+import type { MoveProfile } from "@/lib/move-profile";
 
 function parseCoord(value: string | null): number | undefined {
   if (!value?.trim()) return undefined;
@@ -23,6 +28,53 @@ function mapAlternativesForClient(alternatives: RouteAlternative[]) {
     driveTimeLabel: formatDriveTime(alt.durationHours),
     coordinates: simplifyRouteCoordinates(alt.coordinates, 200),
   }));
+}
+
+async function resolveStopsContext(
+  req: NextRequest,
+  profile: MoveProfile
+): Promise<RouteStopsContext> {
+  const session = await getSessionUser(req);
+  if (!session) {
+    return { rentalPreference: profile.rentalPreference, locale: "en" };
+  }
+
+  const accessResult = await requireMoveAccess(req);
+  if (accessResult instanceof NextResponse) {
+    return {
+      rentalPreference: profile.rentalPreference,
+      locale: session.locale === "es" ? "es" : "en",
+    };
+  }
+
+  const { access, user } = accessResult;
+  const [vehicles, move] = await Promise.all([
+    loadVehiclesWithMpg(access.moveId),
+    prisma.move.findUnique({
+      where: { id: access.moveId },
+      select: { rentalPreference: true },
+    }),
+  ]);
+
+  return {
+    vehicles,
+    rentalPreference: move?.rentalPreference ?? profile.rentalPreference,
+    vehicleCount: Math.max(1, vehicles.length),
+    locale: user.locale === "es" ? "es" : "en",
+  };
+}
+
+function fuelStopCountForAlt(
+  alt: RouteAlternative,
+  profile: MoveProfile,
+  stopsContext: RouteStopsContext
+): number {
+  return computeFuelStopMarkers({
+    distanceMiles: alt.distanceMiles,
+    rentalPreference: stopsContext.rentalPreference ?? profile.rentalPreference,
+    vehicles: stopsContext.vehicles,
+    vehicleCount: stopsContext.vehicleCount,
+  }).length;
 }
 
 export async function GET(req: NextRequest) {
@@ -73,11 +125,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Could not compute route" }, { status: 502 });
     }
 
+    const stopsContext = await resolveStopsContext(req, profile);
+
     const selected = alternatives[routeIndex] ?? alternatives[0];
     const stopCount = estimateStopCount(
       selected.distanceMiles,
       selected.durationHours,
-      hasPets
+      hasPets,
+      fuelStopCountForAlt(selected, profile, stopsContext)
     );
     const driveTimeLabel = formatDriveTime(selected.durationHours);
 
@@ -98,20 +153,21 @@ export async function GET(req: NextRequest) {
       const stopsByIndex: Record<number, RouteStop[]> = {};
       const stopsResults = await Promise.all(
         alternatives.map(async (alt) => {
-          const altStopCount = estimateStopCount(
-            alt.distanceMiles,
-            alt.durationHours,
-            hasPets
-          );
           const altStops = await fetchRouteStops(
             {
               distanceMiles: Math.round(alt.distanceMiles),
               durationHours: alt.durationHours,
               driveTimeLabel: formatDriveTime(alt.durationHours),
-              stopCount: altStopCount,
+              stopCount: estimateStopCount(
+                alt.distanceMiles,
+                alt.durationHours,
+                hasPets,
+                fuelStopCountForAlt(alt, profile, stopsContext)
+              ),
               geometry: alt,
             },
-            profile
+            profile,
+            stopsContext
           );
           return { index: alt.index, stops: altStops };
         })
@@ -133,7 +189,8 @@ export async function GET(req: NextRequest) {
         stopCount,
         geometry: selected,
       },
-      profile
+      profile,
+      stopsContext
     );
 
     if (stopsOnly) {

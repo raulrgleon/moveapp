@@ -20,7 +20,7 @@ export interface FuelCostInput {
   locale?: "en" | "es";
 }
 
-function mpgForRental(rentalKey: RentalPreferenceKey, vehicles: VehicleInfo[]): number {
+export function mpgForRental(rentalKey: RentalPreferenceKey, vehicles: VehicleInfo[]): number {
   switch (rentalKey) {
     case "truck":
       return 10;
@@ -42,7 +42,7 @@ function mpgForRental(rentalKey: RentalPreferenceKey, vehicles: VehicleInfo[]): 
   }
 }
 
-function drivenVehicleCount(rentalKey: RentalPreferenceKey, vehicleCount: number, vehicles: VehicleInfo[]): number {
+export function drivenVehicleCount(rentalKey: RentalPreferenceKey, vehicleCount: number, vehicles: VehicleInfo[]): number {
   if (rentalKey === "truck") return 1;
   if (rentalKey === "movers") return 0;
   const count = vehicles.length || vehicleCount;

@@ -30,9 +30,13 @@ export function formatDriveTime(hours: number): string {
 export function estimateStopCount(
   distanceMiles: number,
   durationHours: number,
-  hasPets: boolean
+  hasPets: boolean,
+  fuelStopCount?: number
 ): number {
-  const gasStops = Math.max(1, Math.floor(distanceMiles / 350));
+  const gasStops =
+    fuelStopCount != null
+      ? fuelStopCount
+      : Math.max(1, Math.floor(distanceMiles / 350));
   const overnight = durationHours > 10 ? Math.ceil(durationHours / 10) - 1 : 0;
   const petStops = hasPets && durationHours > 6 ? 1 : 0;
   return gasStops + overnight + petStops;

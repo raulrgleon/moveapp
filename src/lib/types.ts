@@ -95,6 +95,8 @@ export interface RouteStop {
   lon?: number;
   estimatedPrice?: number;
   gasPricePerGallon?: number;
+  /** True for EV charging stops along the route. */
+  isElectric?: boolean;
 }
 
 export interface CityMetric {

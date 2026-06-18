@@ -1,45 +1,69 @@
 import type { RouteStats } from "@/lib/geo/route-service";
 import { fetchNearbyGasStation, fetchNearbyHotel, pointAlongRouteByMiles } from "@/lib/geo/route-pois";
+import {
+  computeFuelStopMarkers,
+  formatFuelStopNote,
+} from "@/lib/geo/fuel-stop-planner";
 import { fetchLiveRegularGasPrice } from "@/lib/budget/gas-prices";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { RouteStop } from "@/lib/types";
+import type { VehicleInfo } from "@/lib/vehicles/types";
+
+export interface RouteStopsContext {
+  vehicles?: VehicleInfo[];
+  rentalPreference?: string;
+  vehicleCount?: number;
+  locale?: "en" | "es";
+}
 
 function originShortLabel(profile: MoveProfile): string {
   return profile.origin.split(",")[0]?.trim() || "origin";
 }
 
-function gasMileMarkers(miles: number): number[] {
-  const gasInterval = Math.max(250, Math.floor(miles / Math.max(2, Math.floor(miles / 350))));
-  const markers: number[] = [];
-  for (let mile = gasInterval; mile < miles; mile += gasInterval) {
-    markers.push(mile);
-    if (markers.length >= 4) break;
-  }
-  return markers;
+function fuelMarkersForRoute(
+  stats: RouteStats,
+  profile: MoveProfile,
+  context?: RouteStopsContext
+) {
+  return computeFuelStopMarkers({
+    distanceMiles: stats.distanceMiles,
+    rentalPreference: context?.rentalPreference ?? profile.rentalPreference,
+    vehicles: context?.vehicles,
+    vehicleCount: context?.vehicleCount,
+  });
 }
 
 function generateFallbackStops(
   stats: RouteStats,
   profile: MoveProfile,
-  coordinates?: [number, number][]
+  coordinates?: [number, number][],
+  context?: RouteStopsContext
 ): RouteStop[] {
   const stops: RouteStop[] = [];
   const miles = stats.distanceMiles;
   const days = Math.max(1, Math.ceil(stats.durationHours / 8));
   const originLabel = originShortLabel(profile);
+  const locale = context?.locale ?? "en";
+  const fuelMarkers = fuelMarkersForRoute(stats, profile, context);
 
-  for (const mile of gasMileMarkers(miles)) {
+  for (const marker of fuelMarkers) {
+    const mile = marker.mile;
     const point = coordinates?.length ? pointAlongRouteByMiles(coordinates, mile) : null;
     stops.push({
       id: `gas-${mile}`,
       type: "gas",
-      name: "Fuel & rest stop",
-      location: point
-        ? `~${mile} mi from ${originLabel}`
-        : `~${mile} mi from ${originLabel}`,
+      name: marker.isElectric
+        ? locale === "es"
+          ? "Parada de recarga"
+          : "EV charging stop"
+        : locale === "es"
+          ? "Gasolinera"
+          : "Fuel stop",
+      location: `~${mile} mi from ${originLabel}`,
       lat: point?.lat,
       lon: point?.lon,
-      notes: "Plan a 20–30 min break for fuel and stretch.",
+      isElectric: marker.isElectric,
+      notes: formatFuelStopNote(marker, mile, originLabel, locale),
     });
   }
 
@@ -61,8 +85,9 @@ function generateFallbackStops(
     }
   }
 
-  if (stops.length === 0) {
-    const mile = miles / 2;
+  if (stops.length === 0 && miles >= 80) {
+    const marker = fuelMarkersForRoute(stats, profile, context)[0];
+    const mile = marker?.mile ?? miles / 2;
     const point = coordinates?.length ? pointAlongRouteByMiles(coordinates, mile) : null;
     stops.push({
       id: "rest-mid",
@@ -71,21 +96,25 @@ function generateFallbackStops(
       location: `~${Math.round(mile)} mi`,
       lat: point?.lat,
       lon: point?.lon,
-      notes: "Short break halfway through your drive.",
+      notes: marker
+        ? formatFuelStopNote(marker, Math.round(mile), originLabel, locale)
+        : "Short break halfway through your drive.",
+      isElectric: marker?.isElectric,
     });
   }
 
-  return stops.slice(0, 8);
+  return stops.slice(0, 10);
 }
 
-/** Resolve real gas stations and hotels along the OSRM route geometry. */
+/** Resolve gas/charging and hotels along the OSRM route geometry. */
 export async function fetchRouteStops(
   stats: RouteStats,
-  profile: MoveProfile
+  profile: MoveProfile,
+  context?: RouteStopsContext
 ): Promise<RouteStop[]> {
   const coords = stats.geometry?.coordinates;
   if (!coords?.length || coords.length < 2) {
-    return generateFallbackStops(stats, profile);
+    return generateFallbackStops(stats, profile, undefined, context);
   }
 
   const miles = stats.distanceMiles;
@@ -94,19 +123,26 @@ export async function fetchRouteStops(
   const usedIds = new Set<string>();
   const liveGas = await fetchLiveRegularGasPrice();
   const originLabel = originShortLabel(profile);
+  const locale = context?.locale ?? "en";
+  const fuelMarkers = fuelMarkersForRoute(stats, profile, context);
 
   const gasResults = await Promise.all(
-    gasMileMarkers(miles).map(async (mile) => {
-      const point = pointAlongRouteByMiles(coords, mile);
+    fuelMarkers.map(async (marker) => {
+      const point = pointAlongRouteByMiles(coords, marker.mile);
       if (!point) return null;
-      const poi = await fetchNearbyGasStation(point.lat, point.lon, usedIds, liveGas);
-      return { mile, point, poi };
+      const poi = marker.isElectric
+        ? null
+        : await fetchNearbyGasStation(point.lat, point.lon, usedIds, liveGas);
+      return { marker, point, poi };
     })
   );
 
   for (const result of gasResults) {
     if (!result) continue;
-    const { mile, point, poi } = result;
+    const { marker, point, poi } = result;
+    const mile = marker.mile;
+    const note = formatFuelStopNote(marker, mile, originLabel, locale);
+
     if (poi) {
       stops.push({
         id: `gas-${poi.osmId}`,
@@ -116,18 +152,26 @@ export async function fetchRouteStops(
         lat: poi.lat,
         lon: poi.lon,
         gasPricePerGallon: poi.gasPricePerGallon,
-        notes: `~${mile} mi from ${originLabel} · $${poi.gasPricePerGallon.toFixed(2)}/gal · 20–30 min break`,
+        isElectric: false,
+        notes: `${note} · $${poi.gasPricePerGallon.toFixed(2)}/gal`,
       });
     } else {
       stops.push({
         id: `gas-route-${mile}`,
         type: "gas",
-        name: "Fuel & rest stop",
+        name: marker.isElectric
+          ? locale === "es"
+            ? "Parada de recarga"
+            : "EV charging stop"
+          : locale === "es"
+            ? "Gasolinera recomendada"
+            : "Recommended fuel stop",
         location: `~${mile} mi from ${originLabel}`,
         lat: point.lat,
         lon: point.lon,
-        gasPricePerGallon: liveGas,
-        notes: `~${mile} mi from ${originLabel} · Plan a fuel stop along your route`,
+        gasPricePerGallon: marker.isElectric ? undefined : liveGas,
+        isElectric: marker.isElectric,
+        notes: note,
       });
     }
   }
@@ -178,42 +222,17 @@ export async function fetchRouteStops(
   }
 
   if (stops.length === 0) {
-    const mid = pointAlongRouteByMiles(coords, miles / 2);
-    if (mid) {
-      const gas = await fetchNearbyGasStation(mid.lat, mid.lon, usedIds, liveGas);
-      if (gas) {
-        stops.push({
-          id: `rest-${gas.osmId}`,
-          type: "rest",
-          name: gas.name,
-          location: gas.location,
-          lat: gas.lat,
-          lon: gas.lon,
-          gasPricePerGallon: gas.gasPricePerGallon,
-          notes: "Mid-route break",
-        });
-      } else {
-        stops.push({
-          id: "rest-mid",
-          type: "rest",
-          name: "Mid-route rest stop",
-          location: `~${Math.round(miles / 2)} mi`,
-          lat: mid.lat,
-          lon: mid.lon,
-          notes: "Short break halfway through your drive.",
-        });
-      }
-    }
+    return generateFallbackStops(stats, profile, coords, context);
   }
 
-  if (stops.length === 0) {
-    return generateFallbackStops(stats, profile, coords);
-  }
-
-  return stops.slice(0, 8);
+  return stops.slice(0, 10);
 }
 
 /** @deprecated Use fetchRouteStops for real POI data. Kept for sync callers. */
-export function generateRouteStops(stats: RouteStats, profile: MoveProfile): RouteStop[] {
-  return generateFallbackStops(stats, profile, stats.geometry?.coordinates);
+export function generateRouteStops(
+  stats: RouteStats,
+  profile: MoveProfile,
+  context?: RouteStopsContext
+): RouteStop[] {
+  return generateFallbackStops(stats, profile, stats.geometry?.coordinates, context);
 }

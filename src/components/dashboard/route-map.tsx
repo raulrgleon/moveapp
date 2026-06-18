@@ -49,10 +49,9 @@ function createWeatherDivIcon(
   });
 }
 
-function stopEmoji(type: RouteStop["type"]): string {
+function stopEmoji(type: RouteStop["type"], isElectric?: boolean): string {
+  if (type === "gas") return isElectric ? "⚡" : "⛽";
   switch (type) {
-    case "gas":
-      return "⛽";
     case "hotel":
       return "🏨";
     case "pet_hotel":
@@ -318,7 +317,7 @@ export function RouteMap({
       Lmod.marker([stop.lat, stop.lon], {
         icon: Lmod.divIcon({
           className: "route-stop-marker-wrap",
-          html: `<div class="route-stop-marker">${stopEmoji(stop.type)}</div>`,
+          html: `<div class="route-stop-marker">${stopEmoji(stop.type, stop.isElectric)}</div>`,
           iconSize: [28, 28],
           iconAnchor: [14, 14],
         }),
