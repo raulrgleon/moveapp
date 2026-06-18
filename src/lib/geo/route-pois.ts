@@ -76,23 +76,35 @@ function isPetFriendly(tags: Record<string, string>): boolean {
   return petTags.some((v) => v === "yes" || v === "allowed");
 }
 
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
 async function queryOverpass(ql: string): Promise<OverpassElement[]> {
-  try {
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": USER_AGENT,
-      },
-      body: `data=${encodeURIComponent(ql)}`,
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { elements?: OverpassElement[] };
-    return json.elements ?? [];
-  } catch {
-    return [];
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10_000);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": USER_AGENT,
+        },
+        body: `data=${encodeURIComponent(ql)}`,
+        signal: controller.signal,
+        next: { revalidate: 3600 },
+      });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const json = (await res.json()) as { elements?: OverpassElement[] };
+      return json.elements ?? [];
+    } catch {
+      /* try next mirror */
+    }
   }
+  return [];
 }
 
 async function reverseGeocodeLabel(lat: number, lon: number): Promise<string> {
@@ -148,15 +160,17 @@ function pickClosestNamed(
   lat: number,
   lon: number,
   usedIds: Set<string>,
-  preferPetFriendly = false
+  options?: { preferPetFriendly?: boolean; fallbackName?: string }
 ): OverpassElement | null {
+  const preferPetFriendly = options?.preferPetFriendly ?? false;
+  const fallbackName = options?.fallbackName ?? "Place";
   const candidates = elements
     .map((el) => {
       const coords = elementCoords(el);
       if (!coords || !el.tags) return null;
       const id = `${el.type}/${el.id}`;
       if (usedIds.has(id)) return null;
-      const name = formatOsmName(el.tags, "");
+      const name = formatOsmName(el.tags, fallbackName);
       if (!name) return null;
       const dist = haversineMiles({ lat, lon }, coords);
       const petScore = preferPetFriendly && isPetFriendly(el.tags) ? 0 : preferPetFriendly ? 5 : 0;
@@ -188,7 +202,9 @@ export async function fetchNearbyGasStation(
 out center tags 8;`;
 
   const elements = await queryOverpass(ql);
-  const picked = pickClosestNamed(elements, lat, lon, usedIds);
+  const picked = pickClosestNamed(elements, lat, lon, usedIds, {
+    fallbackName: "Gas station",
+  });
   if (!picked?.tags) return null;
 
   const coords = elementCoords(picked)!;
@@ -231,7 +247,10 @@ export async function fetchNearbyHotel(
 out center tags 10;`;
 
   const elements = await queryOverpass(ql);
-  const picked = pickClosestNamed(elements, lat, lon, usedIds, petFriendly);
+  const picked = pickClosestNamed(elements, lat, lon, usedIds, {
+    preferPetFriendly: petFriendly,
+    fallbackName: petFriendly ? "Pet-friendly hotel" : "Hotel",
+  });
   if (!picked?.tags) return null;
 
   const coords = elementCoords(picked)!;
