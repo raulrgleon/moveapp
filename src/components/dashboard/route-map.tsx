@@ -311,9 +311,19 @@ export function RouteMap({
         stop.estimatedPrice != null && stop.estimatedPrice > 0
           ? `<br>~$${escapeHtml(String(stop.estimatedPrice))}/night`
           : "";
-      const notesLine = stop.notes
-        ? `<br><small>${escapeHtml(stop.notes)}</small>`
-        : "";
+      const fuelLines =
+        stop.vehicleFills?.length && (stop.type === "gas" || stop.type === "rest")
+          ? `<br><small>${stop.vehicleFills
+              .map((fill) => {
+                if (fill.isElectric && fill.kwhToCharge != null) {
+                  return `${escapeHtml(fill.vehicleLabel)}: ~${fill.kwhToCharge} kWh`;
+                }
+                return `${escapeHtml(fill.vehicleLabel)}: ${fill.gallonsToFill.toFixed(1)} gal`;
+              })
+              .join("<br>")}</small>`
+          : "";
+      const notesLine =
+        stop.notes && !fuelLines ? `<br><small>${escapeHtml(stop.notes)}</small>` : "";
       Lmod.marker([stop.lat, stop.lon], {
         icon: Lmod.divIcon({
           className: "route-stop-marker-wrap",
@@ -325,7 +335,7 @@ export function RouteMap({
       })
         .addTo(layer)
         .bindPopup(
-          `<strong>${escapeHtml(stop.name)}</strong><br>${escapeHtml(stop.location)}${priceLine}${notesLine}`
+          `<strong>${escapeHtml(stop.name)}</strong><br>${escapeHtml(stop.location)}${priceLine}${fuelLines}${notesLine}`
         );
     }
 

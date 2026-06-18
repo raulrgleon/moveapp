@@ -377,7 +377,30 @@ export default function RoutePage() {
                             ${stop.gasPricePerGallon.toFixed(2)}/gal · {t("routePage.liveGasPrice")}
                           </p>
                         )}
-                        {stop.notes && (
+                        {stop.vehicleFills && stop.vehicleFills.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs font-medium text-foreground">
+                              {t("routePage.fuelPerVehicle")}
+                            </p>
+                            <ul className="text-xs text-muted-foreground space-y-0.5">
+                              {stop.vehicleFills.map((fill) => (
+                                <li key={fill.vehicleLabel}>
+                                  {fill.isElectric && fill.kwhToCharge != null
+                                    ? `${fill.vehicleLabel}: ${t("routePage.kwhAtStop", { kwh: fill.kwhToCharge })}`
+                                    : `${fill.vehicleLabel}: ${fill.gallonsToFill.toFixed(1)} gal · ${fill.tankGallons.toFixed(0)} gal tank · ${fill.mpg} MPG`}
+                                </li>
+                              ))}
+                            </ul>
+                            {stop.totalGallonsAtStop != null && stop.totalGallonsAtStop > 0 && (
+                              <p className="text-xs font-medium text-foreground">
+                                {t("routePage.totalFuelAtStop", {
+                                  gallons: stop.totalGallonsAtStop.toFixed(1),
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {stop.notes && !stop.vehicleFills?.length && (
                           <p className="text-xs text-muted-foreground mt-1">{stop.notes}</p>
                         )}
                         <a

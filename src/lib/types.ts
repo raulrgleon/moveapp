@@ -97,6 +97,19 @@ export interface RouteStop {
   gasPricePerGallon?: number;
   /** True for EV charging stops along the route. */
   isElectric?: boolean;
+  /** Per-vehicle fuel/charge needed at this stop. */
+  vehicleFills?: VehicleFuelFill[];
+  /** Total gallons for all gas vehicles at this stop. */
+  totalGallonsAtStop?: number;
+}
+
+export interface VehicleFuelFill {
+  vehicleLabel: string;
+  mpg: number;
+  tankGallons: number;
+  gallonsToFill: number;
+  kwhToCharge?: number;
+  isElectric: boolean;
 }
 
 export interface CityMetric {

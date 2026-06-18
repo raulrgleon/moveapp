@@ -33,6 +33,14 @@ function fuelMarkersForRoute(
   });
 }
 
+function fuelFieldsFromMarker(marker: ReturnType<typeof computeFuelStopMarkers>[number]) {
+  return {
+    vehicleFills: marker.vehicleFills,
+    totalGallonsAtStop: marker.gallonsNeeded,
+    isElectric: marker.isElectric,
+  };
+}
+
 function generateFallbackStops(
   stats: RouteStats,
   profile: MoveProfile,
@@ -62,8 +70,8 @@ function generateFallbackStops(
       location: `~${mile} mi from ${originLabel}`,
       lat: point?.lat,
       lon: point?.lon,
-      isElectric: marker.isElectric,
       notes: formatFuelStopNote(marker, mile, originLabel, locale),
+      ...fuelFieldsFromMarker(marker),
     });
   }
 
@@ -99,7 +107,7 @@ function generateFallbackStops(
       notes: marker
         ? formatFuelStopNote(marker, Math.round(mile), originLabel, locale)
         : "Short break halfway through your drive.",
-      isElectric: marker?.isElectric,
+      ...(marker ? fuelFieldsFromMarker(marker) : {}),
     });
   }
 
@@ -152,8 +160,8 @@ export async function fetchRouteStops(
         lat: poi.lat,
         lon: poi.lon,
         gasPricePerGallon: poi.gasPricePerGallon,
-        isElectric: false,
         notes: `${note} · $${poi.gasPricePerGallon.toFixed(2)}/gal`,
+        ...fuelFieldsFromMarker(marker),
       });
     } else {
       stops.push({
@@ -170,8 +178,8 @@ export async function fetchRouteStops(
         lat: point.lat,
         lon: point.lon,
         gasPricePerGallon: marker.isElectric ? undefined : liveGas,
-        isElectric: marker.isElectric,
         notes: note,
+        ...fuelFieldsFromMarker(marker),
       });
     }
   }

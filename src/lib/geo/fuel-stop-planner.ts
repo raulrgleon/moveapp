@@ -1,5 +1,6 @@
 import type { RentalPreferenceKey } from "@/lib/move-profile";
 import { parseRentalPreferenceKey } from "@/lib/move-profile";
+import type { VehicleFuelFill } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import { mpgForVehicle } from "@/lib/vehicles/fuel-economy";
 import { drivenVehicleCount, mpgForRental } from "@/lib/budget/fuel-cost";
@@ -8,6 +9,7 @@ import { drivenVehicleCount, mpgForRental } from "@/lib/budget/fuel-cost";
 const FUEL_RESERVE_FRACTION = 0.15;
 const MAX_FUEL_STOPS = 8;
 const MIN_MILES_BEFORE_DEST = 25;
+const KWH_PER_GALLON_GAS = 33.7;
 
 export interface FuelStopMarker {
   mile: number;
@@ -16,6 +18,8 @@ export interface FuelStopMarker {
   gallonsNeeded: number;
   isElectric: boolean;
   vehicleLabel: string;
+  vehicleFills: VehicleFuelFill[];
+  legMiles: number;
 }
 
 export interface FuelStopPlannerInput {
@@ -23,6 +27,14 @@ export interface FuelStopPlannerInput {
   rentalPreference: string;
   vehicles?: VehicleInfo[];
   vehicleCount?: number;
+}
+
+interface VehicleFuelProfile {
+  vehicleLabel: string;
+  mpg: number;
+  tankGallons: number;
+  isElectric: boolean;
+  usableRangeMiles: number;
 }
 
 function isElectricVehicle(vehicle: VehicleInfo): boolean {
@@ -33,7 +45,7 @@ function vehicleHaystack(vehicle: VehicleInfo): string {
   return `${vehicle.make} ${vehicle.model} ${vehicle.displayLabel}`.toLowerCase();
 }
 
-/** Estimated usable tank (gallons) when EPA does not provide it. */
+/** Estimated tank capacity (gallons) when EPA does not provide it. */
 export function estimateTankGallons(
   vehicle: VehicleInfo | null,
   rentalKey: RentalPreferenceKey
@@ -104,75 +116,105 @@ function drivingVehicles(
   return configured.length ? configured : vehicles.filter((v) => v.make?.trim() && v.model?.trim());
 }
 
-interface LegRange {
-  milesPerLeg: number;
-  mpg: number;
-  tankGallons: number;
-  isElectric: boolean;
-  vehicleLabel: string;
-  gallonsPerLeg: number;
-}
-
-function computeLegRange(
+function buildVehicleProfiles(
   rentalKey: RentalPreferenceKey,
   vehicles: VehicleInfo[],
   vehicleCount: number
-): LegRange | null {
+): VehicleFuelProfile[] {
   if (rentalKey === "movers" || drivenVehicleCount(rentalKey, vehicleCount, vehicles) === 0) {
-    return null;
+    return [];
   }
 
   const drivers = drivingVehicles(rentalKey, vehicles);
   if (!drivers.length) {
     const mpg = mpgForRental(rentalKey, vehicles);
     const tank = estimateTankGallons(null, rentalKey);
-    const milesPerLeg = tank * mpg * (1 - FUEL_RESERVE_FRACTION);
-    return {
-      milesPerLeg,
-      mpg,
-      tankGallons: tank,
-      isElectric: false,
-      vehicleLabel: rentalKey === "truck" ? "Rental truck" : "Your vehicle",
-      gallonsPerLeg: tank * (1 - FUEL_RESERVE_FRACTION),
-    };
+    return [
+      {
+        vehicleLabel: rentalKey === "truck" ? "Rental truck" : "Your vehicle",
+        mpg,
+        tankGallons: tank,
+        isElectric: false,
+        usableRangeMiles: tank * mpg * (1 - FUEL_RESERVE_FRACTION),
+      },
+    ];
   }
 
-  const legs = drivers.map((vehicle) => {
+  return drivers.map((vehicle) => {
     const mpg = mpgForDrivingVehicle(vehicle, rentalKey);
     if (isElectricVehicle(vehicle)) {
       const range = evRangeMiles(vehicle);
-      const milesPerLeg = range * (1 - FUEL_RESERVE_FRACTION);
       return {
-        milesPerLeg,
+        vehicleLabel: vehicle.displayLabel,
         mpg,
         tankGallons: range / Math.max(mpg, 1),
         isElectric: true,
-        vehicleLabel: vehicle.displayLabel,
-        gallonsPerLeg: milesPerLeg / Math.max(mpg, 1),
+        usableRangeMiles: range * (1 - FUEL_RESERVE_FRACTION),
       };
     }
     const tank = estimateTankGallons(vehicle, rentalKey);
-    const milesPerLeg = tank * mpg * (1 - FUEL_RESERVE_FRACTION);
     return {
-      milesPerLeg,
+      vehicleLabel: vehicle.displayLabel,
       mpg,
       tankGallons: tank,
       isElectric: false,
-      vehicleLabel: vehicle.displayLabel,
-      gallonsPerLeg: tank * (1 - FUEL_RESERVE_FRACTION),
+      usableRangeMiles: tank * mpg * (1 - FUEL_RESERVE_FRACTION),
     };
   });
+}
 
-  const limiting = legs.reduce((min, leg) => (leg.milesPerLeg < min.milesPerLeg ? leg : min));
-  const gallonsPerLeg = legs.reduce((sum, leg) => sum + leg.gallonsPerLeg, 0);
+function fillsForLeg(profiles: VehicleFuelProfile[], legMiles: number): VehicleFuelFill[] {
+  return profiles.map((profile) => {
+    if (profile.isElectric) {
+      const kwhToCharge =
+        Math.round(legMiles * (KWH_PER_GALLON_GAS / Math.max(profile.mpg, 1)) * 10) / 10;
+      return {
+        vehicleLabel: profile.vehicleLabel,
+        mpg: profile.mpg,
+        tankGallons: profile.tankGallons,
+        gallonsToFill: 0,
+        kwhToCharge: kwhToCharge,
+        isElectric: true,
+      };
+    }
+    const consumed = legMiles / profile.mpg;
+    const gallonsToFill = Math.min(
+      profile.tankGallons * (1 - FUEL_RESERVE_FRACTION),
+      Math.round(consumed * 10) / 10
+    );
+    return {
+      vehicleLabel: profile.vehicleLabel,
+      mpg: profile.mpg,
+      tankGallons: profile.tankGallons,
+      gallonsToFill,
+      isElectric: false,
+    };
+  });
+}
+
+function summarizeMarker(profiles: VehicleFuelProfile[], fills: VehicleFuelFill[]): {
+  mpg: number;
+  tankGallons: number;
+  gallonsNeeded: number;
+  vehicleLabel: string;
+  isElectric: boolean;
+} {
+  const limiting = profiles.reduce((min, p) =>
+    p.usableRangeMiles < min.usableRangeMiles ? p : min
+  );
+  const gasFills = fills.filter((f) => !f.isElectric);
+  const gallonsNeeded = gasFills.reduce((sum, f) => sum + f.gallonsToFill, 0);
+  const allElectric = fills.every((f) => f.isElectric);
 
   return {
-    ...limiting,
-    gallonsPerLeg: Math.round(gallonsPerLeg * 10) / 10,
+    mpg: limiting.mpg,
+    tankGallons: limiting.tankGallons,
+    gallonsNeeded: Math.round(gallonsNeeded * 10) / 10,
+    isElectric: allElectric,
     vehicleLabel:
-      drivers.length === 1
-        ? limiting.vehicleLabel
-        : `${drivers.length} vehicles (${limiting.vehicleLabel} limits range)`,
+      profiles.length === 1
+        ? profiles[0].vehicleLabel
+        : `${profiles.length} vehicles`,
   };
 }
 
@@ -185,22 +227,30 @@ export function computeFuelStopMarkers(input: FuelStopPlannerInput): FuelStopMar
   const vehicles = input.vehicles ?? [];
   const vehicleCount = input.vehicleCount ?? Math.max(1, vehicles.length);
 
-  const leg = computeLegRange(rentalKey, vehicles, vehicleCount);
-  if (!leg || leg.milesPerLeg < 40) return [];
+  const profiles = buildVehicleProfiles(rentalKey, vehicles, vehicleCount);
+  if (!profiles.length) return [];
+
+  const milesPerLeg = Math.min(...profiles.map((p) => p.usableRangeMiles));
+  if (milesPerLeg < 40) return [];
 
   const markers: FuelStopMarker[] = [];
-  let mile = leg.milesPerLeg;
+  let mile = milesPerLeg;
+  let prevMile = 0;
 
   while (mile < miles - MIN_MILES_BEFORE_DEST && markers.length < MAX_FUEL_STOPS) {
+    const legMiles = mile - prevMile;
+    const vehicleFills = fillsForLeg(profiles, legMiles);
+    const summary = summarizeMarker(profiles, vehicleFills);
+
     markers.push({
       mile: Math.round(mile),
-      mpg: leg.mpg,
-      tankGallons: leg.tankGallons,
-      gallonsNeeded: leg.gallonsPerLeg,
-      isElectric: leg.isElectric,
-      vehicleLabel: leg.vehicleLabel,
+      legMiles: Math.round(legMiles),
+      vehicleFills,
+      ...summary,
     });
-    mile += leg.milesPerLeg;
+
+    prevMile = mile;
+    mile += milesPerLeg;
   }
 
   return markers;
@@ -210,18 +260,45 @@ export function computeFuelStopMiles(input: FuelStopPlannerInput): number[] {
   return computeFuelStopMarkers(input).map((m) => m.mile);
 }
 
+function formatVehicleFillLine(fill: VehicleFuelFill, locale: "en" | "es"): string {
+  if (fill.isElectric && fill.kwhToCharge != null) {
+    return locale === "es"
+      ? `${fill.vehicleLabel}: ~${fill.kwhToCharge} kWh`
+      : `${fill.vehicleLabel}: ~${fill.kwhToCharge} kWh`;
+  }
+  return locale === "es"
+    ? `${fill.vehicleLabel}: ${fill.gallonsToFill.toFixed(1)} gal (tanque ${fill.tankGallons.toFixed(0)} gal · ${fill.mpg} MPG)`
+    : `${fill.vehicleLabel}: ${fill.gallonsToFill.toFixed(1)} gal (${fill.tankGallons.toFixed(0)} gal tank · ${fill.mpg} MPG)`;
+}
+
 export function formatFuelStopNote(
   marker: FuelStopMarker,
   mile: number,
   originLabel: string,
   locale: "en" | "es" = "en"
 ): string {
+  const reservePct = Math.round(FUEL_RESERVE_FRACTION * 100);
+  const perVehicle = marker.vehicleFills.map((f) => formatVehicleFillLine(f, locale)).join(" · ");
+
   if (marker.isElectric) {
-    return locale === "es"
-      ? `~${mile} mi · Recarga (~${Math.round(marker.gallonsNeeded * 33.7)} kWh equiv.) · ${marker.vehicleLabel} · ~${Math.round(marker.mpg)} MPGe`
-      : `~${mile} mi · Charge stop (~${Math.round(marker.gallonsNeeded * 33.7)} kWh equiv.) · ${marker.vehicleLabel} · ~${Math.round(marker.mpg)} MPGe`;
+    const header =
+      locale === "es"
+        ? `~${mile} mi · Recarga (${marker.legMiles} mi desde la última parada)`
+        : `~${mile} mi · Charge stop (${marker.legMiles} mi since last stop)`;
+    return `${header} · ${perVehicle}`;
   }
-  return locale === "es"
-    ? `~${mile} mi desde ${originLabel} · ~${marker.gallonsNeeded.toFixed(0)} gal (${marker.vehicleLabel}, ~${marker.mpg} MPG) · Repostar con ~${Math.round(FUEL_RESERVE_FRACTION * 100)}% restante`
-    : `~${mile} mi from ${originLabel} · ~${marker.gallonsNeeded.toFixed(0)} gal (${marker.vehicleLabel}, ~${marker.mpg} MPG) · Refuel with ~${Math.round(FUEL_RESERVE_FRACTION * 100)}% tank left`;
+
+  const header =
+    locale === "es"
+      ? `~${mile} mi desde ${originLabel} · ${marker.legMiles} mi en este tramo · Repostar con ~${reservePct}% restante`
+      : `~${mile} mi from ${originLabel} · ${marker.legMiles} mi leg · Refuel from ~${reservePct}% left`;
+
+  return `${header} · ${perVehicle}`;
+}
+
+export function formatFuelStopPopupLines(
+  marker: FuelStopMarker,
+  locale: "en" | "es" = "en"
+): string[] {
+  return marker.vehicleFills.map((fill) => formatVehicleFillLine(fill, locale));
 }
