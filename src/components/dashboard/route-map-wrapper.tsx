@@ -15,6 +15,7 @@ interface RouteMapWrapperProps {
   selectedRouteIndex?: number;
   onSelectRoute?: (index: number) => void;
   stops?: RouteStop[];
+  expanded?: boolean;
 }
 
 export function RouteMapWrapper({
@@ -24,6 +25,7 @@ export function RouteMapWrapper({
   selectedRouteIndex = 0,
   onSelectRoute,
   stops,
+  expanded = false,
 }: RouteMapWrapperProps) {
   const { profile, isAddressConfirmed, destinationAddress, lat, lon } = useMove();
 
@@ -62,6 +64,7 @@ export function RouteMapWrapper({
       selectedRouteIndex={selectedRouteIndex}
       onSelectRoute={onSelectRoute}
       stops={stops}
+      expanded={expanded}
     />
   );
 }

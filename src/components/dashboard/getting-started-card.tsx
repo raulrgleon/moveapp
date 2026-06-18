@@ -7,6 +7,7 @@ import { useChecklist } from "@/contexts/checklist-context";
 import { useInventory } from "@/contexts/inventory-context";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
+import { useUtilityPicks } from "@/hooks/use-utility-picks";
 import {
   buildGettingStartedSteps,
   gettingStartedProgress,
@@ -18,9 +19,16 @@ import { cn } from "@/lib/utils";
 
 export function GettingStartedCard() {
   const t = useT();
-  const { profile, isAddressConfirmed } = useMove();
+  const { profile, isAddressConfirmed, truckChoice } = useMove();
   const { tasks } = useChecklist();
   const { boxes } = useInventory();
+  const { count: utilityPickCount } = useUtilityPicks();
+
+  const hasRouteCoords =
+    profile.originLat != null &&
+    profile.originLon != null &&
+    profile.destinationLat != null &&
+    profile.destinationLon != null;
 
   const steps = useMemo(
     () =>
@@ -29,8 +37,11 @@ export function GettingStartedCard() {
         isAddressConfirmed,
         tasks,
         boxesCount: boxes.length,
+        truckChoice,
+        hasRouteCoords,
+        utilityPickCount,
       }),
-    [profile, isAddressConfirmed, tasks, boxes.length]
+    [profile, isAddressConfirmed, tasks, boxes.length, truckChoice, hasRouteCoords, utilityPickCount]
   );
 
   const progress = useMemo(() => gettingStartedProgress(steps), [steps]);

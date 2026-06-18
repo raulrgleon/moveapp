@@ -14,6 +14,8 @@ import { loadUserData, type UserDataPayload } from "@/lib/data-cache";
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { formatDestinationLabel } from "@/lib/geo/nominatim";
 import { refreshMoveData, subscribeProfileUpdated } from "@/lib/move/refresh-data";
+import { dispatchProfileUpdated } from "@/lib/move/profile-events";
+import { storeRouteIndex } from "@/hooks/use-route-stats";
 import {
   DEFAULT_PROFILE,
   geocodeQuery,
@@ -106,6 +108,9 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     setVehiclesState(data.vehicles.length ? data.vehicles : []);
     setTruckChoiceState(data.truckChoice ?? null);
     setVehicleTransportChoiceState(data.vehicleTransportChoice ?? null);
+    if (typeof data.selectedRouteIndex === "number") {
+      storeRouteIndex(data.selectedRouteIndex);
+    }
     if (data.isAddressConfirmed && data.destinationAddress) {
       setConfirmed({
         displayName: data.destinationAddress,

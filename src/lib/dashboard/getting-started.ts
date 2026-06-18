@@ -1,5 +1,6 @@
 import type { MoveProfile } from "@/lib/move-profile";
 import type { ChecklistTask } from "@/lib/types";
+import { buildJourneySteps, journeyProgress } from "@/lib/dashboard/journey-steps";
 
 export interface GettingStartedStep {
   id: string;
@@ -13,53 +14,24 @@ export function buildGettingStartedSteps(input: {
   isAddressConfirmed: boolean;
   tasks: ChecklistTask[];
   boxesCount: number;
+  truckChoice?: string | null;
+  hasRouteCoords?: boolean;
+  utilityPickCount?: number;
 }): GettingStartedStep[] {
-  const { profile, isAddressConfirmed, tasks, boxesCount } = input;
-  const hasRoute = Boolean(profile.origin?.trim() && profile.destination?.trim());
-  const hasHousehold = Boolean(profile.household?.trim());
-  const completedTasks = tasks.filter((t) => t.status === "completed").length;
-
-  return [
-    {
-      id: "route",
-      labelKey: "gettingStarted.stepRoute",
-      href: "/settings",
-      done: hasRoute && hasHousehold,
-    },
-    {
-      id: "address",
-      labelKey: "gettingStarted.stepAddress",
-      href: "/utilities",
-      done: isAddressConfirmed,
-    },
-    {
-      id: "checklist",
-      labelKey: "gettingStarted.stepChecklist",
-      href: "/checklist",
-      done: completedTasks >= 1,
-    },
-    {
-      id: "plan",
-      labelKey: "gettingStarted.stepPlan",
-      href: "/moving-plan",
-      done: hasRoute && completedTasks >= 3,
-    },
-    {
-      id: "inventory",
-      labelKey: "gettingStarted.stepInventory",
-      href: "/inventory",
-      done: boxesCount >= 1,
-    },
-  ];
+  return buildJourneySteps({
+    profile: input.profile,
+    isAddressConfirmed: input.isAddressConfirmed,
+    tasks: input.tasks,
+    boxesCount: input.boxesCount,
+    truckChoice: input.truckChoice ?? null,
+    hasRouteCoords: input.hasRouteCoords ?? Boolean(
+      input.profile.origin?.trim() &&
+        input.profile.destination?.trim()
+    ),
+    utilityPickCount: input.utilityPickCount ?? (input.isAddressConfirmed ? 1 : 0),
+  });
 }
 
 export function gettingStartedProgress(steps: GettingStartedStep[]) {
-  const done = steps.filter((s) => s.done).length;
-  const total = steps.length;
-  return {
-    done,
-    total,
-    percent: total ? Math.round((done / total) * 100) : 0,
-    complete: done === total,
-  };
+  return journeyProgress(steps);
 }

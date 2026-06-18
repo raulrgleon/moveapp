@@ -89,6 +89,60 @@ export async function sendTaskReminderEmail(
   await sendHtmlEmail(to, subject, body);
 }
 
+export async function sendActionReminderEmail(
+  to: string,
+  name: string,
+  gapKeys: string[],
+  locale: EmailLocale = "en",
+  baseUrl?: string
+) {
+  const base = baseUrl ?? appUrl();
+  const labels: Record<string, { en: string; es: string; href: string }> = {
+    missingTruck: {
+      en: "Choose a truck or trailer for your move",
+      es: "Elige un camión o trailer para tu mudanza",
+      href: `${base}/trucks`,
+    },
+    missingAddress: {
+      en: "Confirm your new address for utility setup",
+      es: "Confirma tu nueva dirección para servicios",
+      href: `${base}/utilities`,
+    },
+    highPriorityTasks: {
+      en: "Complete high-priority tasks before move day",
+      es: "Completa tareas de alta prioridad antes del día D",
+      href: `${base}/checklist`,
+    },
+    moveCountdown: {
+      en: "Your move is coming up — review your plan",
+      es: "Tu mudanza se acerca — revisa tu plan",
+      href: `${base}/dashboard`,
+    },
+  };
+
+  const items = gapKeys
+    .map((key) => {
+      const item = labels[key];
+      if (!item) return "";
+      const text = locale === "es" ? item.es : item.en;
+      return `<li><a href="${item.href}">${text}</a></li>`;
+    })
+    .join("");
+
+  const subject =
+    locale === "es"
+      ? "MovePilotAi — acciones pendientes en tu mudanza"
+      : "MovePilotAi — pending actions for your move";
+  const greeting = locale === "es" ? `Hola ${name},` : `Hi ${name},`;
+  const intro =
+    locale === "es"
+      ? "<p>Estas acciones te ayudarán a estar listo:</p>"
+      : "<p>These actions will help you stay on track:</p>";
+  const body = `<p>${greeting}</p>${intro}<ul>${items}</ul><p><a href="${base}/dashboard">${locale === "es" ? "Ir al panel" : "Go to dashboard"}</a></p>`;
+
+  await sendHtmlEmail(to, subject, body);
+}
+
 export async function sendMoveInviteEmail(
   to: string,
   inviterName: string,

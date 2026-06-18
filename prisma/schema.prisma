@@ -20,6 +20,10 @@ model User {
   smsReminders   Boolean              @default(false) @map("sms_reminders")
   activeMoveId   String?              @map("active_move_id")
   locale         String?              @default("en")
+  planTier       String               @default("trial") @map("plan_tier")
+  trialEndsAt    DateTime?            @map("trial_ends_at")
+  planPaidAt     DateTime?            @map("plan_paid_at")
+  stripeCustomerId String?            @unique @map("stripe_customer_id")
   suspendedAt    DateTime?            @map("suspended_at")
   createdAt      DateTime             @default(now()) @map("created_at")
   moves          Move[]
@@ -120,6 +124,10 @@ model Move {
   partnerQuotes         PartnerQuote[]
   partnerShareToken     String?            @unique @map("partner_share_token")
   partnerShareEnabled   Boolean            @default(false) @map("partner_share_enabled")
+  selectedRouteIndex    Int                @default(0) @map("selected_route_index")
+  utilityPicks          Json?              @map("utility_picks")
+  planShareToken        String?            @unique @map("plan_share_token")
+  planShareEnabled      Boolean            @default(false) @map("plan_share_enabled")
 
   @@index([userId])
   @@map("moves")

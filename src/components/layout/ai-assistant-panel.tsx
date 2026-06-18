@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bot } from "lucide-react";
+import { Bot, X } from "lucide-react";
 import {
   ChatInputBar,
   ChatMessages,
+  ChatPanelFooter,
   ChatScrollArea,
   QuickQuestions,
 } from "@/components/ai/chat-ui";
@@ -14,7 +15,7 @@ import { PilotAvatar } from "@/components/pilot/pilot-avatar";
 import { useAiChat, useAiQuickQuestions } from "@/contexts/ai-chat-context";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export function AIAssistantPanel() {
   const t = useT();
@@ -23,6 +24,7 @@ export function AIAssistantPanel() {
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useAiChat();
   const quickQuestions = useAiQuickQuestions();
+  const hasConversation = messages.some((m) => m.role === "user");
 
   const onAssistantPage = pathname === "/assistant";
 
@@ -44,20 +46,22 @@ export function AIAssistantPanel() {
       <ChatScrollArea autoScrollDeps={scrollDeps}>
         <ChatMessages messages={messages} isLoading={isLoading} compact />
       </ChatScrollArea>
-      <div className="border-t p-4 space-y-3 shrink-0 bg-muted/20">
-        <QuickQuestions
-          questions={quickQuestions}
-          onSelect={handleQuick}
-          isLoading={isLoading}
-        />
+      <ChatPanelFooter>
+        {!hasConversation && (
+          <QuickQuestions
+            questions={quickQuestions}
+            onSelect={handleQuick}
+            isLoading={isLoading}
+          />
+        )}
         <ChatInputBar
           value={input}
           onChange={setInput}
-          onSend={handleSend}
+          onSend={() => void handleSend()}
           isLoading={isLoading}
           compact
         />
-      </div>
+      </ChatPanelFooter>
     </>
   );
 
@@ -82,15 +86,17 @@ export function AIAssistantPanel() {
       </aside>
 
       <div className="xl:hidden">
-        <Button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="fixed right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg shadow-primary/40 brand-cta-gradient hover:opacity-90 animate-float mobile-nav-offset lg:bottom-6"
-          size="icon"
-        >
-          <Bot className="h-6 w-6" />
-          <span className="sr-only">{t("aiPanel.open")}</span>
-        </Button>
+        {!open && (
+          <Button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="fixed right-3 sm:right-6 z-40 h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg shadow-primary/40 brand-cta-gradient hover:opacity-90 animate-float mobile-nav-offset lg:bottom-6"
+            size="icon"
+          >
+            <Bot className="h-6 w-6" />
+            <span className="sr-only">{t("aiPanel.open")}</span>
+          </Button>
+        )}
 
         <Sheet
           open={open}
@@ -99,17 +105,27 @@ export function AIAssistantPanel() {
             setOpen(next);
           }}
         >
-          <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
-            <SheetHeader className="border-b p-4 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent">
-              <SheetTitle asChild>
-                <PilotBadge
-                  title={t("brand.pilotName")}
-                  subtitle={t("aiPanel.subtitle")}
-                  size="sm"
-                />
-              </SheetTitle>
-            </SheetHeader>
-            {panelBody}
+          <SheetContent
+            side="bottom"
+            className="w-full max-w-none h-[min(88dvh,720px)] p-0 flex flex-col gap-0 rounded-t-2xl border-t [&>button]:hidden"
+          >
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent rounded-t-2xl">
+              <PilotBadge
+                title={t("brand.pilotName")}
+                subtitle={t("aiPanel.subtitle")}
+                size="sm"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 shrink-0 rounded-full"
+                onClick={() => setOpen(false)}
+                aria-label={t("guestChat.close")}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="flex flex-1 flex-col min-h-0 overflow-hidden">{panelBody}</div>
           </SheetContent>
         </Sheet>
       </div>

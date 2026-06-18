@@ -1,5 +1,9 @@
 import type { Locale } from "@/lib/i18n";
 import { translate } from "@/lib/i18n";
+import {
+  computeTruckOptionPrice,
+  normalizedMoveMiles,
+} from "@/lib/budget/pricing";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { TruckOption } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
@@ -10,7 +14,7 @@ function t(locale: Locale, key: string, params?: Record<string, string | number>
   return translate(locale, key, params);
 }
 
-function localizeOption(locale: Locale, option: TruckOption, miles: number, mult: number): TruckOption {
+function localizeOption(locale: Locale, option: TruckOption, miles: number): TruckOption {
   const id = option.id;
   const mileageFree = Math.max(200, Math.round(miles * 0.15));
   const mileageBudget = Math.max(150, Math.round(miles * 0.12));
@@ -79,19 +83,13 @@ export function estimateTruckOptions(
   locale: Locale = "en",
   vehicles: VehicleInfo[] = []
 ): TruckOption[] {
-  const miles = Math.max(50, distanceMiles);
-  const mult = /4|5|6|large|grande/i.test(profile.household) ? 1.2 : 1;
-
-  const trailerPrice = Math.round(89 + miles * 0.32 * mult);
-  const truckSmall = Math.round(199 + miles * 0.78 * mult);
-  const truckLarge = Math.round(279 + miles * 0.92 * mult);
-  const budgetTruck = Math.round(175 + miles * 0.72 * mult);
+  const miles = normalizedMoveMiles(distanceMiles);
 
   const raw: TruckOption[] = [
     {
       id: "uhaul-trailer",
       company: "U-Haul",
-      estimatedPrice: trailerPrice,
+      estimatedPrice: computeTruckOptionPrice("uhaul-trailer", miles, profile.household),
       vehicleSize: "6×12 Open Trailer",
       mileagePolicy: "",
       pros: [],
@@ -102,7 +100,7 @@ export function estimateTruckOptions(
     {
       id: "penske-truck",
       company: "Penske",
-      estimatedPrice: truckSmall,
+      estimatedPrice: computeTruckOptionPrice("penske-truck", miles, profile.household),
       vehicleSize: "12 ft Truck",
       mileagePolicy: "",
       pros: [],
@@ -113,7 +111,7 @@ export function estimateTruckOptions(
     {
       id: "budget-truck",
       company: "Budget",
-      estimatedPrice: budgetTruck,
+      estimatedPrice: computeTruckOptionPrice("budget-truck", miles, profile.household),
       vehicleSize: "16 ft Truck",
       mileagePolicy: "",
       pros: [],
@@ -124,7 +122,7 @@ export function estimateTruckOptions(
     {
       id: "uhaul-truck",
       company: "U-Haul",
-      estimatedPrice: truckLarge,
+      estimatedPrice: computeTruckOptionPrice("uhaul-truck", miles, profile.household),
       vehicleSize: "15 ft Truck",
       mileagePolicy: "",
       pros: [],
@@ -134,7 +132,7 @@ export function estimateTruckOptions(
     },
   ];
 
-  const localized = raw.map((o) => localizeOption(locale, o, miles, mult));
+  const localized = raw.map((o) => localizeOption(locale, o, miles));
 
   if (vehicles.length > 0 && !anyVehicleCanTow(vehicles)) {
     return localized.filter((o) => o.type === "truck");
@@ -149,11 +147,11 @@ export function buildTrailerRecommendation(
   vehicles: VehicleInfo[],
   locale: Locale = "en"
 ): string {
-  const miles = Math.max(50, distanceMiles);
+  const miles = normalizedMoveMiles(distanceMiles);
   const origin = profile.origin.split(",")[0]?.trim() || "origin";
   const dest = profile.destination.split(",")[0]?.trim() || "destination";
-  const trailer = Math.round(89 + miles * 0.32);
-  const truck = Math.round(199 + miles * 0.78);
+  const trailer = computeTruckOptionPrice("uhaul-trailer", miles, profile.household);
+  const truck = computeTruckOptionPrice("penske-truck", miles, profile.household);
   const savings = Math.max(0, truck - trailer);
   const vehicle = vehicles[0]?.displayLabel;
 

@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, redirectToUpgrade } from "@/lib/api-client";
 import { invalidateUserData, loadUserData } from "@/lib/data-cache";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
@@ -102,6 +102,10 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
         body: form,
         credentials: "include",
       });
+      if (res.status === 402) {
+        redirectToUpgrade();
+        return;
+      }
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? "Upload failed");

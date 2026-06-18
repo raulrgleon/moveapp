@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api-client";
+import { dispatchProfileUpdated } from "@/lib/move/profile-events";
+import { useUtilityPicks } from "@/hooks/use-utility-picks";
 import type { LucideIcon } from "lucide-react";
 import {
   Droplets,
@@ -66,6 +69,7 @@ export default function UtilitiesPage() {
   const { locale } = useLocale();
   const [filter, setFilter] = useState("all");
   const [contractedIds, setContractedIds] = useState<Set<string>>(new Set());
+  const { picks: savedPicks } = useUtilityPicks();
   const {
     profile,
     isAddressConfirmed,
@@ -122,6 +126,19 @@ export default function UtilitiesPage() {
     [bestPicks]
   );
 
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const pick of savedPicks) {
+      const match = providers.find(
+        (p) =>
+          p.name === pick.providerName ||
+          p.categoryLabel.toLowerCase() === pick.category.toLowerCase()
+      );
+      if (match) ids.add(match.id);
+    }
+    setContractedIds(ids);
+  }, [providers, savedPicks]);
+
   const utilityNoteText = isPrecise
     ? utilityNote || t("utilities.addressConfirmedNote")
     : hasLocation
@@ -158,6 +175,23 @@ export default function UtilitiesPage() {
                 : t("utilities.pageDescLocked")
           }
         />
+
+        {savedPicks.length > 0 && (
+          <Card className="border-dashed">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">{t("utilities.myChoices")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {savedPicks.map((pick) => (
+                <div key={`${pick.category}-${pick.providerName}`} className="text-sm flex justify-between gap-2">
+                  <span className="text-muted-foreground">{pick.category}</span>
+                  <span className="font-medium">{pick.providerName}</span>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground pt-2">{t("utilities.setupChecklist")}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-primary/30">
           <CardHeader className="pb-3">
@@ -329,6 +363,14 @@ export default function UtilitiesPage() {
                               category: p.categoryLabel,
                             }),
                           });
+                          await apiFetch("/api/utilities/picks", {
+                            method: "POST",
+                            body: JSON.stringify({
+                              providerName: p.name,
+                              category: p.categoryLabel,
+                            }),
+                          });
+                          dispatchProfileUpdated();
                           setContractedIds((prev) => new Set(prev).add(p.id));
                         }
                       : undefined

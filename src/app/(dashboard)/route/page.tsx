@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import type { RouteBudgetDelta } from "@/hooks/use-route-stats";
+import { formatCurrency } from "@/lib/utils";
 import {
   ExternalLink,
   Fuel,
@@ -16,8 +18,10 @@ import {
   Route as RouteIcon,
 } from "lucide-react";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
+import { PilotSuggestionCard } from "@/components/pilot/pilot-suggestion-card";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
+import { EstimateDisclaimer } from "@/components/marketing/estimate-disclaimer";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -30,7 +34,7 @@ import { useRouteStats } from "@/hooks/use-route-stats";
 function RouteMapLoader() {
   const t = useT();
   return (
-    <div className="min-h-[280px] sm:min-h-[360px] rounded-xl border bg-muted/30 flex items-center justify-center">
+    <div className="min-h-[min(52dvh,28rem)] sm:min-h-[360px] rounded-xl border bg-muted/30 flex items-center justify-center">
       <p className="text-sm text-muted-foreground">{t("routePage.loadingMap")}</p>
     </div>
   );
@@ -85,9 +89,36 @@ function buildAppleMapsUrl(
 export default function RoutePage() {
   const t = useT();
   const { profile } = useMove();
-  const { stats, loading, routeIndex, setRouteIndex } = useRouteStats();
+  const { stats, loading, stopsLoading, error, routeIndex, setRouteIndex } = useRouteStats();
   const [cinematic, setCinematic] = useState(false);
   const [budgetUpdating, setBudgetUpdating] = useState(false);
+  const [budgetSyncNote, setBudgetSyncNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const onSync = (event: Event) => {
+      const detail = (event as CustomEvent<RouteBudgetDelta | null>).detail;
+      if (detail && detail.delta !== 0) {
+        const amount = formatCurrency(Math.abs(detail.delta));
+        setBudgetSyncNote(
+          detail.delta > 0
+            ? t("routePage.budgetDeltaUp", { amount })
+            : t("routePage.budgetDeltaDown", { amount })
+        );
+      } else {
+        setBudgetSyncNote(t("routePage.budgetAutoSynced"));
+      }
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setBudgetSyncNote(null), 8000);
+    };
+
+    window.addEventListener("movepilot:budget-route-sync", onSync);
+    return () => {
+      window.removeEventListener("movepilot:budget-route-sync", onSync);
+      if (timer) clearTimeout(timer);
+    };
+  }, [t]);
 
   const updateBudgetForRoute = async () => {
     setBudgetUpdating(true);
@@ -160,6 +191,28 @@ export default function RoutePage() {
           }
         />
 
+        <EstimateDisclaimer />
+
+        {budgetSyncNote && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4 text-sm">{budgetSyncNote}</CardContent>
+          </Card>
+        )}
+
+        {error === "fetch_failed" && (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="p-4 text-sm">{t("routePage.routeLoadError")}</CardContent>
+          </Card>
+        )}
+
+        {(!profile.originLat || !profile.destinationLat) && (
+          <PilotSuggestionCard
+            message={t("routePage.pilotSetCoords")}
+            actionLabelKey="routePage.mapEmptyAction"
+            href="/settings"
+          />
+        )}
+
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             label={t("routePage.totalDistance")}
@@ -184,13 +237,13 @@ export default function RoutePage() {
           <div
             className={
               cinematic
-                ? "fixed inset-0 z-50 bg-background p-4 flex flex-col"
+                ? "fixed inset-0 z-50 bg-background p-3 sm:p-4 flex flex-col safe-top safe-bottom"
                 : "relative"
             }
           >
             {cinematic && (
-              <div className="flex justify-between items-center mb-3 shrink-0">
-                <p className="font-semibold">{t("routePage.cinematicMode")}</p>
+              <div className="flex justify-between items-center mb-3 shrink-0 gap-2">
+                <p className="font-semibold text-sm sm:text-base">{t("routePage.cinematicMode")}</p>
                 <Button variant="outline" size="sm" onClick={() => setCinematic(false)}>
                   <Minimize2 className="mr-2 h-4 w-4" />
                   {t("routePage.exitCinematic")}
@@ -198,11 +251,8 @@ export default function RoutePage() {
               </div>
             )}
             <RouteMap
-              className={
-                cinematic
-                  ? "flex-1 min-h-0 rounded-xl"
-                  : "min-h-[280px] sm:min-h-[360px]"
-              }
+              className={cinematic ? "flex-1 min-h-0 rounded-xl" : undefined}
+              expanded={cinematic}
               showNewHome
               alternatives={stats?.alternatives}
               selectedRouteIndex={routeIndex}
@@ -213,11 +263,12 @@ export default function RoutePage() {
               <Button
                 variant="secondary"
                 size="sm"
-                className="absolute top-3 right-3 z-[500] shadow-lg"
+                className="absolute top-3 right-3 z-[500] shadow-lg h-9 sm:h-10"
                 onClick={() => setCinematic(true)}
               >
                 <Maximize2 className="mr-2 h-4 w-4" />
-                {t("routePage.cinematicMode")}
+                <span className="hidden sm:inline">{t("routePage.cinematicMode")}</span>
+                <span className="sm:hidden sr-only">{t("routePage.cinematicMode")}</span>
               </Button>
             )}
           </div>
@@ -249,8 +300,10 @@ export default function RoutePage() {
               <CardTitle className="text-base">{t("routePage.alternativeRoutes")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">{t("routePage.alternativeRoutesDesc")}</p>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <p className="text-sm text-muted-foreground hidden lg:block">
+                {t("routePage.alternativeRoutesDesc")}
+              </p>
+              <div className="hidden lg:grid gap-2 sm:grid-cols-3">
                 {stats.alternatives.slice(0, 3).map((alt) => (
                   <button
                     key={alt.index}

@@ -5,6 +5,7 @@ import { getLatestUserMessage, resolveReplyLocale, buildReplyLanguageReminder } 
 import type { Locale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import { requireMoveAccess } from "@/lib/api-auth";
 
 const openai = new OpenAI({
@@ -26,6 +27,8 @@ async function trimChatHistory(userId: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -45,6 +48,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   if (!process.env.OPENAI_API_KEY) {
     return new Response("OpenAI API key not configured", { status: 500 });
   }

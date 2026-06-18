@@ -20,6 +20,7 @@ import {
   stripPilotActions,
 } from "@/lib/ai/pilot-actions";
 import { resolveReplyLocale } from "@/lib/ai/detect-message-locale";
+import { isUpgradeRequiredResponse, redirectToUpgrade } from "@/lib/api-client";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import type { AIQuickQuestion } from "@/lib/types";
 
@@ -158,6 +159,11 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
             locale: replyLocale,
           }),
         });
+
+        if (isUpgradeRequiredResponse(res)) {
+          redirectToUpgrade();
+          return;
+        }
 
         if (!res.ok) {
           throw new Error("Chat request failed");

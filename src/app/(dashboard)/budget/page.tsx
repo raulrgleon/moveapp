@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { CityComparisonHint } from "@/components/budget/city-comparison-hint";
+import { PlanShareCard } from "@/components/budget/plan-share-card";
+import { PilotSuggestionCard } from "@/components/pilot/pilot-suggestion-card";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
+import { EstimateDisclaimer } from "@/components/marketing/estimate-disclaimer";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
@@ -23,7 +28,7 @@ import {
 import { getStoredRouteIndex } from "@/hooks/use-route-stats";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
-import { AlertTriangle, DollarSign, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
+import { AlertTriangle, DollarSign, Handshake, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
 
 interface BudgetItemRow {
   id: string;
@@ -33,11 +38,17 @@ interface BudgetItemRow {
   cheapestOption?: string | null;
 }
 
+interface BudgetLineBreakdown {
+  category: string;
+  lines: string[];
+}
+
 interface BudgetResponse {
   items: BudgetItemRow[];
   totalEstimated: number;
   totalActual: number;
   notes: string[];
+  breakdowns?: BudgetLineBreakdown[];
   distanceMiles?: number;
   budgetTarget?: number;
   isEstimate?: boolean;
@@ -52,6 +63,8 @@ export default function BudgetPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [draftActuals, setDraftActuals] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [expandedBreakdown, setExpandedBreakdown] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -148,12 +161,46 @@ export default function BudgetPage() {
         />
 
         <Card className="border-dashed bg-muted/30">
-          <CardContent className="p-4 text-sm text-muted-foreground">
+          <CardContent className="p-4 text-sm text-muted-foreground space-y-1">
             {data?.distanceMiles
               ? t("budget.estimateBannerMiles", { miles: data.distanceMiles.toLocaleString() })
               : t("budget.estimateBanner")}
+            <p>{t("budget.unifiedPricingNote")}</p>
           </CardContent>
         </Card>
+
+        <EstimateDisclaimer />
+
+        <CityComparisonHint />
+
+        {!truckChoice && (
+          <PilotSuggestionCard
+            message={t("budget.pilotPickTruck")}
+            actionLabelKey="budget.goToTrucks"
+            href="/trucks"
+          />
+        )}
+
+        <Card className="border-dashed">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <Handshake className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{t("budget.partnerCtaTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("budget.partnerCtaDesc")}</p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/partner">{t("budget.partnerCtaButton")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <PlanShareCard />
+
+        {syncMessage && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4 text-sm">{syncMessage}</CardContent>
+          </Card>
+        )}
 
         {error && (
           <Card className="border-destructive/40 bg-destructive/5">
@@ -290,24 +337,26 @@ export default function BudgetPage() {
                       <TableHead>{t("budget.category")}</TableHead>
                       <TableHead className="text-right">{t("budget.estimated")}</TableHead>
                       <TableHead className="text-right">{t("budget.actual")}</TableHead>
-                      <TableHead className="text-right">{t("budget.difference")}</TableHead>
-                      <TableHead>{t("budget.cheapest")}</TableHead>
+                      <TableHead className="text-right hidden md:table-cell">{t("budget.difference")}</TableHead>
+                      <TableHead className="hidden lg:table-cell">{t("budget.cheapest")}</TableHead>
+                      <TableHead className="w-[100px] hidden lg:table-cell">{t("budget.howCalculated")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => {
                       const actualVal = Number(draftActuals[item.id] ?? 0) || item.actual;
                       const diff = item.estimated - actualVal;
+                      const breakdown = data?.breakdowns?.find((b) => b.category === item.category);
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.category}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.estimated)}</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-1.5 sm:gap-2">
                               <Input
                                 type="number"
                                 min={0}
-                                className="w-24 h-8 text-right"
+                                className="w-full sm:w-24 h-9 sm:h-8 text-right"
                                 value={draftActuals[item.id] ?? ""}
                                 onChange={(e) =>
                                   setDraftActuals((prev) => ({
@@ -319,7 +368,7 @@ export default function BudgetPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8"
+                                className="h-9 sm:h-8 shrink-0"
                                 disabled={savingId === item.id}
                                 onClick={() => saveActual(item)}
                               >
@@ -327,15 +376,46 @@ export default function BudgetPage() {
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right text-emerald-600">
+                          <TableCell className="text-right text-emerald-600 hidden md:table-cell">
                             {diff > 0 ? formatCurrency(diff) : "—"}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                          <TableCell className="text-sm text-muted-foreground max-w-[200px] hidden lg:table-cell">
                             {item.cheapestOption ?? "—"}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {breakdown && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() =>
+                                  setExpandedBreakdown(
+                                    expandedBreakdown === item.category ? null : item.category
+                                  )
+                                }
+                              >
+                                {expandedBreakdown === item.category
+                                  ? t("budget.hideCalc")
+                                  : t("budget.showCalc")}
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
                     })}
+                    {expandedBreakdown && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-muted/30">
+                          <ul className="text-xs text-muted-foreground space-y-1 py-2">
+                            {data?.breakdowns
+                              ?.find((b) => b.category === expandedBreakdown)
+                              ?.lines.map((line) => (
+                                <li key={line}>• {line}</li>
+                              ))}
+                          </ul>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     <TableRow className="bg-muted/50 font-semibold">
                       <TableCell>{t("budget.total")}</TableCell>
                       <TableCell className="text-right">{formatCurrency(totalEstimated)}</TableCell>

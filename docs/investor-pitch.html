@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>MovePilot AI — Documento para Inversores</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: #0f172a;
+      line-height: 1.55;
+      font-size: 10.5pt;
+      margin: 0;
+      padding: 0;
+    }
+    .cover {
+      page-break-after: always;
+      min-height: 260mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 24mm 8mm;
+      background: linear-gradient(145deg, #0f766e 0%, #0d9488 45%, #14b8a6 100%);
+      color: white;
+      border-radius: 4mm;
+    }
+    .cover h1 { font-size: 36pt; margin: 0 0 8px; letter-spacing: -0.02em; }
+    .cover .ai { color: #ccfbf1; font-weight: 800; }
+    .cover .tagline { font-size: 14pt; opacity: 0.95; max-width: 420px; margin-bottom: 32px; }
+    .cover .meta { font-size: 10pt; opacity: 0.85; margin-top: auto; }
+    .cover .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.35);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 9pt;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #0f766e;
+      font-size: 15pt;
+      margin: 22px 0 10px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #99f6e4;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 11pt; color: #115e59; margin: 14px 0 6px; page-break-after: avoid; }
+    p { margin: 0 0 8px; }
+    ul { margin: 4px 0 10px; padding-left: 18px; }
+    li { margin-bottom: 4px; }
+    .section { page-break-inside: avoid; margin-bottom: 8px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px;
+      font-size: 9.5pt;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 7px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0fdfa; color: #0f766e; font-weight: 600; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .highlight {
+      background: #f0fdfa;
+      border-left: 4px solid #0d9488;
+      padding: 10px 12px;
+      margin: 10px 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .stat-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-box .num { font-size: 18pt; font-weight: 800; color: #0d9488; }
+    .stat-box .lbl { font-size: 8.5pt; color: #64748b; }
+    .footer-note {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8.5pt;
+      color: #64748b;
+    }
+    .page-break { page-break-before: always; }
+    .logo-mark {
+      width: 56px; height: 56px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24pt; font-weight: 800; margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo-mark">P</div>
+  <div class="badge">Documento confidencial · Junio 2026</div>
+  <h1>MovePilot<span class="ai">Ai</span></h1>
+  <p class="tagline">Tu copiloto de IA para mudarte a cualquier lugar.<br/>
+  Planifica más inteligente, gasta mejor y llega más tranquilo.</p>
+  <p><strong>movepilotai.com</strong></p>
+  <p class="meta">
+    Resumen ejecutivo para inversores<br/>
+    support@movepilotai.com
+  </p>
+</div>
+
+<h2>1. Resumen ejecutivo</h2>
+<div class="highlight">
+  <p><strong>MovePilot AI</strong> es una plataforma SaaS que ayuda a personas y familias en Estados Unidos a planificar, presupuestar y ejecutar mudanzas residenciales — locales o interestatales — desde un solo dashboard impulsado por inteligencia artificial.</p>
+  <p>El producto combina <strong>Pilot</strong> (asistente IA contextual), planificación semanal, presupuesto dinámico, mapas de ruta, comparación de camiones, utilities, inventario con QR, documentos, colaboración familiar y cotizaciones de mudanceros profesionales.</p>
+  <p><strong>Modelo de ingresos:</strong> freemium con 7 días de acceso Pro gratuito, seguido de un pago único de <strong>$29 USD por mudanza</strong> (sin suscripción mensual).</p>
+</div>
+
+<div class="grid-2">
+  <div class="stat-box"><div class="num">$29</div><div class="lbl">Pago único por mudanza</div></div>
+  <div class="stat-box"><div class="num">7 días</div><div class="lbl">Trial Pro sin tarjeta</div></div>
+  <div class="stat-box"><div class="num">EN / ES</div><div class="lbl">Producto bilingüe</div></div>
+  <div class="stat-box"><div class="num">Live</div><div class="lbl">En producción · movepilotai.com</div></div>
+</div>
+
+<h2>2. El problema</h2>
+<p>Mudarse es una de las experiencias más estresantes para hogares estadounidenses. Hoy el proceso está fragmentado:</p>
+<ul>
+  <li><strong>Herramientas dispersas:</strong> mapas en Google, presupuestos en Excel, checklists en notas, documentos en email.</li>
+  <li><strong>Costos opacos:</strong> camiones, combustible, hoteles, utilities y mudanceros se estiman por separado.</li>
+  <li><strong>Coordinación familiar difícil:</strong> parejas y familias no comparten un plan único.</li>
+  <li><strong>Decisiones sin contexto:</strong> ¿Trailer o camión? ¿Qué ciudad es más barata? ¿Qué utilities contratar?</li>
+  <li><strong>Asesoramiento genérico:</strong> blogs y foros no conocen la ruta, fecha ni presupuesto del usuario.</li>
+</ul>
+<p>El mercado de mudanzas residenciales en EE.UU. mueve millones de hogares al año, con gasto promedio de miles de dólares por mudanza — pero la capa de software de planificación sigue siendo primitiva.</p>
+
+<h2>3. La solución: MovePilot AI</h2>
+<p>MovePilot AI centraliza toda la mudanza en un <strong>command center</strong> web y móvil con tres pilares:</p>
+<ul>
+  <li><strong>Planificación con IA (Pilot):</strong> recomendaciones personalizadas según origen, destino, fecha, hogar, mascotas, vehículos y presupuesto.</li>
+  <li><strong>Inteligencia de ruta y ciudad:</strong> mapas, clima en ruta, paradas, comparación de ciudades y costo de vida.</li>
+  <li><strong>Ejecución organizada:</strong> checklist, inventario, documentos, modo día-D y colaboración en equipo.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>4. Funcionalidades del producto</h2>
+
+<h3>4.1 Dashboard — Centro de mando</h3>
+<ul>
+  <li>Vista general: ruta, countdown, presupuesto estimado vs. objetivo, progreso de tareas.</li>
+  <li>Score de preparación (0–100) y fases del viaje (Planning → Settled).</li>
+  <li>Alertas inteligentes: tareas vencidas, presupuesto, documentos faltantes, ruta larga, mascotas, etc.</li>
+  <li>Wizard de inicio rápido y feed de actividad del equipo.</li>
+</ul>
+
+<h3>4.2 Pilot — Asistente IA</h3>
+<ul>
+  <li>Chat contextual con streaming (OpenAI) que conoce el perfil completo de la mudanza.</li>
+  <li>Preguntas rápidas: qué hacer next, ahorrar dinero, truck vs trailer, documentos, utilities.</li>
+  <li>Asistencia de inventario integrada.</li>
+  <li>Widget de chat para visitantes en la landing (captación pre-registro).</li>
+</ul>
+
+<h3>4.3 Ruta e inteligencia geográfica</h3>
+<ul>
+  <li>Mapa interactivo (Leaflet + OpenStreetMap) con rutas OSRM.</li>
+  <li>Distancia, tiempo de manejo, rutas multi-día y hasta 3 rutas alternativas.</li>
+  <li>Paradas recomendadas: gasolina, hotel, descanso, hotel pet-friendly.</li>
+  <li>Clima a lo largo de la ruta; precios de gas regionales.</li>
+  <li>Sincronización automática del presupuesto al cambiar de ruta.</li>
+  <li>Enlaces a Google Maps / Apple Maps; vista cinematográfica.</li>
+</ul>
+
+<h3>4.4 Presupuesto</h3>
+<ul>
+  <li>Estimado vs. real por categoría con gráficos.</li>
+  <li>Motor unificado con Trucks/Vehicles (combustible, rental, hoteles).</li>
+  <li>Recálculo dinámico según distancia y elecciones del usuario.</li>
+  <li>Compartir plan read-only con familia vía link seguro.</li>
+</ul>
+
+<h3>4.5 Plan de mudanza (timeline)</h3>
+<ul>
+  <li>Timeline semana a semana anclado a la fecha de mudanza.</li>
+  <li>Exportación iCal, impresión/PDF.</li>
+  <li>Integración con checklist y tips de Pilot.</li>
+</ul>
+
+<h3>4.6 Checklist</h3>
+<ul>
+  <li>11+ categorías: Planning, Housing, Utilities, Address change, Vehicle, School, Medical, Pets, Documents, Packing, Travel.</li>
+  <li>Estados, fechas límite, notas y asignación a colaboradores.</li>
+</ul>
+
+<h3>4.7 Inventario</h3>
+<ul>
+  <li>Cajas por habitación con fotos, contenido, fragile, essentials.</li>
+  <li>Etiquetas QR, templates, export CSV, lista de compras.</li>
+  <li>Estimación de peso y recomendación de camión/trailer.</li>
+</ul>
+
+<h3>4.8 Documentos</h3>
+<ul>
+  <li>Bóveda segura: leases, IDs, seguros, inmigración, etc.</li>
+  <li>Upload, preview, categorías, estados verified/pending/missing.</li>
+</ul>
+
+<h3>4.9 Colaboración familiar</h3>
+<ul>
+  <li>Invitaciones por email con roles: Owner, Editor, Viewer.</li>
+  <li>Asignación de tareas y feed de actividad en tiempo real.</li>
+</ul>
+
+<h3>4.10 Partner — Mudanceros profesionales (B2B2C)</h3>
+<ul>
+  <li>Link de compartir para empresas de mudanza licenciadas (sin acceso a docs privados).</li>
+  <li>Reciben resumen de ruta, hogar, inventario y presupuesto estimado.</li>
+  <li>Envían cotizaciones; el usuario acepta o rechaza desde la app.</li>
+</ul>
+
+<h3>4.11 Utilities del nuevo hogar</h3>
+<ul>
+  <li>Electricidad, agua, gas, internet, fibra, cable, basura, seguridad.</li>
+  <li>Proveedores por dirección; comparar planes y marcar como contratados.</li>
+</ul>
+
+<h3>4.12 Camiones y remolques</h3>
+<ul>
+  <li>Comparación U-Haul, Penske, Budget (trucks y trailers).</li>
+  <li>Precios basados en distancia de ruta; recomendación IA.</li>
+  <li>Sincronización automática con presupuesto.</li>
+</ul>
+
+<h3>4.13 Vehículos</h3>
+<ul>
+  <li>Catálogo NHTSA (año/marca/modelo); capacidad de remolque, MPG EPA.</li>
+  <li>Opciones: conducir, trailer, envío, tow dolly; multi-vehículo.</li>
+</ul>
+
+<h3>4.14 Comparación de ciudades</h3>
+<ul>
+  <li>Housing (RentCast), costo de vida, impuestos, clima, escuelas, crimen.</li>
+  <li>Veredicto automático: favorable / mixto / peor que origen.</li>
+</ul>
+
+<h3>4.15 Modo día-D</h3>
+<ul>
+  <li>Command center con countdown, tracker de cajas QR, acciones rápidas.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>5. Modelo de negocio y precios</h2>
+
+<table>
+  <thead>
+    <tr><th>Plan</th><th>Precio</th><th>Incluye</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Preview</strong></td>
+      <td>$0</td>
+      <td>Vista previa del dashboard; Pilot limitado (5 msgs/día); checklist hasta 10 tareas; ruta resumida.</td>
+    </tr>
+    <tr>
+      <td><strong>Trial Pro</strong></td>
+      <td>$0 × 7 días</td>
+      <td>Acceso Pro completo al registrarse. Sin tarjeta de crédito.</td>
+    </tr>
+    <tr>
+      <td><strong>Pro</strong></td>
+      <td><strong>$29 USD</strong> (pago único)</td>
+      <td>Pilot ilimitado, ruta completa, presupuesto live, checklist ilimitado, documentos, colaboración, partner quotes, city comparison, move-day mode, email reminders.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Ventaja del modelo:</strong> alineado con el ciclo natural de una mudanza (evento único, no suscripción mensual). Baja fricción de conversión con trial de 7 días sin tarjeta.</p>
+
+<h3>Monetización futura (pipeline)</h3>
+<ul>
+  <li><strong>Planes para equipos / mudanceros</strong> (mencionado en pricing page).</li>
+  <li><strong>Comisiones de referidos</strong> (uShip, proveedores de camión, etc.).</li>
+  <li><strong>Marketplace</strong> (label en navegación — en roadmap).</li>
+  <li><strong>API / white-label</strong> para inmobiliarias y relocation benefits corporativos.</li>
+</ul>
+
+<h2>6. Mercado objetivo</h2>
+<ul>
+  <li><strong>Geografía:</strong> Estados Unidos (mudanzas residenciales locales e interestatales).</li>
+  <li><strong>Usuario principal:</strong> familias DIY (rentan camión/trailer), parejas en relocación laboral, hispanohablantes en US (producto bilingüe EN/ES).</li>
+  <li><strong>Segmentos:</strong> cross-country moves, familias con niños/mascotas, multi-vehicle, comparadores de ciudades antes de mudarse.</li>
+  <li><strong>TAM orientativo:</strong> ~35M hogares se mudan anualmente en EE.UU.; gasto promedio $5.000–$15.000+ por mudanza interestatal.</li>
+</ul>
+
+<h2>7. Stack tecnológico (production-ready)</h2>
+<table>
+  <thead><tr><th>Capa</th><th>Tecnología</th></tr></thead>
+  <tbody>
+    <tr><td>Frontend</td><td>Next.js 14, React 18, TypeScript, Tailwind, shadcn/ui</td></tr>
+    <tr><td>Backend</td><td>Next.js API Routes, PostgreSQL, Prisma ORM</td></tr>
+    <tr><td>Auth</td><td>Sessions seguras, bcrypt, Google OAuth (opcional)</td></tr>
+    <tr><td>Pagos</td><td>Stripe Live — checkout, webhooks, customer portal</td></tr>
+    <tr><td>IA</td><td>OpenAI GPT-4o-mini (contextual, streaming)</td></tr>
+    <tr><td>Mapas</td><td>Leaflet, OpenStreetMap, OSRM routing</td></tr>
+    <tr><td>Datos</td><td>RentCast (housing), WeatherAPI, NHTSA (vehículos), FCC (broadband)</td></tr>
+    <tr><td>Email</td><td>Resend (dominio verificado movepilotai.com)</td></tr>
+    <tr><td>Analytics</td><td>Plausible (privacy-first)</td></tr>
+    <tr><td>Deploy</td><td>PM2, nginx, backups diarios automatizados</td></tr>
+    <tr><td>i18n</td><td>Inglés + Español (UI y documentos legales)</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Diferenciadores competitivos</h2>
+<ol>
+  <li><strong>All-in-one:</strong> plan + budget + route + checklist + docs + inventory + utilities en una sola app.</li>
+  <li><strong>IA contextual (Pilot):</strong> no tips genéricos — conoce la mudanza del usuario.</li>
+  <li><strong>Motor de precios unificado:</strong> truck, fuel, hotels sincronizados por la misma ruta.</li>
+  <li><strong>Precio disruptivo:</strong> $29/mudanza vs. suscripciones o herramientas premium caras.</li>
+  <li><strong>Bilingüe EN/ES:</strong> ventaja en mercado hispano de EE.UU.</li>
+  <li><strong>B2B2C con mudanceros:</strong> quotes sin exponer documentos privados.</li>
+  <li><strong>City comparison integrada:</strong> decisión de relocación antes de mudarse.</li>
+  <li><strong>Move-day mode + QR:</strong> ejecución el día de la mudanza, no solo planificación.</li>
+</ol>
+
+<div class="page-break"></div>
+
+<h2>9. Estado actual y tracción</h2>
+<ul>
+  <li><strong>Producto en producción:</strong> https://movepilotai.com — live con pagos Stripe, paywall, email verificado.</li>
+  <li><strong>Legal completo:</strong> Terms, Privacy, Refunds, cookie consent, disclaimers de estimaciones.</li>
+  <li><strong>Infraestructura:</strong> backups diarios, cron de recordatorios, PM2 monitoring.</li>
+  <li><strong>GTM listo:</strong> landing, pricing, onboarding, trial 7 días, upgrade flow, customer portal.</li>
+</ul>
+
+<div class="highlight">
+  <p><strong>Nota de transparencia:</strong> las métricas de marketing en landing (ej. "2,400+ mudanzas planificadas") son copy promocional. Validar con analytics (Plausible) y datos reales de usuarios antes de citar en reuniones formales.</p>
+</div>
+
+<h2>10. Cumplimiento legal y confianza</h2>
+<ul>
+  <li>Estimaciones explícitamente no vinculantes (disclaimer global).</li>
+  <li>Output de IA requiere verificación humana (Terms §7).</li>
+  <li>No venta de datos personales; export/delete account desde Settings.</li>
+  <li>COPPA: no dirigido a menores de 13 años.</li>
+  <li>Política de reembolsos: 14 días en casos específicos.</li>
+  <li>HTTPS, passwords hasheadas, controles de acceso por rol.</li>
+</ul>
+
+<h2>11. Roadmap sugerido (12–18 meses)</h2>
+<table>
+  <thead><tr><th>Fase</th><th>Iniciativas</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Q3–Q4 2026</strong></td><td>Adquisición de usuarios, Google OAuth, SMS reminders (Twilio), marketplace MVP, métricas de retención post-mudanza.</td></tr>
+    <tr><td><strong>2027 H1</strong></td><td>Portal B2B para mudanceros (suscripción), API relocation corporativa, integraciones inmobiliarias.</td></tr>
+    <tr><td><strong>2027 H2</strong></td><td>App nativa iOS/Android, expansión de datos locales, partnerships con U-Haul/Penske/REAs.</td></tr>
+  </tbody>
+</table>
+
+<h2>12. Uso de fondos (ejemplo)</h2>
+<ul>
+  <li><strong>40%</strong> — Adquisición de usuarios (SEO, paid, partnerships relocation).</li>
+  <li><strong>30%</strong> — Producto e ingeniería (mobile app, marketplace, B2B portal).</li>
+  <li><strong>20%</strong> — Operaciones, soporte, legal/compliance.</li>
+  <li><strong>10%</strong> — Infraestructura, APIs de datos, reserva.</li>
+</ul>
+
+<h2>13. Contacto</h2>
+<p>
+  <strong>MovePilot AI</strong><br/>
+  Web: <strong>https://movepilotai.com</strong><br/>
+  Email: <strong>support@movepilotai.com</strong><br/>
+  Producto: SaaS de planificación de mudanzas residenciales · EE.UU.<br/>
+  Precio: $29 USD por mudanza · Trial 7 días Pro gratis
+</p>
+
+<div class="footer-note">
+  Documento generado en junio de 2026. Información basada en el producto desplegado en movepilotai.com.
+  Confidencial — para uso exclusivo en evaluación de inversión. Las proyecciones de mercado son orientativas.
+  MovePilot AI no constituye asesoramiento financiero ni garantía de resultados.
+</div>
+
+</body>
+</html>

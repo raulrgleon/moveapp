@@ -21,10 +21,12 @@ export function inferRentalKeyFromTruckChoice(choice: string): RentalPreferenceK
 export function resolveTruckChoiceOption(
   profile: MoveProfile,
   truckChoice: string | null | undefined,
-  distanceMiles: number
+  distanceMiles: number,
+  locale: "en" | "es" = "en",
+  vehicles: import("@/lib/vehicles/types").VehicleInfo[] = []
 ): TruckOption | null {
   if (!truckChoice?.trim()) return null;
-  const options = estimateTruckOptions(profile, distanceMiles);
+  const options = estimateTruckOptions(profile, distanceMiles, locale, vehicles);
   return options.find((o) => truckOptionLabel(o) === truckChoice) ?? null;
 }
 

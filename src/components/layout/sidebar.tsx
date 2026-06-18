@@ -11,6 +11,7 @@ import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { SidebarUpgradeCTA } from "@/components/billing/upgrade-pro-banner";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -48,6 +49,7 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t p-4 space-y-3">
+        <SidebarUpgradeCTA />
         <div className="rounded-lg bg-muted/50 p-3">
           <p className="text-xs font-medium text-foreground">
             {t("sidebar.moveInDays", { days: daysLeft })}

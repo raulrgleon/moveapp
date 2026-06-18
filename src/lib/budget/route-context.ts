@@ -121,6 +121,7 @@ export async function estimateBudgetForMove(
   options: {
     routeIndex?: number;
     truckChoice?: string | null;
+    vehicleTransportChoice?: string | null;
     locale?: "en" | "es";
   } = {}
 ) {
@@ -133,6 +134,7 @@ export async function estimateBudgetForMove(
     vehicleCount: Math.max(1, ctx.vehicles.length),
     vehicles: ctx.vehicles,
     truckChoice: options.truckChoice,
+    vehicleTransportChoice: options.vehicleTransportChoice,
     locale: options.locale,
   });
 }

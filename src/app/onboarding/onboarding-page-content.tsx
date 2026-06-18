@@ -61,6 +61,7 @@ export function OnboardingPageContent() {
   } = useMove();
   const completeMode =
     authHydrated && searchParams.get("complete") === "1" && isAuthenticated;
+  const fastMode = searchParams.get("fast") === "1";
   const [step, setStep] = useState(1);
   const [onboardingVehicles, setOnboardingVehicles] = useState<VehicleInfo[]>([]);
 
@@ -80,6 +81,7 @@ export function OnboardingPageContent() {
   const [accountName, setAccountName] = useState(profile.name);
   const [accountEmail, setAccountEmail] = useState(profile.email);
   const [accountPassword, setAccountPassword] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [moveDateError, setMoveDateError] = useState("");
   const [stepError, setStepError] = useState("");
@@ -99,10 +101,13 @@ export function OnboardingPageContent() {
     { id: 5, title: t("onboarding.stepSummary") },
     ...(completeMode ? [] : [{ id: 6, title: t("onboarding.stepAccount") }]),
   ];
+  const visibleSteps = fastMode ? STEPS.filter((s) => s.id !== 3) : STEPS;
   const lastStep = STEPS[STEPS.length - 1]?.id ?? 5;
-  const currentStepMeta = STEPS[Math.min(step, STEPS.length) - 1] ?? STEPS[0];
+  const currentStepMeta = STEPS.find((s) => s.id === step) ?? STEPS[0];
 
-  const progressPercent = Math.round((step / STEPS.length) * 100);
+  const progressPercent = Math.round(
+    ((visibleSteps.findIndex((s) => s.id === step) + 1) / visibleSteps.length) * 100
+  );
 
   useEffect(() => {
     if (authHydrated && isAdmin) {
@@ -182,7 +187,11 @@ export function OnboardingPageContent() {
     setStepLoading(true);
     try {
       await saveStepData();
-      setStep((s) => Math.min(STEPS.length, s + 1));
+      setStep((s) => {
+        let next = s + 1;
+        if (fastMode && next === 3) next = 4;
+        return Math.min(lastStep, next);
+      });
     } catch (err) {
       setStepError(
         formatClientError(err instanceof Error ? err.message : t("onboarding.stepSaveFailed"))
@@ -195,6 +204,10 @@ export function OnboardingPageContent() {
   const handleComplete = async () => {
     if (!accountEmail.trim() || !accountPassword || accountPassword.length < 6) {
       setAccountError(t("auth.passwordMin"));
+      return;
+    }
+    if (!termsAccepted) {
+      setAccountError(t("legal.acceptTermsRequired"));
       return;
     }
     setSubmitting(true);
@@ -294,6 +307,13 @@ export function OnboardingPageContent() {
               </CardContent>
             </Card>
           )}
+          {fastMode && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                {t("onboarding.fastModeBanner")}
+              </CardContent>
+            </Card>
+          )}
           <div>
             <div className="flex justify-between text-sm mb-2">
               <span className="text-muted-foreground">{t("onboarding.progressLabel")}</span>
@@ -303,24 +323,28 @@ export function OnboardingPageContent() {
           </div>
           <div className="overflow-x-auto pb-2 -mx-1 px-1">
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
-              {STEPS.map((s, i) => (
+              {visibleSteps.map((s, i) => (
                 <div key={s.id} className="flex items-center gap-1.5 sm:gap-2">
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
-                    step > s.id
-                      ? "bg-primary text-primary-foreground"
-                      : step === s.id
+                      step > s.id
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {step > s.id ? <Check className="h-4 w-4" /> : s.id}
+                        : step === s.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step > s.id ? <Check className="h-4 w-4" /> : i + 1}
+                  </div>
+                  {i < visibleSteps.length - 1 && (
+                    <div
+                      className={`h-0.5 w-4 sm:w-8 md:w-16 shrink-0 ${
+                        step > s.id ? "bg-primary" : "bg-muted"
+                      }`}
+                    />
+                  )}
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`h-0.5 w-4 sm:w-8 md:w-16 shrink-0 ${step > s.id ? "bg-primary" : "bg-muted"}`} />
-                )}
-              </div>
-            ))}
+              ))}
             </div>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
@@ -592,6 +616,26 @@ export function OnboardingPageContent() {
                     required
                   />
                 </div>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="acceptTerms"
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                  />
+                  <Label
+                    htmlFor="acceptTerms"
+                    className="text-sm leading-snug font-normal cursor-pointer"
+                  >
+                    {t("legal.acceptTermsPrefix")}{" "}
+                    <Link href="/terms" target="_blank" className="text-primary hover:underline">
+                      {t("footer.terms")}
+                    </Link>{" "}
+                    {t("legal.acceptTermsAnd")}{" "}
+                    <Link href="/privacy" target="_blank" className="text-primary hover:underline">
+                      {t("footer.privacy")}
+                    </Link>
+                  </Label>
+                </div>
                 {accountError && <p className="text-sm text-destructive">{accountError}</p>}
                 <Separator />
                 <Button variant="outline" className="w-full" asChild>
@@ -619,7 +663,13 @@ export function OnboardingPageContent() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep((s) => Math.max(1, s - 1))}
+                onClick={() =>
+                  setStep((s) => {
+                    let prev = s - 1;
+                    if (fastMode && prev === 3) prev = 2;
+                    return Math.max(1, prev);
+                  })
+                }
                 disabled={step === 1 || stepLoading}
                 className="w-full sm:w-auto"
               >

@@ -22,6 +22,10 @@ export interface AuthUser {
   emailReminders?: boolean;
   smsReminders?: boolean;
   locale?: string;
+  createdAt?: string;
+  planTier?: string;
+  trialEndsAt?: string | null;
+  planPaidAt?: string | null;
 }
 
 interface AuthContextValue {

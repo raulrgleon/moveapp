@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, LayoutGrid } from "lucide-react";
+import { Bot, Crown, LayoutGrid } from "lucide-react";
+import { UpgradeProBanner } from "@/components/billing/upgrade-pro-banner";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -37,6 +38,22 @@ export default function MorePage() {
       <DashboardHeader title={t("mobileNav.more")} description={t("morePage.subtitle")} />
       <PageContainer>
         <PageHeader title={t("mobileNav.more")} description={t("morePage.subtitle")} />
+
+        <UpgradeProBanner />
+
+        <Link href="/upgrade" className="block mb-3">
+          <Card className="border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
+            <CardContent className="flex items-center gap-4 p-4">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15">
+                <Crown className="h-5 w-5 text-primary" />
+              </span>
+              <div>
+                <p className="font-medium">{t("upgrade.sidebarTitle")}</p>
+                <p className="text-xs text-muted-foreground">{t("upgrade.moreHint")}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         <div className="grid gap-3 sm:grid-cols-2">
           {items.map((item) => {

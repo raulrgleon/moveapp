@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { PlausibleScript } from "@/components/analytics/plausible-script";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${display.variable} font-sans antialiased`}>
+        <PlausibleScript />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

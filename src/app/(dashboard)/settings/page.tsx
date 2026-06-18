@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { PlanSettingsCard } from "@/components/billing/plan-settings-card";
 import { ShareMoveCard } from "@/components/settings/share-move-card";
 import { ReminderPreferencesCard } from "@/components/settings/reminder-preferences-card";
 import { ChangePasswordCard } from "@/components/settings/change-password-card";
@@ -133,6 +134,8 @@ export default function SettingsPage() {
         {saved && (
           <p className="text-sm text-emerald-600 mb-4">{t("common.saved")}</p>
         )}
+
+        <PlanSettingsCard />
 
         <Card>
           <CardHeader>

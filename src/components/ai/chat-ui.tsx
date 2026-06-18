@@ -24,8 +24,8 @@ export function ChatMessages({ messages, isLoading, compact }: ChatMessagesProps
         <div
           key={msg.id}
           className={cn(
-            "rounded-lg text-sm break-words",
-            compact ? "p-2.5" : "p-3 md:p-4",
+            "rounded-xl text-sm break-words",
+            compact ? "p-3" : "p-3 md:p-4",
             compact ? "max-w-full" : "max-w-[90%]",
             msg.role === "assistant"
               ? "bg-muted text-foreground"
@@ -38,7 +38,7 @@ export function ChatMessages({ messages, isLoading, compact }: ChatMessagesProps
             msg.content
           ) : isLoading ? (
             <span className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("chat.thinking")}
             </span>
           ) : null}
@@ -69,7 +69,7 @@ export function ChatInputBar({
 
   return (
     <form
-      className="flex gap-2"
+      className="flex gap-2.5 items-stretch"
       onSubmit={(e) => {
         e.preventDefault();
         if (!isLoading && value.trim()) onSend();
@@ -80,18 +80,30 @@ export function ChatInputBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={isLoading}
-        className={compact ? "h-9" : undefined}
+        enterKeyHint="send"
+        className={cn(
+          "flex-1 min-w-0 rounded-xl",
+          /* 44px+ touch target on mobile; text-base avoids iOS zoom on focus */
+          "h-12 text-base px-4 sm:text-sm sm:h-10",
+          compact && "sm:h-9 sm:px-3"
+        )}
       />
       <Button
         type="submit"
         size="icon"
-        className={cn("shrink-0", compact && "h-9 w-9")}
+        aria-label={t("chat.send")}
+        className={cn(
+          "shrink-0 rounded-xl",
+          "h-12 w-12 sm:h-10 sm:w-10",
+          compact && "sm:h-9 sm:w-9",
+          "[&_svg]:h-5 [&_svg]:w-5 sm:[&_svg]:h-4 sm:[&_svg]:w-4"
+        )}
         disabled={isLoading || !value.trim()}
       >
         {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="animate-spin" />
         ) : (
-          <Send className="h-4 w-4" />
+          <Send />
         )}
       </Button>
     </form>
@@ -106,14 +118,14 @@ interface QuickQuestionsProps {
 
 export function QuickQuestions({ questions, onSelect, isLoading }: QuickQuestionsProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-none sm:flex-wrap sm:overflow-visible">
       {questions.map((q) => (
         <button
           key={q.id}
           type="button"
           disabled={isLoading}
           onClick={() => onSelect(q.question)}
-          className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 text-left"
+          className="shrink-0 rounded-full border bg-background px-3.5 py-2.5 min-h-[44px] text-xs sm:text-xs sm:min-h-0 sm:py-1 sm:px-2.5 text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 text-left max-w-[85vw] sm:max-w-none"
         >
           {q.question}
         </button>
@@ -129,7 +141,6 @@ export function ChatScrollArea({
 }: {
   children: React.ReactNode;
   className?: string;
-  /** Re-scroll to bottom when these values change (e.g. messages, loading). */
   autoScrollDeps?: readonly unknown[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -149,7 +160,29 @@ export function ChatScrollArea({
       ref={scrollRef}
       className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain", className)}
     >
-      <div className="p-4">{children}</div>
+      <div className="p-3 sm:p-4">{children}</div>
+    </div>
+  );
+}
+
+/** Shared footer chrome for mobile chat panels (safe area + spacing). */
+export function ChatPanelFooter({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "border-t shrink-0 bg-muted/20 safe-bottom",
+        "p-3 sm:p-4 space-y-3",
+        "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+        className
+      )}
+    >
+      {children}
     </div>
   );
 }

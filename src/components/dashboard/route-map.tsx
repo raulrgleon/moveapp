@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Map as LeafletMap, DivIcon, LayerGroup, Polyline } from "leaflet";
+import type { Map as LeafletMap, CircleMarker, DivIcon, LayerGroup, Marker, Polyline } from "leaflet";
 import { MOVE_ROUTE_POINTS, type GeoPoint } from "@/lib/geo/coordinates";
+import { encodeRouteCoords, escapeHtml } from "@/lib/geo/escape-html";
 import type { RouteAlternativeSummary } from "@/hooks/use-route-stats";
 import type { RouteStop } from "@/lib/types";
 import { useT } from "@/contexts/locale-context";
@@ -29,6 +30,8 @@ interface RouteMapProps {
   selectedRouteIndex?: number;
   onSelectRoute?: (index: number) => void;
   stops?: RouteStop[];
+  /** When true (cinematic mode), map recalculates size to fill container. */
+  expanded?: boolean;
 }
 
 function createWeatherDivIcon(
@@ -36,10 +39,11 @@ function createWeatherDivIcon(
   iconUrl: string,
   condition: string
 ): DivIcon {
-  const safeCondition = condition.replace(/"/g, "&quot;");
+  const safeCondition = escapeHtml(condition);
+  const safeUrl = escapeHtml(iconUrl);
   return L.divIcon({
     className: "route-weather-marker-wrap",
-    html: `<div class="route-weather-marker" title="${safeCondition}"><img src="${iconUrl}" width="28" height="28" alt="${safeCondition}" /></div>`,
+    html: `<div class="route-weather-marker" title="${safeCondition}"><img src="${safeUrl}" width="28" height="28" alt="${safeCondition}" loading="lazy" /></div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
@@ -70,6 +74,18 @@ function findSelectedRoute(
   );
 }
 
+function usePrefersTouch() {
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse), (max-width: 768px)");
+    const update = () => setTouch(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return touch;
+}
+
 export function RouteMap({
   className,
   origin: originProp,
@@ -80,24 +96,22 @@ export function RouteMap({
   selectedRouteIndex = 0,
   onSelectRoute,
   stops = [],
+  expanded = false,
 }: RouteMapProps) {
   const t = useT();
+  const prefersTouch = usePrefersTouch();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
-  // Leaflet default export (dynamic import)
-  const leafletRef = useRef<{
-    map: typeof import("leaflet").map;
-    tileLayer: typeof import("leaflet").tileLayer;
-    marker: typeof import("leaflet").marker;
-    circleMarker: typeof import("leaflet").circleMarker;
-    layerGroup: typeof import("leaflet").layerGroup;
-    latLngBounds: typeof import("leaflet").latLngBounds;
-    polyline: typeof import("leaflet").polyline;
-    divIcon: typeof import("leaflet").divIcon;
-    Icon: typeof import("leaflet").Icon;
-  } | null>(null);
+  const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const routeLayerRef = useRef<LayerGroup | null>(null);
+  const weatherLayerRef = useRef<LayerGroup | null>(null);
   const routeLineRef = useRef<Polyline | null>(null);
+  const originMarkerRef = useRef<Marker | null>(null);
+  const destMarkerRef = useRef<Marker | null>(null);
+  const homeMarkerRef = useRef<CircleMarker | null>(null);
+  const lastFitRouteRef = useRef<number | null>(null);
+  const weatherRequestRef = useRef(0);
+
   const [mapReady, setMapReady] = useState(false);
   const [weatherCount, setWeatherCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -107,7 +121,15 @@ export function RouteMap({
   const homePoint = newHome ?? MOVE_ROUTE_POINTS.newHome;
   const selectedRoute = findSelectedRoute(alternatives, selectedRouteIndex);
 
-  // Init map shell once per origin/destination
+  const invalidateMapSize = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    window.requestAnimationFrame(() => {
+      map.invalidateSize({ animate: false });
+    });
+  }, []);
+
+  // Init map once per coordinate set (not on label/locale changes)
   useEffect(() => {
     let cancelled = false;
 
@@ -119,7 +141,11 @@ export function RouteMap({
         mapRef.current.remove();
         mapRef.current = null;
         routeLayerRef.current = null;
+        weatherLayerRef.current = null;
         routeLineRef.current = null;
+        originMarkerRef.current = null;
+        destMarkerRef.current = null;
+        homeMarkerRef.current = null;
       }
 
       leafletRef.current = L;
@@ -137,46 +163,50 @@ export function RouteMap({
           "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
       });
 
-      const map = L.map(containerRef.current, { scrollWheelZoom: true, zoomControl: true });
+      const map = L.map(containerRef.current, {
+        scrollWheelZoom: !prefersTouch,
+        zoomControl: true,
+        touchZoom: true,
+        dragging: true,
+      });
       mapRef.current = map;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
+        keepBuffer: 4,
+        updateWhenIdle: true,
       }).addTo(map);
 
-      L.marker([origin.lat, origin.lon])
-        .addTo(map)
-        .bindPopup(`<strong>${t("routePage.origin")}</strong><br>${origin.label}`);
-
-      L.marker([destination.lat, destination.lon])
-        .addTo(map)
-        .bindPopup(`<strong>${t("routePage.destination")}</strong><br>${destination.label}`);
+      originMarkerRef.current = L.marker([origin.lat, origin.lon]).addTo(map);
+      destMarkerRef.current = L.marker([destination.lat, destination.lon]).addTo(map);
 
       if (showNewHome && homePoint) {
-        L.circleMarker([homePoint.lat, homePoint.lon], {
+        homeMarkerRef.current = L.circleMarker([homePoint.lat, homePoint.lon], {
           radius: 8,
           color: "#0D9488",
           fillColor: "#14B8A6",
           fillOpacity: 0.9,
           weight: 2,
-        })
-          .addTo(map)
-          .bindPopup(`<strong>New home</strong><br>${homePoint.label}`);
+        }).addTo(map);
       }
 
       routeLayerRef.current = L.layerGroup().addTo(map);
+      weatherLayerRef.current = L.layerGroup().addTo(map);
 
-      const bounds = L.latLngBounds([
-        [origin.lat, origin.lon],
-        [destination.lat, destination.lon],
-      ]);
-      map.fitBounds(bounds, { padding: [40, 40] });
+      map.fitBounds(
+        L.latLngBounds([
+          [origin.lat, origin.lon],
+          [destination.lat, destination.lon],
+        ]),
+        { padding: [40, 40] }
+      );
 
       if (!cancelled) {
         setMapReady(true);
         setLoading(false);
+        lastFitRouteRef.current = null;
       }
     }
 
@@ -193,42 +223,74 @@ export function RouteMap({
         mapRef.current = null;
       }
       routeLayerRef.current = null;
+      weatherLayerRef.current = null;
       routeLineRef.current = null;
+      originMarkerRef.current = null;
+      destMarkerRef.current = null;
+      homeMarkerRef.current = null;
       leafletRef.current = null;
     };
   }, [
     origin.lat,
     origin.lon,
-    origin.label,
     destination.lat,
     destination.lon,
-    destination.label,
     showNewHome,
     homePoint?.lat,
     homePoint?.lon,
-    homePoint?.label,
-    t,
+    prefersTouch,
   ]);
 
-  // Draw ONLY the selected route + its stops (re-run when selection changes)
+  // Update marker popups when labels or locale change (no map rebuild)
+  useEffect(() => {
+    if (!mapReady) return;
+    const originPopup = `<strong>${escapeHtml(t("routePage.origin"))}</strong><br>${escapeHtml(origin.label)}`;
+    const destPopup = `<strong>${escapeHtml(t("routePage.destination"))}</strong><br>${escapeHtml(destination.label)}`;
+    originMarkerRef.current?.bindPopup(originPopup);
+    destMarkerRef.current?.bindPopup(destPopup);
+    if (homeMarkerRef.current && homePoint) {
+      homeMarkerRef.current.bindPopup(
+        `<strong>${escapeHtml(t("routePage.newHome"))}</strong><br>${escapeHtml(homePoint.label)}`
+      );
+    }
+  }, [mapReady, origin.label, destination.label, homePoint?.label, t]);
+
+  // Resize when container or cinematic mode changes
+  useEffect(() => {
+    if (!mapReady || !containerRef.current) return;
+    invalidateMapSize();
+    const node = containerRef.current;
+    const ro = new ResizeObserver(() => invalidateMapSize());
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [mapReady, expanded, invalidateMapSize]);
+
+  // Draw selected route, stops, and weather
   useEffect(() => {
     const map = mapRef.current;
     const Lmod = leafletRef.current;
     const layer = routeLayerRef.current;
-    if (!mapReady || !map || !Lmod || !layer) return;
+    const weatherLayer = weatherLayerRef.current;
+    if (!mapReady || !map || !Lmod || !layer || !weatherLayer) return;
 
     layer.clearLayers();
+    weatherLayer.clearLayers();
     routeLineRef.current = null;
     setWeatherCount(0);
 
+    const requestId = ++weatherRequestRef.current;
+
     if (!selectedRoute?.coordinates?.length) {
-      map.fitBounds(
-        Lmod.latLngBounds([
-          [origin.lat, origin.lon],
-          [destination.lat, destination.lon],
-        ]),
-        { padding: [40, 40] }
-      );
+      if (lastFitRouteRef.current !== selectedRouteIndex) {
+        map.fitBounds(
+          Lmod.latLngBounds([
+            [origin.lat, origin.lon],
+            [destination.lat, destination.lon],
+          ]),
+          { padding: [40, 40] }
+        );
+        lastFitRouteRef.current = selectedRouteIndex;
+      }
       return;
     }
 
@@ -241,10 +303,18 @@ export function RouteMap({
       color,
       weight: 5,
       opacity: 0.92,
+      smoothFactor: 1.5,
     }).addTo(layer);
 
     for (const stop of stops) {
       if (stop.lat == null || stop.lon == null) continue;
+      const priceLine =
+        stop.estimatedPrice != null && stop.estimatedPrice > 0
+          ? `<br>~$${escapeHtml(String(stop.estimatedPrice))}/night`
+          : "";
+      const notesLine = stop.notes
+        ? `<br><small>${escapeHtml(stop.notes)}</small>`
+        : "";
       Lmod.marker([stop.lat, stop.lon], {
         icon: Lmod.divIcon({
           className: "route-stop-marker-wrap",
@@ -256,58 +326,58 @@ export function RouteMap({
       })
         .addTo(layer)
         .bindPopup(
-          `<strong>${stop.name}</strong><br>${stop.location}${stop.estimatedPrice ? `<br>~$${stop.estimatedPrice}/night` : ""}${stop.notes ? `<br><small>${stop.notes}</small>` : ""}`
+          `<strong>${escapeHtml(stop.name)}</strong><br>${escapeHtml(stop.location)}${priceLine}${notesLine}`
         );
     }
 
-    const bounds = Lmod.latLngBounds([
-      [origin.lat, origin.lon],
-      [destination.lat, destination.lon],
-    ]);
-    latLngs.forEach((ll) => bounds.extend(ll));
-    map.fitBounds(bounds, { padding: [40, 40] });
-
-    let cancelled = false;
+    if (lastFitRouteRef.current !== selectedRouteIndex) {
+      const bounds = Lmod.latLngBounds([
+        [origin.lat, origin.lon],
+        [destination.lat, destination.lon],
+      ]);
+      latLngs.forEach((ll) => bounds.extend(ll));
+      map.fitBounds(bounds, { padding: prefersTouch ? [24, 24] : [40, 40] });
+      lastFitRouteRef.current = selectedRouteIndex;
+    }
 
     async function loadWeather() {
+      const wl = weatherLayer;
       const Lw = Lmod;
-      const weatherLayer = layer;
-      if (!Lw || !weatherLayer) return;
+      if (!wl || !Lw) return;
       try {
+        const coords = encodeRouteCoords(selectedRoute!.coordinates);
         const params = new URLSearchParams({
           originLat: String(origin.lat),
           originLon: String(origin.lon),
           destLat: String(destination.lat),
           destLon: String(destination.lon),
-          originLabel: origin.label,
-          destLabel: destination.label,
           routeIndex: String(selectedRouteIndex),
+          coords,
+          distanceMiles: String(selectedRoute!.distanceMiles),
         });
         const wRes = await fetch(`/api/weather/along-route?${params.toString()}`);
-        if (!wRes.ok || cancelled) return;
+        if (!wRes.ok || weatherRequestRef.current !== requestId) return;
         const { points } = (await wRes.json()) as { points: RouteWeatherPoint[] };
+        if (weatherRequestRef.current !== requestId) return;
+
+        wl.clearLayers();
         for (const pt of points) {
-          if (cancelled) return;
           Lw.marker([pt.lat, pt.lon], {
-            icon: createWeatherDivIcon(Lw as typeof import("leaflet"), pt.icon, pt.condition),
+            icon: createWeatherDivIcon(Lw, pt.icon, pt.condition),
             zIndexOffset: 600,
           })
-            .addTo(weatherLayer)
+            .addTo(wl)
             .bindPopup(
-              `<strong>${pt.location}</strong><br>${pt.tempF}°F · ${pt.condition}`
+              `<strong>${escapeHtml(pt.location)}</strong><br>${escapeHtml(String(pt.tempF))}°F · ${escapeHtml(pt.condition)}`
             );
         }
-        if (!cancelled) setWeatherCount(points.length);
+        setWeatherCount(points.length);
       } catch {
         /* optional */
       }
     }
 
     void loadWeather();
-
-    return () => {
-      cancelled = true;
-    };
   }, [
     mapReady,
     selectedRouteIndex,
@@ -315,10 +385,9 @@ export function RouteMap({
     stops,
     origin.lat,
     origin.lon,
-    origin.label,
     destination.lat,
     destination.lon,
-    destination.label,
+    prefersTouch,
   ]);
 
   const handleSelectRoute = useCallback(
@@ -327,6 +396,10 @@ export function RouteMap({
     },
     [onSelectRoute]
   );
+
+  const driveHoursLabel = selectedRoute
+    ? t("routePage.driveHours", { hours: selectedRoute.durationHours.toFixed(1) })
+    : null;
 
   return (
     <div className={`relative overflow-hidden rounded-xl border ${className ?? ""}`}>
@@ -353,31 +426,51 @@ export function RouteMap({
           border-color: #6366F1;
         }
         .route-weather-marker img { display: block; }
+        .route-map-container .leaflet-control-zoom {
+          border: none !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .route-map-container .leaflet-control-zoom a {
+          width: 36px;
+          height: 36px;
+          line-height: 36px;
+          font-size: 18px;
+        }
       `}</style>
-      <div ref={containerRef} className="h-full min-h-[280px] sm:min-h-[360px] w-full z-0" />
+      <div
+        ref={containerRef}
+        className={`route-map-container h-full w-full z-0 ${
+          expanded
+            ? "min-h-0 flex-1"
+            : "min-h-[min(52dvh,28rem)] sm:min-h-[360px] lg:min-h-[400px]"
+        }`}
+      />
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
       {mapReady && alternatives.length > 0 && (
-        <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:right-3 sm:max-w-sm z-[1000] rounded-lg border bg-background/95 px-3 py-2 text-xs shadow-md backdrop-blur space-y-2">
+        <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:right-3 sm:max-w-sm z-[1000] rounded-lg border bg-background/95 px-3 py-2 text-xs shadow-md backdrop-blur space-y-2 safe-bottom max-lg:mb-0">
           {selectedRoute ? (
-            <div>
-              <span className="font-medium">{selectedRoute.distanceMiles.toFixed(0)} mi</span>
-              <span className="text-muted-foreground mx-2">·</span>
-              <span>~{selectedRoute.durationHours.toFixed(1)}h drive</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="font-medium">
+                {selectedRoute.distanceMiles.toFixed(0)} {t("routePage.miles")}
+              </span>
+              <span className="text-muted-foreground hidden sm:inline">·</span>
+              <span className="text-muted-foreground">{driveHoursLabel}</span>
             </div>
           ) : (
             <p className="text-muted-foreground">{t("routePage.pickRouteHint")}</p>
           )}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Route pills on map for mobile/tablet; desktop uses card below */}
+          <div className="flex flex-wrap gap-1.5 lg:hidden">
             {alternatives.slice(0, 3).map((alt) => (
               <button
                 key={alt.index}
                 type="button"
                 onClick={() => handleSelectRoute(alt.index)}
-                className={`rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${
+                className={`rounded-full px-2.5 py-1.5 text-xs font-medium border transition-colors min-h-[36px] ${
                   alt.index === selectedRouteIndex
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background hover:bg-muted border-border"
@@ -388,7 +481,8 @@ export function RouteMap({
                     : undefined
                 }
               >
-                {t("routePage.routeOption", { n: alt.index + 1 })} · {alt.distanceMiles} mi
+                {t("routePage.routeOption", { n: alt.index + 1 })} · {alt.distanceMiles}{" "}
+                {t("routePage.miles")}
               </button>
             ))}
           </div>

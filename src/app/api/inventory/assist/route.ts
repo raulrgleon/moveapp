@@ -4,16 +4,33 @@ import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
 import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
+import { rateLimit } from "@/lib/rate-limit";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import type { Locale } from "@/lib/i18n";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: "OpenAI not configured" }, { status: 500 });
+  }
+
+  const limit = rateLimit(`inventory-assist:${result.user.id}`, 30, 3_600_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      {
+        status: 429,
+        headers: limit.retryAfterSec
+          ? { "Retry-After": String(limit.retryAfterSec) }
+          : undefined,
+      }
+    );
   }
 
   const { question, locale } = (await req.json()) as {

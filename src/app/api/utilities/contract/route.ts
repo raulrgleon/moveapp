@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import { contractUtilityProvider } from "@/lib/db/move-service";
 
 export async function POST(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

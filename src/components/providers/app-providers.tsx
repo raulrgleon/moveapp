@@ -9,6 +9,7 @@ import { InventoryProvider } from "@/contexts/inventory-context";
 import { LocaleProvider } from "@/contexts/locale-context";
 import { MoveProvider } from "@/contexts/move-context";
 import { MovingPlanProvider } from "@/contexts/moving-plan-context";
+import { CookieConsent } from "@/components/marketing/cookie-consent";
 import { FloatingPilotLauncher } from "@/components/marketing/floating-pilot-launcher";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                   <AiChatProvider>
                     {children}
                     <FloatingPilotLauncher />
+                    <CookieConsent />
                   </AiChatProvider>
                 </MovingPlanProvider>
               </DocumentsProvider>

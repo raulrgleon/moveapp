@@ -160,11 +160,11 @@
   }
 
   .mobile-nav-offset {
-    bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .page-bottom-pad {
-    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
   }
 
   @media (min-width: 1024px) {
@@ -177,6 +177,20 @@
     .page-bottom-pad {
       padding-bottom: 2rem;
     }
+  }
+
+  .route-map-container.leaflet-container {
+    touch-action: pan-x pan-y;
+    font-family: inherit;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   .route-draw {

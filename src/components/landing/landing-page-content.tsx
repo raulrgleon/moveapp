@@ -17,6 +17,8 @@ import { PilotBadge } from "@/components/brand/pilot-badge";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
 import { useT } from "@/contexts/locale-context";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { PricingPlansSection } from "@/components/marketing/pricing-plans-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -67,6 +69,9 @@ export function LandingPageContent() {
             <a href="#how-it-works" className="hover:text-foreground transition-colors">
               {t("landing.howItWorks")}
             </a>
+            <Link href="#pricing" className="hover:text-foreground transition-colors">
+              {t("landing.pricing")}
+            </Link>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageToggle />
@@ -326,6 +331,26 @@ export function LandingPageContent() {
         </div>
       </section>
 
+      <section id="pricing" className="py-20 sm:py-28 border-t bg-gradient-to-b from-primary/[0.04] to-background">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <p className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">
+              {t("pricing.eyebrow")}
+            </p>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance">
+              {t("landing.pricingSectionTitle")}
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">{t("landing.pricingSectionSubtitle")}</p>
+          </div>
+          <PricingPlansSection variant="compact" />
+          <p className="mt-8 text-center">
+            <Link href="/pricing" className="text-sm text-primary font-medium hover:underline">
+              {t("landing.pricing")} →
+            </Link>
+          </p>
+        </div>
+      </section>
+
       <section className="brand-cta-gradient py-16 sm:py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(var(--brand-accent)/0.15),transparent_60%)]" />
         <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center relative">
@@ -344,16 +369,12 @@ export function LandingPageContent() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
+          <p className="mt-6 text-sm text-white/70 max-w-md mx-auto">{t("landing.freeStart")}</p>
           <p className="mt-6 text-sm text-white/50 font-mono">movepilotai.com</p>
         </div>
       </section>
 
-      <footer className="border-t py-10">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <Logo showTagline />
-          <p className="text-sm text-muted-foreground">{t("landing.copyright")}</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

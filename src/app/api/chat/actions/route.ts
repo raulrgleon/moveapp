@@ -5,6 +5,7 @@ import {
   addChecklistTask,
   patchChecklistTask,
 } from "@/lib/db/move-service";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import { prisma } from "@/lib/prisma";
 
 type ActionBody = {
@@ -21,6 +22,8 @@ type ActionBody = {
 };
 
 export async function POST(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

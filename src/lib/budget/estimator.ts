@@ -2,11 +2,18 @@ import type { MoveProfile } from "@/lib/move-profile";
 import { parseRentalPreferenceKey } from "@/lib/move-profile";
 import { estimateFuelCost } from "@/lib/budget/fuel-cost";
 import { buildBudgetNotes } from "@/lib/budget/notes";
+import {
+  computeRentalByPreferenceKey,
+  computeVehicleShipCost,
+  householdMultiplier,
+  isShipTransportChoice,
+} from "@/lib/budget/pricing";
 import { hotelEstimatesFromStops, regionalHotelNightlyRate, totalHotelCost } from "@/lib/budget/hotel-cost";
 import { rentalPreferenceForTruckChoice, resolveTruckChoiceOption } from "@/lib/trucks/truck-choice";
 import type { Locale } from "@/lib/i18n";
 import type { RouteStop } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
+import { truckOptionLabel } from "@/lib/trucks/truck-choice";
 
 export interface BudgetEstimateLine {
   category: string;
@@ -28,6 +35,7 @@ export interface BudgetEstimateContext {
   routeStops?: RouteStop[];
   vehicleCount?: number;
   truckChoice?: string | null;
+  vehicleTransportChoice?: string | null;
   locale?: Locale;
   vehicles?: VehicleInfo[];
 }
@@ -45,11 +53,8 @@ function estimateDistanceMiles(origin: string, destination: string): number {
   return 800;
 }
 
-function householdMultiplier(household: string): number {
-  if (/4|5|6|large|grande/i.test(household)) return 1.35;
-  if (/3|three|tres/i.test(household)) return 1.2;
-  if (/2|two|dos|couple/i.test(household)) return 1.0;
-  return 0.85;
+function householdMultiplierLocal(household: string): number {
+  return householdMultiplier(household);
 }
 
 function rentalLineItem(
@@ -57,54 +62,32 @@ function rentalLineItem(
   miles: number,
   mult: number,
   truckChoice?: string | null,
-  profile?: MoveProfile
+  profile?: MoveProfile,
+  vehicles: VehicleInfo[] = [],
+  locale: Locale = "en"
 ): BudgetEstimateLine | null {
   const saved =
     profile && truckChoice
-      ? resolveTruckChoiceOption(profile, truckChoice, miles)
+      ? resolveTruckChoiceOption(profile, truckChoice, miles, locale, vehicles)
       : null;
 
   if (saved) {
     return {
       category: saved.type === "trailer" ? "Trailer rental" : "Truck rental",
       estimated: saved.estimatedPrice,
-      cheapestOption: truckChoice ?? undefined,
+      cheapestOption: truckOptionLabel(saved),
       sortOrder: 1,
     };
   }
 
-  switch (rentalKey) {
-    case "movers":
-      return {
-        category: "Professional movers",
-        estimated: Math.round(1800 * mult + miles * 0.45),
-        sortOrder: 1,
-      };
-    case "truck":
-      return {
-        category: "Truck rental",
-        estimated: Math.round(199 + miles * 0.78 * mult),
-        cheapestOption: "Compare Penske vs U-Haul on Trucks page",
-        sortOrder: 1,
-      };
-    case "trailer":
-      return {
-        category: "Trailer rental",
-        estimated: Math.round(89 + miles * 0.32 * mult),
-        cheapestOption: "6×12 open trailer + your SUV",
-        sortOrder: 1,
-      };
-    case "combo":
-      return {
-        category: "Trailer rental",
-        estimated: Math.round(110 + miles * 0.38 * mult),
-        cheapestOption: "Trailer towed by your vehicle",
-        sortOrder: 1,
-      };
-    case "own":
-    default:
-      return null;
-  }
+  const fallback = computeRentalByPreferenceKey(rentalKey, miles, profile?.household ?? "");
+  if (!fallback) return null;
+  return {
+    category: fallback.category,
+    estimated: fallback.estimated,
+    cheapestOption: fallback.cheapestOption,
+    sortOrder: 1,
+  };
 }
 
 function fallbackHotelNights(miles: number, durationHours?: number): number {
@@ -120,7 +103,7 @@ export async function estimateBudget(
 ): Promise<BudgetEstimate> {
   const locale = context.locale ?? "en";
   const miles = context.distanceMiles ?? estimateDistanceMiles(profile.origin, profile.destination);
-  const mult = householdMultiplier(profile.household);
+  const mult = householdMultiplierLocal(profile.household);
   let rentalKey = parseRentalPreferenceKey(profile.rentalPreference);
   const vehicleCount = context.vehicleCount ?? 1;
   const vehicles = context.vehicles ?? [];
@@ -132,7 +115,15 @@ export async function estimateBudget(
   const items: BudgetEstimateLine[] = [];
   let sortOrder = 1;
 
-  const rental = rentalLineItem(rentalKey, miles, mult, context.truckChoice, profile);
+  const rental = rentalLineItem(
+    rentalKey,
+    miles,
+    mult,
+    context.truckChoice,
+    profile,
+    vehicles,
+    locale
+  );
   if (rental) {
     items.push({ ...rental, sortOrder: sortOrder++ });
   }
@@ -200,8 +191,11 @@ export async function estimateBudget(
     items.push({ category: "Housing deposit", estimated: deposits, sortOrder: sortOrder++ });
   }
 
-  const vehicleTransport = profile.needsVehicleTransport
-    ? Math.round(900 + miles * 0.15)
+  const wantsShip =
+    profile.needsVehicleTransport ||
+    isShipTransportChoice(context.vehicleTransportChoice ?? null);
+  const vehicleTransport = wantsShip
+    ? computeVehicleShipCost(miles, Math.max(1, vehicles.length))
     : 0;
   if (vehicleTransport > 0) {
     items.push({

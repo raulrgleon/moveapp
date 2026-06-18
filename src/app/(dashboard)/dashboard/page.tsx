@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useChecklist } from "@/contexts/checklist-context";
 import { useDocuments } from "@/contexts/documents-context";
+import { useInventory } from "@/contexts/inventory-context";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import {
@@ -23,6 +24,7 @@ import { DashboardHousingCard } from "@/components/dashboard/dashboard-housing-c
 import { DashboardInventoryCard } from "@/components/dashboard/dashboard-inventory-card";
 import { MoveActivityFeed } from "@/components/dashboard/move-activity-feed";
 import { CollaboratorsDashboardCard } from "@/components/collaboration/collaborators-dashboard-card";
+import { UpgradeProBanner } from "@/components/billing/upgrade-pro-banner";
 import { PendingInvitesBanner } from "@/components/collaboration/pending-invites-banner";
 import { MoveCommandHero } from "@/components/dashboard/move-command-hero";
 import { MoveBadgesRow } from "@/components/dashboard/move-badges-row";
@@ -34,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { CountUp } from "@/components/ui/count-up";
 import { GettingStartedCard } from "@/components/dashboard/getting-started-card";
+import { JourneyNextCard } from "@/components/dashboard/journey-next-card";
 import { NextActionCard } from "@/components/dashboard/next-action-card";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useRouteStats } from "@/hooks/use-route-stats";
@@ -56,10 +59,11 @@ const CELEBRATE_KEY = "movepilot_celebrate";
 export default function DashboardPage() {
   const t = useT();
   const { locale } = useLocale();
-  const { profile, vehicles, isAddressConfirmed } = useMove();
+  const { profile, vehicles, isAddressConfirmed, truckChoice } = useMove();
   const { tasks } = useChecklist();
   const { documents } = useDocuments();
   const { stats: routeStats } = useRouteStats();
+  const { boxes } = useInventory();
   const [budgetTotals, setBudgetTotals] = useState({ totalEstimated: 0, totalActual: 0 });
   const [celebrate, setCelebrate] = useState(false);
 
@@ -120,6 +124,9 @@ export default function DashboardPage() {
         pendingHighPriority: pendingHigh,
         pets: profile.pets,
         locale,
+        truckChoice,
+        boxCount: boxes.length,
+        isAddressConfirmed,
       }),
     [
       tasks,
@@ -132,6 +139,9 @@ export default function DashboardPage() {
       routeStats,
       pendingHigh,
       locale,
+      truckChoice,
+      boxes.length,
+      isAddressConfirmed,
     ]
   );
 
@@ -144,7 +154,9 @@ export default function DashboardPage() {
       />
       <PageContainer>
         <PendingInvitesBanner />
+        <UpgradeProBanner />
         <GettingStartedCard />
+        <JourneyNextCard />
         <PageHeader
           title={t("dashboardPage.overview")}
           description={t("dashboardPage.overviewDesc")}

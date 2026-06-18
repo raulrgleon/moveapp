@@ -4,9 +4,12 @@ import { requireMoveAccess } from "@/lib/api-auth";
 import { logMoveActivity } from "@/lib/db/activity";
 import { canManageCollaborators } from "@/lib/db/move-access";
 import { prisma } from "@/lib/prisma";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import { sendMoveInviteEmail } from "@/lib/notifications/email";
 
 export async function GET(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -37,6 +40,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {
@@ -88,6 +93,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {
@@ -114,6 +121,8 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {

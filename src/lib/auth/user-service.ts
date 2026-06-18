@@ -107,6 +107,8 @@ export async function registerUserWithPassword(
   }
 
   const passwordHash = await hashPassword(password);
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
   const user = await prisma.user.create({
     data: {
@@ -116,6 +118,8 @@ export async function registerUserWithPassword(
       passwordHash,
       role,
       locale,
+      planTier: "trial",
+      trialEndsAt,
       moves:
         role === "admin"
           ? undefined
@@ -152,6 +156,8 @@ export async function registerUserWithoutMove(
   if (existing) throw new Error("User already exists");
 
   const passwordHash = await hashPassword(password);
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
   const user = await prisma.user.create({
     data: {
@@ -160,6 +166,8 @@ export async function registerUserWithoutMove(
       passwordHash,
       role: "user",
       locale,
+      planTier: "trial",
+      trialEndsAt,
     },
   });
 

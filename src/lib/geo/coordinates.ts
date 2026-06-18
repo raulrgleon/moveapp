@@ -1,3 +1,9 @@
+import {
+  getCachedRoutes,
+  routeCacheKey,
+  setCachedRoutes,
+} from "@/lib/geo/route-cache";
+
 export interface GeoPoint {
   lat: number;
   lon: number;
@@ -34,6 +40,7 @@ export interface RouteAlternative extends RouteGeometry {
 }
 
 const ROUTE_COUNT = 3;
+const OSRM_TIMEOUT_MS = 12_000;
 
 function haversineMiles(
   a: { lat: number; lon: number },
@@ -107,12 +114,31 @@ function isDistinctRoute(candidate: RouteAlternative, existing: RouteAlternative
   return true;
 }
 
+function straightLineFallback(from: GeoPoint, to: GeoPoint): RouteAlternative {
+  const straightMiles = haversineMiles(from, to);
+  return {
+    index: 0,
+    coordinates: [
+      [from.lon, from.lat],
+      [to.lon, to.lat],
+    ],
+    distanceMiles: straightMiles,
+    durationHours: straightMiles / 55,
+  };
+}
+
 async function queryOsrm(coordPath: string): Promise<RouteAlternative[]> {
   const url = `https://router.project-osrm.org/route/v1/driving/${coordPath}?overview=full&geometries=geojson&alternatives=${ROUTE_COUNT}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OSRM_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { next: { revalidate: 86400 } });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      next: { revalidate: 86400 },
+    });
     if (!res.ok) return [];
     const data = await res.json();
+    if (data.code !== "Ok") return [];
     const routes = data.routes as Array<{
       geometry: { coordinates: [number, number][] };
       distance: number;
@@ -122,6 +148,8 @@ async function queryOsrm(coordPath: string): Promise<RouteAlternative[]> {
     return parseOsrmRoutes(routes);
   } catch {
     return [];
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -135,14 +163,40 @@ async function fetchOsrmThroughWaypoint(
   return routes[0] ?? null;
 }
 
-/** Always returns exactly 3 distinct driving routes when OSRM is reachable. */
+function mergeDistinctRoutes(
+  collected: RouteAlternative[],
+  candidates: RouteAlternative[]
+): RouteAlternative[] {
+  const next = [...collected];
+  for (const candidate of candidates) {
+    if (next.length >= ROUTE_COUNT) break;
+    if (!isDistinctRoute(candidate, next)) continue;
+    next.push(candidate);
+  }
+  return next;
+}
+
+/** Returns exactly 3 distinct driving routes when OSRM is reachable. */
 export async function fetchOsrmRoutes(
   from: GeoPoint,
   to: GeoPoint,
   _maxAlternatives = ROUTE_COUNT
 ): Promise<RouteAlternative[]> {
+  const cacheKey = routeCacheKey(from, to);
+  const cached = getCachedRoutes(cacheKey);
+  if (cached?.length) return cached;
+
   const directPath = `${from.lon},${from.lat};${to.lon},${to.lat}`;
   let collected: RouteAlternative[] = await queryOsrm(directPath);
+
+  if (collected.length >= ROUTE_COUNT) {
+    const result = collected.slice(0, ROUTE_COUNT).map((route, index) => ({
+      ...route,
+      index,
+    }));
+    setCachedRoutes(cacheKey, result);
+    return result;
+  }
 
   const straightMiles = haversineMiles(from, to);
   const baseOffset = Math.min(120, Math.max(35, straightMiles * 0.07));
@@ -152,64 +206,72 @@ export async function fetchOsrmRoutes(
     { fraction: 0.55, offset: baseOffset * 1.25, side: -1 },
     { fraction: 0.45, offset: baseOffset * 0.75, side: 1 },
     { fraction: 0.65, offset: baseOffset * 1.5, side: -1 },
-    { fraction: 0.25, offset: baseOffset * 1.1, side: -1 },
-    { fraction: 0.75, offset: baseOffset * 0.9, side: 1 },
   ];
 
-  for (const attempt of waypointAttempts) {
-    if (collected.length >= ROUTE_COUNT) break;
-    const waypoint = offsetMidpoint(from, to, attempt.fraction, attempt.offset, attempt.side);
-    const viaRoute = await fetchOsrmThroughWaypoint(from, to, waypoint);
-    if (!viaRoute) continue;
-    if (!isDistinctRoute(viaRoute, collected)) continue;
-    collected.push(viaRoute);
-  }
+  const viaResults = await Promise.all(
+    waypointAttempts.map((attempt) => {
+      const waypoint = offsetMidpoint(
+        from,
+        to,
+        attempt.fraction,
+        attempt.offset,
+        attempt.side
+      );
+      return fetchOsrmThroughWaypoint(from, to, waypoint);
+    })
+  );
+
+  collected = mergeDistinctRoutes(
+    collected,
+    viaResults.filter((route): route is RouteAlternative => route != null)
+  );
 
   if (collected.length === 0) {
-    collected.push({
-      index: 0,
-      coordinates: [
-        [from.lon, from.lat],
-        [to.lon, to.lat],
-      ],
-      distanceMiles: straightMiles,
-      durationHours: straightMiles / 55,
-    });
+    collected = [straightLineFallback(from, to)];
+  }
+
+  if (collected.length < ROUTE_COUNT) {
+    const extraAttempts = [
+      offsetMidpoint(from, to, 0.25, baseOffset * 1.1, -1),
+      offsetMidpoint(from, to, 0.75, baseOffset * 0.9, 1),
+    ];
+    const extras = await Promise.all(
+      extraAttempts.map((waypoint) => fetchOsrmThroughWaypoint(from, to, waypoint))
+    );
+    collected = mergeDistinctRoutes(
+      collected,
+      extras.filter((route): route is RouteAlternative => route != null)
+    );
   }
 
   while (collected.length < ROUTE_COUNT) {
     const attemptIndex = collected.length;
-    const scale = 1 + attemptIndex * 0.35;
-    const jitter = offsetMidpoint(
-      from,
-      to,
-      0.3 + attemptIndex * 0.15,
-      baseOffset * scale,
-      attemptIndex % 2 === 0 ? 1 : -1
-    );
-    const viaRoute = await fetchOsrmThroughWaypoint(from, to, jitter);
-    if (viaRoute && isDistinctRoute(viaRoute, collected)) {
-      collected.push(viaRoute);
-      continue;
-    }
-    // Last resort: visibly offset midpoint path (never clone route 1 geometry)
     const fallbackWaypoint = offsetMidpoint(
       from,
       to,
-      0.5,
-      baseOffset * (2 + attemptIndex),
-      attemptIndex % 2 === 0 ? -1 : 1
+      0.3 + attemptIndex * 0.15,
+      baseOffset * (1.5 + attemptIndex * 0.35),
+      attemptIndex % 2 === 0 ? 1 : -1
     );
     const fallbackRoute = await fetchOsrmThroughWaypoint(from, to, fallbackWaypoint);
     if (fallbackRoute && isDistinctRoute(fallbackRoute, collected)) {
       collected.push(fallbackRoute);
+      continue;
     }
+    collected.push({
+      ...straightLineFallback(from, to),
+      index: collected.length,
+      distanceMiles:
+        straightLineFallback(from, to).distanceMiles * (1 + attemptIndex * 0.08),
+    });
   }
 
-  return collected.slice(0, ROUTE_COUNT).map((route, index) => ({
+  const result = collected.slice(0, ROUTE_COUNT).map((route, index) => ({
     ...route,
     index,
   }));
+  setCachedRoutes(cacheKey, result);
+  return result;
 }
 
 /** Fetch driving route via OSRM (fastest of the three). */

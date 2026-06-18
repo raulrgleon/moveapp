@@ -15,6 +15,9 @@ export interface GenerateAlertsInput {
   pendingHighPriority?: number;
   pets?: boolean;
   locale?: Locale;
+  truckChoice?: string | null;
+  boxCount?: number;
+  isAddressConfirmed?: boolean;
 }
 
 function t(locale: Locale, key: string, params?: Record<string, string | number>) {
@@ -77,6 +80,35 @@ export function generateAlerts(input: GenerateAlertsInput): AlertItem[] {
       type: "info",
       title: t(locale, "dashboardPage.alertPetTravelTitle"),
       message: t(locale, "dashboardPage.alertPetTravelMessage"),
+    });
+  }
+
+  if (!input.truckChoice?.trim()) {
+    alerts.push({
+      id: "missing-truck",
+      type: "info",
+      title: t(locale, "dashboardPage.alertMissingTruckTitle"),
+      message: t(locale, "dashboardPage.alertMissingTruckMessage"),
+    });
+  }
+
+  if (!input.isAddressConfirmed) {
+    alerts.push({
+      id: "missing-address",
+      type: "info",
+      title: t(locale, "dashboardPage.alertMissingAddressTitle"),
+      message: t(locale, "dashboardPage.alertMissingAddressMessage"),
+    });
+  }
+
+  if ((input.boxCount ?? 0) >= 20) {
+    alerts.push({
+      id: "inventory-truck",
+      type: "info",
+      title: t(locale, "dashboardPage.alertInventoryTruckTitle"),
+      message: t(locale, "dashboardPage.alertInventoryTruckMessage", {
+        count: input.boxCount ?? 0,
+      }),
     });
   }
 

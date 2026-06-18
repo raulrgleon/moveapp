@@ -84,7 +84,7 @@ export function NotificationsBell() {
         <span className="sr-only">{t("common.notifications")}</span>
       </Button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-md border bg-popover shadow-md">
+        <div className="absolute right-0 top-full z-50 mt-1 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-md border bg-popover shadow-md">
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-medium">{t("common.notifications")}</span>
             {count > 0 && (

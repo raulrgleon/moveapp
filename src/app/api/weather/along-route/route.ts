@@ -39,19 +39,45 @@ export async function GET(req: NextRequest) {
     label: req.nextUrl.searchParams.get("destLabel") ?? "Destination",
   };
 
+  const coordsParam = req.nextUrl.searchParams.get("coords")?.trim();
+
   try {
-    const routeIndex = Math.max(
-      0,
-      parseInt(req.nextUrl.searchParams.get("routeIndex") ?? "0", 10) || 0
-    );
-    const routes = await fetchOsrmRoutes(origin, destination, 3);
-    const route = routes[routeIndex] ?? routes[0];
-    if (!route?.coordinates.length) {
+    let routeCoordinates: [number, number][] = [];
+
+    if (coordsParam) {
+      routeCoordinates = coordsParam
+        .split(";")
+        .map((pair) => {
+          const [lon, lat] = pair.split(",").map((v) => Number(v.trim()));
+          if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+          return [lon, lat] as [number, number];
+        })
+        .filter((c): c is [number, number] => c !== null);
+    }
+
+    if (!routeCoordinates.length) {
+      const routeIndex = Math.max(
+        0,
+        parseInt(req.nextUrl.searchParams.get("routeIndex") ?? "0", 10) || 0
+      );
+      const routes = await fetchOsrmRoutes(origin, destination, 3);
+      const route = routes[routeIndex] ?? routes[0];
+      routeCoordinates = route?.coordinates ?? [];
+    }
+
+    if (!routeCoordinates.length) {
       return NextResponse.json({ points: [] });
     }
 
-    const sampleCount = weatherSampleCount(route.distanceMiles);
-    const sampled = samplePointsAlongRoute(route.coordinates, sampleCount);
+    const parsedDistance = parseFloat(req.nextUrl.searchParams.get("distanceMiles") ?? "");
+    const distanceMiles =
+      Number.isFinite(parsedDistance) && parsedDistance > 0
+        ? parsedDistance
+        : routeCoordinates.length > 1
+          ? Math.max(50, routeCoordinates.length * 0.5)
+          : 50;
+    const sampleCount = weatherSampleCount(distanceMiles);
+    const sampled = samplePointsAlongRoute(routeCoordinates, sampleCount);
 
     const weatherResults = await Promise.all(
       sampled.map(async (pt) => {

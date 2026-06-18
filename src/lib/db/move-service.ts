@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { logMoveActivity } from "@/lib/db/activity";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -161,7 +162,7 @@ export async function syncBudgetEstimate(
 ) {
   const moveMeta = await prisma.move.findUnique({
     where: { id: moveId },
-    select: { truckChoice: true },
+    select: { truckChoice: true, vehicleTransportChoice: true },
   });
 
   const routeCtx = await resolveBudgetRouteContext(moveId, profile, routeIndex);
@@ -176,6 +177,7 @@ export async function syncBudgetEstimate(
     vehicleCount: Math.max(1, routeCtx.vehicles.length),
     vehicles: routeCtx.vehicles,
     truckChoice: moveMeta?.truckChoice,
+    vehicleTransportChoice: moveMeta?.vehicleTransportChoice,
     locale,
   });
 
@@ -373,6 +375,7 @@ export async function getUserDataByUserId(userId: string) {
     vehicles: move.vehicles.map(dbToVehicle),
     truckChoice: move.truckChoice ?? null,
     vehicleTransportChoice: move.vehicleTransportChoice ?? null,
+    selectedRouteIndex: move.selectedRouteIndex ?? 0,
     inventory: move.inventoryBoxes.map(dbToInventory),
     checklist: move.checklistTasks.map(dbToChecklist),
     documents: move.documents.map(dbToDocument),
@@ -576,6 +579,14 @@ export async function updateMoveForUser(
   await updateMoveForUserId(user.id, data);
 }
 
+async function getMoveRouteIndex(moveId: string): Promise<number> {
+  const move = await prisma.move.findUnique({
+    where: { id: moveId },
+    select: { selectedRouteIndex: true },
+  });
+  return move?.selectedRouteIndex ?? 0;
+}
+
 export async function updateMoveForUserId(
   userId: string,
   data: {
@@ -587,6 +598,8 @@ export async function updateMoveForUserId(
     vehicles?: VehicleInfo[];
     truckChoice?: string | null;
     vehicleTransportChoice?: string | null;
+    selectedRouteIndex?: number;
+    utilityPicks?: unknown;
   },
   createIfMissing = true
 ) {
@@ -643,6 +656,12 @@ export async function updateMoveForUserId(
       ...(data.vehicleTransportChoice !== undefined && {
         vehicleTransportChoice: data.vehicleTransportChoice,
       }),
+      ...(data.selectedRouteIndex !== undefined && {
+        selectedRouteIndex: data.selectedRouteIndex,
+      }),
+      ...(data.utilityPicks !== undefined && {
+        utilityPicks: data.utilityPicks as Prisma.InputJsonValue,
+      }),
     },
   });
 
@@ -697,7 +716,8 @@ export async function updateMoveForUserId(
     const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
     const merged = mergeProfileForSync(user, move);
     const locale = await getUserLocale(userId);
-    await syncBudgetEstimate(moveId, merged, 0, Math.max(1, complete.length), locale);
+    const routeIndex = await getMoveRouteIndex(moveId);
+    await syncBudgetEstimate(moveId, merged, routeIndex, Math.max(1, complete.length), locale);
   }
 
   if (p && profileChangeRequiresRecalc(p)) {
@@ -709,7 +729,8 @@ export async function updateMoveForUserId(
       ...(data.destinationLon !== undefined && { destinationLon: data.destinationLon }),
     });
     const locale = await getUserLocale(userId);
-    await syncBudgetEstimate(moveId, merged, 0, undefined, locale);
+    const routeIndex = await getMoveRouteIndex(moveId);
+    await syncBudgetEstimate(moveId, merged, routeIndex, undefined, locale);
     if (profileChangeRequiresChecklistSync(p)) {
       await syncChecklistFromProfile(moveId, merged, locale);
     }
@@ -724,14 +745,37 @@ export async function updateMoveForUserId(
       destinationLon: data.destinationLon,
     });
     const locale = await getUserLocale(userId);
-    await syncBudgetEstimate(moveId, merged, 0, undefined, locale);
+    const routeIndex = await getMoveRouteIndex(moveId);
+    await syncBudgetEstimate(moveId, merged, routeIndex, undefined, locale);
   } else if (data.truckChoice !== undefined) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
     const vehicles = await prisma.vehicle.findMany({ where: { moveId } });
     const merged = mergeProfileForSync(user, move);
     const locale = await getUserLocale(userId);
-    await syncBudgetEstimate(moveId, merged, 0, Math.max(1, vehicles.length), locale);
+    const routeIndex = await getMoveRouteIndex(moveId);
+    await syncBudgetEstimate(moveId, merged, routeIndex, Math.max(1, vehicles.length), locale);
+  } else if (data.vehicleTransportChoice !== undefined) {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
+    const vehicles = await prisma.vehicle.findMany({ where: { moveId } });
+    const merged = mergeProfileForSync(user, move);
+    const locale = await getUserLocale(userId);
+    const routeIndex = await getMoveRouteIndex(moveId);
+    await syncBudgetEstimate(moveId, merged, routeIndex, Math.max(1, vehicles.length), locale);
+  } else if (data.selectedRouteIndex !== undefined) {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
+    const vehicles = await prisma.vehicle.findMany({ where: { moveId } });
+    const merged = mergeProfileForSync(user, move);
+    const locale = await getUserLocale(userId);
+    await syncBudgetEstimate(
+      moveId,
+      merged,
+      data.selectedRouteIndex,
+      Math.max(1, vehicles.length),
+      locale
+    );
   }
 }
 

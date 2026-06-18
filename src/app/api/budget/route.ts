@@ -5,8 +5,11 @@ import { canEditMoveData } from "@/lib/db/move-access";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
 import { estimateBudget } from "@/lib/budget/estimator";
+import { mergeLiveBudgetItems } from "@/lib/budget/merge-items";
+import { buildBudgetBreakdowns } from "@/lib/budget/breakdown";
 import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import type { MoveProfile } from "@/lib/move-profile";
 
 function buildProfile(
@@ -26,6 +29,7 @@ function buildProfile(
     destinationLat: number | null;
     destinationLon: number | null;
     truckChoice: string | null;
+    vehicleTransportChoice: string | null;
   },
   user: { name: string; email: string }
 ): MoveProfile {
@@ -74,25 +78,53 @@ export async function GET(req: NextRequest) {
 
   const profile = buildProfile(move, move.user);
 
-  let items = move.budgetItems;
-  if (items.length === 0) {
-    await syncBudgetEstimate(move.id, profile, 0, 1, locale);
-    items = await prisma.budgetItem.findMany({
-      where: { moveId: move.id },
-      orderBy: { sortOrder: "asc" },
-    });
+  if (move.budgetItems.length === 0 && canEditMoveData(result.access.role)) {
+    await syncBudgetEstimate(move.id, profile, move.selectedRouteIndex ?? 0, 1, locale);
   }
 
-  const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
-  const totalActual = items.reduce((s, i) => s + i.actual, 0);
-  const routeCtx = await resolveBudgetRouteContext(move.id, profile);
-  const est = await estimateBudget(profile, {
+  const dbItems = await prisma.budgetItem.findMany({
+    where: { moveId: move.id },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const routeCtx = await resolveBudgetRouteContext(
+    move.id,
+    profile,
+    move.selectedRouteIndex ?? 0
+  );
+  const live = await estimateBudget(profile, {
     distanceMiles: routeCtx.distanceMiles,
     durationHours: routeCtx.durationHours,
     routeStops: routeCtx.routeStops,
     vehicleCount: Math.max(1, routeCtx.vehicles.length),
     vehicles: routeCtx.vehicles,
     truckChoice: move.truckChoice,
+    vehicleTransportChoice: move.vehicleTransportChoice,
+    locale,
+  });
+
+  const items = mergeLiveBudgetItems(
+    dbItems.map((row) => ({
+      id: row.id,
+      category: row.category,
+      estimated: row.estimated,
+      actual: row.actual,
+      cheapestOption: row.cheapestOption,
+      sortOrder: row.sortOrder,
+    })),
+    live.items
+  );
+
+  const totalEstimated = items.reduce((s, i) => s + i.estimated, 0);
+  const totalActual = items.reduce((s, i) => s + i.actual, 0);
+
+  const breakdowns = buildBudgetBreakdowns(profile, items, {
+    distanceMiles: routeCtx.distanceMiles,
+    durationHours: routeCtx.durationHours,
+    routeStops: routeCtx.routeStops,
+    vehicles: routeCtx.vehicles,
+    truckChoice: move.truckChoice,
+    vehicleTransportChoice: move.vehicleTransportChoice,
     locale,
   });
 
@@ -100,15 +132,20 @@ export async function GET(req: NextRequest) {
     items,
     totalEstimated,
     totalActual,
-    notes: est.notes,
+    notes: live.notes,
+    breakdowns,
     distanceMiles: routeCtx.distanceMiles,
     budgetTarget: move.budget,
-    fuelMiles: est.notes.length ? routeCtx.distanceMiles - 4 : undefined,
+    truckChoice: move.truckChoice,
+    vehicleTransportChoice: move.vehicleTransportChoice,
+    selectedRouteIndex: move.selectedRouteIndex ?? 0,
     isEstimate: true,
   });
 }
 
 export async function PATCH(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;

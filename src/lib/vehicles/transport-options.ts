@@ -1,3 +1,11 @@
+import {
+  computeDriveWithTrailerCost,
+  computeTowDollyCost,
+  computeTruckOptionPrice,
+  computeVehicleShipCost,
+  computeWearAndTear,
+  normalizedMoveMiles,
+} from "@/lib/budget/pricing";
 import { estimateFuelCostSync } from "@/lib/budget/fuel-cost";
 import type { VehicleOption } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
@@ -6,11 +14,13 @@ export function estimateVehicleTransportOptions(
   distanceMiles: number,
   vehicles: VehicleInfo[],
   origin = "",
-  destination = ""
+  destination = "",
+  household = ""
 ): VehicleOption[] {
-  const miles = Math.max(50, distanceMiles);
+  const miles = normalizedMoveMiles(distanceMiles);
   const count = Math.max(1, vehicles.length);
-  const fuel = estimateFuelCostSync({
+
+  const trailerFuel = estimateFuelCostSync({
     distanceMiles: miles,
     rentalKey: "combo",
     vehicleCount: count,
@@ -18,6 +28,7 @@ export function estimateVehicleTransportOptions(
     destination,
     vehicles,
   }).total;
+
   const driveFuel = estimateFuelCostSync({
     distanceMiles: miles,
     rentalKey: "own",
@@ -26,9 +37,10 @@ export function estimateVehicleTransportOptions(
     destination,
     vehicles,
   }).total;
-  const trailer = Math.round(89 + miles * 0.32);
-  const ship = Math.round(900 + miles * 0.15 * count);
-  const dolly = Math.round(120 + miles * 0.08);
+
+  const trailer = computeTruckOptionPrice("uhaul-trailer", miles, household);
+  const ship = computeVehicleShipCost(miles, count);
+  const dolly = computeTowDollyCost(miles);
   const primary = vehicles[0];
 
   return [
@@ -38,17 +50,17 @@ export function estimateVehicleTransportOptions(
       description: primary?.combMpg
         ? `Tow a trailer with your ${primary.displayLabel} (${primary.combMpg} MPG EPA).`
         : "Tow a trailer with your own vehicle. Best balance of cost and control on long routes.",
-      estimatedCost: driveFuel + trailer + Math.round(miles * 0.12),
+      estimatedCost: computeDriveWithTrailerCost(miles, household, driveFuel),
       fuelEstimate: driveFuel,
-      wearAndTear: Math.round(miles * 0.11),
+      wearAndTear: computeWearAndTear(miles),
       recommended: true,
     },
     {
       id: "2",
       title: "Rent trailer only",
       description: "U-Haul-style open trailer. You drive your own tow vehicle.",
-      estimatedCost: trailer + fuel,
-      fuelEstimate: fuel,
+      estimatedCost: trailer + trailerFuel,
+      fuelEstimate: trailerFuel,
     },
     {
       id: "3",
@@ -64,7 +76,7 @@ export function estimateVehicleTransportOptions(
       description: "Tow a second vehicle behind your primary car. Limited combo with trailers.",
       estimatedCost: dolly + Math.round(driveFuel * 0.2),
       fuelEstimate: Math.round(driveFuel * 0.2),
-      wearAndTear: Math.round(miles * 0.06),
+      wearAndTear: computeWearAndTear(miles, 0.06),
     },
   ];
 }

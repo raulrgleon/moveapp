@@ -11,9 +11,12 @@ import {
   patchChecklistTask,
   replaceChecklist,
 } from "@/lib/db/move-service";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import type { ChecklistTask } from "@/lib/types";
 
 export async function PUT(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
@@ -32,6 +35,8 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
@@ -75,6 +80,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
@@ -117,6 +124,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
   const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;

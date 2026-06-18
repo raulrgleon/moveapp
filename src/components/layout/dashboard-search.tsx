@@ -14,7 +14,12 @@ interface SearchResult {
   href: string;
 }
 
-export function DashboardSearch() {
+interface DashboardSearchProps {
+  onNavigate?: () => void;
+  autoFocus?: boolean;
+}
+
+export function DashboardSearch({ onNavigate, autoFocus }: DashboardSearchProps) {
   const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -57,8 +62,9 @@ export function DashboardSearch() {
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         placeholder={t("common.search")}
-        className="pl-9 h-9"
+        className="pl-9 h-10"
         value={query}
+        autoFocus={autoFocus}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
       />
@@ -72,6 +78,7 @@ export function DashboardSearch() {
               onClick={() => {
                 setOpen(false);
                 setQuery("");
+                onNavigate?.();
               }}
             >
               <p className="font-medium">{r.title}</p>

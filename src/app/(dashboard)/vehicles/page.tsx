@@ -48,7 +48,13 @@ export default function VehiclesPage() {
   } = useMove();
   const { stats } = useRouteStats();
   const miles = stats?.distanceMiles ?? 800;
-  const transportOptions = estimateVehicleTransportOptions(miles, vehicles, profile.origin, profile.destination);
+  const transportOptions = estimateVehicleTransportOptions(
+    miles,
+    vehicles,
+    profile.origin,
+    profile.destination,
+    profile.household
+  );
   const recommended = transportOptions.find((o) => o.recommended);
   const otherOptions = transportOptions.filter((o) => !o.recommended);
   const ushipUrl = buildUshipSearchUrl(profile.origin, profile.destination);
@@ -203,13 +209,12 @@ export default function VehiclesPage() {
                     )}
                   </div>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    className="w-full sm:w-auto"
                     onClick={() => setVehicleTransportChoice(optionTitles[recommended.id])}
                   >
                     {vehicleTransportChoice === optionTitles[recommended.id]
                       ? t("vehicles.savedTransportChoice")
-                      : t("vehicles.saveTransportChoice")}
+                      : t("vehicles.useThisOption")}
                   </Button>
                 </div>
               </div>

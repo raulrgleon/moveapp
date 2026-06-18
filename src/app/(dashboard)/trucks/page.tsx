@@ -2,22 +2,27 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Loader2, Sparkles, Truck } from "lucide-react";
+import { ChevronDown, ExternalLink, Loader2, Sparkles, Truck } from "lucide-react";
+import { EstimateDisclaimer } from "@/components/marketing/estimate-disclaimer";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PilotSuggestionCard } from "@/components/pilot/pilot-suggestion-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInventory } from "@/contexts/inventory-context";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { useRouteStats } from "@/hooks/use-route-stats";
+import { assessTruckFitFromBoxes } from "@/lib/inventory/truck-fit";
 import { buildTruckDeepLink } from "@/lib/trucks/deep-links";
 import {
   buildTrailerRecommendation,
   estimateTruckOptions,
 } from "@/lib/trucks/recommendations";
+import { pickSmartTruckOption, smartDefaultTab } from "@/lib/trucks/smart-defaults";
 import { truckOptionLabel } from "@/lib/trucks/truck-choice";
 import { anyVehicleCanTow } from "@/lib/vehicles/tow-capacity";
 import type { TruckOption } from "@/lib/types";
@@ -27,19 +32,21 @@ export default function TrucksPage() {
   const t = useT();
   const { locale } = useLocale();
   const { profile, vehicles, truckChoice, setTruckChoice } = useMove();
+  const { boxes } = useInventory();
   const { stats, loading } = useRouteStats();
+  const [showAlternatives, setShowAlternatives] = useState(false);
+  const [heroSaving, setHeroSaving] = useState(false);
+  const [heroSynced, setHeroSynced] = useState(false);
   const hasRoute = stats != null && stats.distanceMiles > 0;
-  const miles = hasRoute ? stats.distanceMiles : null;
+  const miles = hasRoute ? stats.distanceMiles : 800;
   const canTow = anyVehicleCanTow(vehicles);
-  const options = estimateTruckOptions(
-    profile,
-    miles ?? profile.budget / 5,
-    locale,
-    vehicles
-  );
+  const truckFit = assessTruckFitFromBoxes(boxes);
+  const options = estimateTruckOptions(profile, miles, locale, vehicles);
   const trucks = options.filter((o) => o.type === "truck");
   const trailers = options.filter((o) => o.type === "trailer");
-  const recommendation = buildTrailerRecommendation(profile, miles ?? 0, vehicles, locale);
+  const recommendation = buildTrailerRecommendation(profile, miles, vehicles, locale);
+  const smartPick = pickSmartTruckOption(profile, miles, vehicles, locale, truckFit);
+  const defaultTab = smartDefaultTab(vehicles, boxes.length);
 
   const pickRecommended = (list: TruckOption[]) =>
     list.length
@@ -48,7 +55,20 @@ export default function TrucksPage() {
 
   const trailerRecommendedId = useMemo(() => pickRecommended(trailers), [trailers]);
   const truckRecommendedId = useMemo(() => pickRecommended(trucks), [trucks]);
-  const allRecommendedId = useMemo(() => pickRecommended(options), [options]);
+  const allRecommendedId = useMemo(
+    () => (smartPick?.id ?? pickRecommended(options)),
+    [smartPick, options]
+  );
+
+  const handleHeroSave = async () => {
+    if (!smartPick) return;
+    setHeroSaving(true);
+    setHeroSynced(false);
+    setTruckChoice(truckOptionLabel(smartPick));
+    setHeroSaving(false);
+    setHeroSynced(true);
+    window.setTimeout(() => setHeroSynced(false), 4000);
+  };
 
   return (
     <>
@@ -85,12 +105,15 @@ export default function TrucksPage() {
         )}
 
         <Card className="border-dashed bg-muted/30">
-          <CardContent className="p-4 text-sm text-muted-foreground">
+          <CardContent className="p-4 text-sm text-muted-foreground space-y-1">
             {hasRoute
               ? t("trucksPage.estimateBannerMiles", { miles: stats!.distanceMiles.toLocaleString() })
               : t("trucksPage.estimateBannerNoRoute")}
+            <p>{t("trucksPage.unifiedPricingNote")}</p>
           </CardContent>
         </Card>
+
+        <EstimateDisclaimer />
 
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-6 flex items-start gap-4">
@@ -109,7 +132,77 @@ export default function TrucksPage() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue={canTow ? "trailers" : "trucks"}>
+        {boxes.length > 0 && truckFit.level !== "unknown" && (
+          <Card className="border-dashed">
+            <CardContent className="p-4 text-sm text-muted-foreground">
+              {t(truckFit.messageKey, { count: truckFit.boxCount, weight: truckFit.weightLbs })}
+            </CardContent>
+          </Card>
+        )}
+
+        {smartPick && !showAlternatives && (
+          <Card className="border-primary shadow-lg overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  {t("trucksPage.recommendedHeroTitle")}
+                </CardTitle>
+                <Badge>{t("trucksPage.bestForYou")}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="text-2xl font-bold">{smartPick.company}</span>
+                <span className="text-muted-foreground">{smartPick.vehicleSize}</span>
+                <span className="text-2xl font-bold text-primary ml-auto">
+                  {formatCurrency(smartPick.estimatedPrice)}
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button className="flex-1" disabled={heroSaving} onClick={() => void handleHeroSave()}>
+                  {heroSaving
+                    ? t("trucksPage.saving")
+                    : truckChoice === truckOptionLabel(smartPick)
+                      ? t("trucksPage.savedChoice")
+                      : t("trucksPage.useThisOption")}
+                </Button>
+                <Button variant="outline" asChild className="flex-1">
+                  <a
+                    href={buildTruckDeepLink(smartPick.company, profile.origin, profile.destination, profile.moveDate)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("trucksPage.bookNow")}
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+              {heroSynced && (
+                <p className="text-xs text-emerald-600">{t("trucksPage.budgetSyncedOnSave")}</p>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setShowAlternatives(true)}>
+                {t("trucksPage.viewAlternatives")}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!truckChoice && smartPick && (
+          <PilotSuggestionCard
+            message={t("trucksPage.pilotSuggestSave", {
+              option: `${smartPick.company} ${smartPick.vehicleSize}`,
+              price: formatCurrency(smartPick.estimatedPrice),
+            })}
+            actionLabelKey="trucksPage.useThisOption"
+            onApply={handleHeroSave}
+            applying={heroSaving}
+          />
+        )}
+
+        {(showAlternatives || !smartPick) && (
+        <Tabs defaultValue={defaultTab}>
           <TabsList className="flex h-auto w-full flex-wrap gap-1">
             <TabsTrigger value="trailers" disabled={trailers.length === 0}>
               {t("trucksPage.trailers")}
@@ -156,6 +249,7 @@ export default function TrucksPage() {
             />
           </TabsContent>
         </Tabs>
+        )}
       </PageContainer>
     </>
   );
@@ -180,12 +274,16 @@ function OptionGrid({
 }) {
   const t = useT();
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [syncedId, setSyncedId] = useState<string | null>(null);
 
   const handleSave = async (option: TruckOption) => {
     const label = truckOptionLabel(option);
     setSavingId(option.id);
+    setSyncedId(null);
     onSave(label);
     setSavingId(null);
+    setSyncedId(option.id);
+    window.setTimeout(() => setSyncedId(null), 4000);
   };
 
   return (
@@ -272,7 +370,7 @@ function OptionGrid({
                 variant={isSaved ? "secondary" : "outline"}
                 className="w-full"
                 disabled={savingId === option.id}
-                onClick={() => handleSave(option)}
+                onClick={() => void handleSave(option)}
               >
                 {savingId === option.id
                   ? t("trucksPage.saving")
@@ -280,6 +378,11 @@ function OptionGrid({
                     ? t("trucksPage.savedChoice")
                     : t("trucksPage.saveChoice")}
               </Button>
+              {syncedId === option.id && (
+                <p className="text-xs text-emerald-600 text-center w-full">
+                  {t("trucksPage.budgetSyncedOnSave")}
+                </p>
+              )}
             </CardFooter>
           </Card>
         );

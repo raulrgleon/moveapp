@@ -17,6 +17,7 @@ export interface UserDataPayload {
   vehicles: VehicleInfo[];
   truckChoice?: string | null;
   vehicleTransportChoice?: string | null;
+  selectedRouteIndex?: number;
   inventory: InventoryBox[];
   checklist: ChecklistTask[];
   documents: (DocumentItem & { fileName?: string; hasFile?: boolean })[];

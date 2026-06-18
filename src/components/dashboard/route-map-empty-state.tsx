@@ -10,7 +10,7 @@ export function RouteMapEmptyState({ className }: { className?: string }) {
 
   return (
     <div
-      className={`flex min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center ${className ?? ""}`}
+      className={`flex min-h-[min(52dvh,28rem)] sm:min-h-[360px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/30 px-6 text-center ${className ?? ""}`}
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
         <MapPin className="h-6 w-6 text-primary" />

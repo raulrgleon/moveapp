@@ -68,12 +68,16 @@ export async function GET(req: NextRequest) {
 
   if (!user) {
     isNewUser = true;
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
     user = await prisma.user.create({
       data: {
         email: googleUser.email.toLowerCase(),
         name: googleUser.name || googleUser.email.split("@")[0],
         googleId: googleUser.id,
         role: "user",
+        planTier: "trial",
+        trialEndsAt,
         moves: { create: await buildDefaultMoveData() },
       },
     });

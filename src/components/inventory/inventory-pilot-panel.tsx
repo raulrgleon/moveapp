@@ -6,6 +6,7 @@ import { useLocale, useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isUpgradeRequiredResponse, redirectToUpgrade } from "@/lib/api-client";
 
 const QUICK_KEYS = ["pilotQuick1", "pilotQuick2", "pilotQuick3", "pilotQuick4"] as const;
 
@@ -28,6 +29,10 @@ export function InventoryPilotPanel() {
         credentials: "include",
         body: JSON.stringify({ question: q, locale }),
       });
+      if (isUpgradeRequiredResponse(res)) {
+        redirectToUpgrade();
+        return;
+      }
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as { answer: string };
       setAnswer(data.answer);

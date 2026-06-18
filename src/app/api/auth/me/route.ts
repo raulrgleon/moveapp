@@ -18,11 +18,32 @@ export async function GET(req: NextRequest) {
       emailReminders: true,
       smsReminders: true,
       locale: true,
+      createdAt: true,
+      planTier: true,
+      trialEndsAt: true,
+      planPaidAt: true,
     },
   });
 
+  if (!user) return unauthorized();
+
+  let trialEndsAt = user.trialEndsAt;
+  if (!trialEndsAt && user.planTier !== "pro") {
+    const fallback = new Date(user.createdAt);
+    fallback.setDate(fallback.getDate() + 7);
+    trialEndsAt = fallback;
+  }
+
   return NextResponse.json({
-    user: user ? { ...user, locale: user.locale ?? "en" } : user,
+    user: user
+      ? {
+          ...user,
+          locale: user.locale ?? "en",
+          trialEndsAt: trialEndsAt?.toISOString() ?? null,
+          planPaidAt: user.planPaidAt?.toISOString() ?? null,
+          createdAt: user.createdAt.toISOString(),
+        }
+      : user,
     impersonatedBy: session.impersonatedBy ?? null,
     isImpersonating: Boolean(session.impersonatedBy),
   });
