@@ -11,6 +11,8 @@ interface BrandLogoProps {
   href?: string;
   size?: "sm" | "md" | "lg";
   variant?: "default" | "light";
+  /** Paid Pro — gold compass mark and Ai accent */
+  premium?: boolean;
 }
 
 export function BrandLogo({
@@ -20,6 +22,7 @@ export function BrandLogo({
   href = "/",
   size = "md",
   variant = "default",
+  premium = false,
 }: BrandLogoProps) {
   const wordClass =
     size === "lg"
@@ -30,13 +33,21 @@ export function BrandLogo({
 
   const content = (
     <>
-      <BrandMark size={size === "lg" ? "lg" : size === "sm" ? "sm" : "md"} />
+      <BrandMark
+        size={size === "lg" ? "lg" : size === "sm" ? "sm" : "md"}
+        variant={premium ? "gold" : "default"}
+      />
       <div className="flex flex-col min-w-0">
         <span className={cn("font-bold tracking-tight leading-none", wordClass)}>
-          <span className={variant === "light" ? "text-white" : "text-foreground"}>
+          <span
+            className={cn(
+              variant === "light" ? "text-white" : "text-foreground",
+              premium && variant !== "light" && "text-amber-950 dark:text-amber-50"
+            )}
+          >
             MovePilot
           </span>
-          <span className="brand-ai">Ai</span>
+          <span className={premium ? "brand-ai-gold" : "brand-ai"}>Ai</span>
         </span>
         {showTagline && tagline && (
           <span

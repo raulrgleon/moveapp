@@ -1,4 +1,4 @@
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 3;
 export const PRO_PRICE_USD = 29;
 
 export type PlanTier = "trial" | "pro" | "preview";

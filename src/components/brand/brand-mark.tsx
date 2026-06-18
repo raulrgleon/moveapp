@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 interface BrandMarkProps {
   className?: string;
   size?: "sm" | "md" | "lg";
+  variant?: "default" | "gold";
 }
 
 const sizes = {
@@ -18,12 +19,15 @@ const iconSizes = {
 };
 
 /** Compass / pilot mark for MovePilotAi */
-export function BrandMark({ className, size = "md" }: BrandMarkProps) {
+export function BrandMark({ className, size = "md", variant = "default" }: BrandMarkProps) {
   const s = iconSizes[size];
   return (
     <div
       className={cn(
-        "brand-mark flex shrink-0 items-center justify-center bg-gradient-to-br from-brand-dark to-brand text-white shadow-md shadow-brand/30",
+        "brand-mark flex shrink-0 items-center justify-center text-white shadow-md",
+        variant === "gold"
+          ? "bg-gradient-to-br from-amber-700 via-amber-500 to-yellow-400 shadow-amber-500/40 ring-1 ring-amber-300/50"
+          : "bg-gradient-to-br from-brand-dark to-brand shadow-brand/30",
         sizes[size],
         className
       )}

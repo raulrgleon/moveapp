@@ -1,3 +1,4 @@
+import { resolveTrialEndsAt } from "@/lib/billing/plan";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { buildMoveDataFromProfile, buildDefaultMoveData } from "@/lib/db/move-service";
@@ -107,8 +108,7 @@ export async function registerUserWithPassword(
   }
 
   const passwordHash = await hashPassword(password);
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  const trialEndsAt = resolveTrialEndsAt({ createdAt: new Date(), trialEndsAt: null });
 
   const user = await prisma.user.create({
     data: {
@@ -156,8 +156,7 @@ export async function registerUserWithoutMove(
   if (existing) throw new Error("User already exists");
 
   const passwordHash = await hashPassword(password);
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  const trialEndsAt = resolveTrialEndsAt({ createdAt: new Date(), trialEndsAt: null });
 
   const user = await prisma.user.create({
     data: {

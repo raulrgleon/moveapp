@@ -113,8 +113,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
       es: "10. Planes de pago",
     },
     body: {
-      en: "MovePilot Pro is a one-time payment of $29 USD per move, processed securely by Stripe. New accounts receive a 7-day full-access trial before payment is required. Prices shown at checkout are final unless a promotion code is applied.",
-      es: "MovePilot Pro es un pago único de 29 USD por mudanza, procesado de forma segura con Stripe. Las cuentas nuevas reciben 7 días de acceso completo antes de requerir pago. Los precios mostrados en el checkout son finales salvo que se aplique un código promocional.",
+      en: "MovePilot Pro is a one-time payment of $29 USD per move, processed securely by Stripe. New accounts receive a 3-day full-access trial before payment is required. Prices shown at checkout are final unless a promotion code is applied.",
+      es: "MovePilot Pro es un pago único de 29 USD por mudanza, procesado de forma segura con Stripe. Las cuentas nuevas reciben 3 días de acceso completo antes de requerir pago. Los precios mostrados en el checkout son finales salvo que se aplique un código promocional.",
     },
   },
   {
@@ -295,8 +295,8 @@ export const REFUNDS_SECTIONS: LegalSection[] = [
       es: "2. Prueba gratuita",
     },
     body: {
-      en: "New accounts include a 7-day trial with full Pro access. No payment is collected during the trial unless you choose to upgrade early. If you have not paid, cancel simply by not upgrading — no refund is needed.",
-      es: "Las cuentas nuevas incluyen 7 días de prueba con acceso Pro completo. No se cobra durante la prueba salvo que decidas mejorar antes. Si no has pagado, basta con no actualizar — no hace falta reembolso.",
+      en: "New accounts include a 3-day trial with full Pro access. No payment is collected during the trial unless you choose to upgrade early. If you have not paid, cancel simply by not upgrading — no refund is needed.",
+      es: "Las cuentas nuevas incluyen 3 días de prueba con acceso Pro completo. No se cobra durante la prueba salvo que decidas mejorar antes. Si no has pagado, basta con no actualizar — no hace falta reembolso.",
     },
   },
   {

@@ -6,6 +6,7 @@ import {
   isSecureRequest,
   sessionCookieOptions,
 } from "@/lib/auth/session";
+import { resolveTrialEndsAt } from "@/lib/billing/plan";
 import { buildDefaultMoveData } from "@/lib/db/move-service";
 import { sendWelcomeEmail } from "@/lib/notifications/email";
 
@@ -68,8 +69,7 @@ export async function GET(req: NextRequest) {
 
   if (!user) {
     isNewUser = true;
-    const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+    const trialEndsAt = resolveTrialEndsAt({ createdAt: new Date(), trialEndsAt: null });
     user = await prisma.user.create({
       data: {
         email: googleUser.email.toLowerCase(),

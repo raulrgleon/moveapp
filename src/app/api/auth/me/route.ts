@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveTrialEndsAt } from "@/lib/billing/plan";
 import { getSessionUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -29,9 +30,7 @@ export async function GET(req: NextRequest) {
 
   let trialEndsAt = user.trialEndsAt;
   if (!trialEndsAt && user.planTier !== "pro") {
-    const fallback = new Date(user.createdAt);
-    fallback.setDate(fallback.getDate() + 7);
-    trialEndsAt = fallback;
+    trialEndsAt = resolveTrialEndsAt({ createdAt: user.createdAt, trialEndsAt: null });
   }
 
   return NextResponse.json({
