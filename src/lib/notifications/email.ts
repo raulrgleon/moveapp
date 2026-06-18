@@ -160,3 +160,28 @@ export async function sendMoveInviteEmail(
 
   await sendHtmlEmail(to, subject, body);
 }
+
+export async function sendPartnerQuoteEmail(
+  to: string,
+  name: string,
+  input: {
+    companyName: string;
+    amountLabel: string;
+    origin: string;
+    destination: string;
+  },
+  locale: EmailLocale = "en"
+) {
+  const partnerUrl = `${appUrl()}/partner`;
+  const subject =
+    locale === "es"
+      ? `Nueva cotización de ${input.companyName} — MovePilotAi`
+      : `New quote from ${input.companyName} — MovePilotAi`;
+  const greeting = locale === "es" ? `Hola ${name},` : `Hi ${name},`;
+  const body =
+    locale === "es"
+      ? `<p>${greeting}</p><p><strong>${input.companyName}</strong> envió una cotización para tu mudanza ${input.origin} → ${input.destination}.</p><p>Monto: <strong>${input.amountLabel}</strong></p><p><a href="${partnerUrl}">Ver y comparar cotizaciones</a></p>`
+      : `<p>${greeting}</p><p><strong>${input.companyName}</strong> submitted a quote for your move ${input.origin} → ${input.destination}.</p><p>Amount: <strong>${input.amountLabel}</strong></p><p><a href="${partnerUrl}">Review and compare quotes</a></p>`;
+
+  await sendHtmlEmail(to, subject, body);
+}

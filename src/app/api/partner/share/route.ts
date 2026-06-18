@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
+import { mergeProfileForSync } from "@/lib/db/move-service";
+import { partnersForRoute } from "@/lib/partner/directory";
+import { lowestQuoteAmount } from "@/lib/partner/quote-utils";
+import { resolveMoveBriefForPartner, serializeQuote } from "@/lib/partner/resolve-brief";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -10,18 +13,22 @@ export async function GET(req: NextRequest) {
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
-  const move = await prisma.move.findUnique({
-    where: { id: result.access.moveId },
-    select: {
-      partnerShareEnabled: true,
-      partnerShareToken: true,
-      origin: true,
-      destination: true,
-      moveDate: true,
-      household: true,
-    },
-  });
-
+  const [move, user, dbMove] = await Promise.all([
+    prisma.move.findUnique({
+      where: { id: result.access.moveId },
+      select: {
+        partnerShareEnabled: true,
+        partnerShareToken: true,
+        origin: true,
+        destination: true,
+        moveDate: true,
+        household: true,
+        selectedRouteIndex: true,
+      },
+    }),
+    prisma.user.findUniqueOrThrow({ where: { id: result.user.id } }),
+    prisma.move.findUniqueOrThrow({ where: { id: result.access.moveId } }),
+  ]);
   if (!move) return NextResponse.json({ error: "Move not found" }, { status: 404 });
 
   const quotes = await prisma.partnerQuote.findMany({
@@ -29,16 +36,30 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
+  const profile = mergeProfileForSync(user, dbMove);
+  const brief = await resolveMoveBriefForPartner(
+    result.access.moveId,
+    profile,
+    move.selectedRouteIndex ?? 0
+  );
+
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const shareUrl = move.partnerShareToken
     ? `${base}/quote/${move.partnerShareToken}`
     : null;
 
+  const serializedQuotes = quotes.map(serializeQuote);
+  const lowestQuote = lowestQuoteAmount(serializedQuotes);
+
   return NextResponse.json({
     enabled: move.partnerShareEnabled,
     shareUrl,
     shareToken: move.partnerShareToken,
-    quotes,
+    quotes: serializedQuotes,
+    brief,
+    diyEstimate: brief.diyEstimate ?? brief.budgetEstimate,
+    lowestQuote,
+    directory: partnersForRoute(move.origin, move.destination),
     moveSummary: {
       origin: move.origin,
       destination: move.destination,
@@ -74,6 +95,7 @@ export async function POST(req: NextRequest) {
     where: { id: result.access.moveId },
     select: { partnerShareToken: true },
   });
+  const { randomUUID } = await import("crypto");
   const token = existing?.partnerShareToken ?? randomUUID().replace(/-/g, "").slice(0, 24);
 
   await prisma.move.update({

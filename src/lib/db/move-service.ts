@@ -222,7 +222,7 @@ export async function syncBudgetEstimate(
   return estimate;
 }
 
-function mergeProfileForSync(
+export function mergeProfileForSync(
   user: { name: string; email: string },
   move: {
     origin: string;

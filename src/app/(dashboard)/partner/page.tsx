@@ -1,34 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Copy, ExternalLink, Handshake, Loader2, RefreshCw } from "lucide-react";
+import { Handshake, Loader2, RefreshCw } from "lucide-react";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { DiyVsMoverCard } from "@/components/partner/diy-vs-mover-card";
+import { MoveBriefCard } from "@/components/partner/move-brief-card";
+import { PartnerDirectory } from "@/components/partner/partner-directory";
+import { PartnerShareCard } from "@/components/partner/partner-share-card";
+import { QuoteComparator } from "@/components/partner/quote-comparator";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import type { PartnerDirectoryEntry } from "@/lib/partner/directory";
+import type { MoveBrief } from "@/lib/partner/move-brief";
+import type { PartnerQuoteRow } from "@/lib/partner/quote-utils";
+import { quoteAmountLabel, quoteServicesSummary } from "@/lib/partner/quote-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useLocale } from "@/contexts/locale-context";
-
-interface PartnerQuote {
-  id: string;
-  companyName: string;
-  contactEmail: string;
-  contactPhone: string | null;
-  amount: number | null;
-  message: string | null;
-  status: string;
-  createdAt: string;
-}
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 
 interface PartnerData {
   enabled: boolean;
   shareUrl: string | null;
-  quotes: PartnerQuote[];
+  quotes: PartnerQuoteRow[];
+  brief?: MoveBrief;
+  diyEstimate?: number;
+  lowestQuote?: number | null;
+  directory?: PartnerDirectoryEntry[];
   moveSummary: {
     origin: string;
     destination: string;
@@ -43,12 +45,12 @@ export default function PartnerPage() {
   const [data, setData] = useState<PartnerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiFetch("/api/partner/share");
+      if (!res.ok) throw new Error("failed");
       setData((await res.json()) as PartnerData);
     } catch {
       setData(null);
@@ -59,6 +61,10 @@ export default function PartnerPage() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    return subscribeProfileUpdated(() => void load());
   }, [load]);
 
   const toggleShare = async (enabled: boolean) => {
@@ -74,13 +80,6 @@ export default function PartnerPage() {
     }
   };
 
-  const copyLink = async () => {
-    if (!data?.shareUrl) return;
-    await navigator.clipboard.writeText(data.shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const updateQuoteStatus = async (quoteId: string, status: string) => {
     await apiFetch("/api/partner/quotes", {
       method: "PATCH",
@@ -88,6 +87,9 @@ export default function PartnerPage() {
     });
     await load();
   };
+
+  const diyEstimate = data?.diyEstimate ?? data?.brief?.budgetEstimate ?? 0;
+  const lowestQuote = data?.lowestQuote ?? null;
 
   return (
     <>
@@ -98,7 +100,7 @@ export default function PartnerPage() {
           description={t("partnerPage.pageDesc")}
           action={
             <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               {t("common.update")}
             </Button>
           }
@@ -111,6 +113,10 @@ export default function PartnerPage() {
           </div>
         ) : (
           <div className="space-y-6">
+            {data?.brief && <MoveBriefCard brief={data.brief} />}
+
+            <DiyVsMoverCard diyEstimate={diyEstimate} lowestQuote={lowestQuote} />
+
             <Card className="border-primary/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -131,77 +137,58 @@ export default function PartnerPage() {
                     {data.moveSummary.household}
                   </p>
                 )}
-                <div className="flex flex-wrap gap-2">
-                  {data?.enabled ? (
-                    <>
-                      <Button variant="outline" size="sm" onClick={() => void toggleShare(false)} disabled={toggling}>
-                        {t("partnerPage.disableShare")}
-                      </Button>
-                      <Button size="sm" onClick={() => void copyLink()}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        {copied ? t("partnerPage.copied") : t("partnerPage.copyLink")}
-                      </Button>
-                      {data.shareUrl && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={data.shareUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            {t("partnerPage.previewLink")}
-                          </a>
-                        </Button>
-                      )}
-                    </>
-                  ) : (
-                    <Button onClick={() => void toggleShare(true)} disabled={toggling}>
-                      {t("partnerPage.enableShare")}
-                    </Button>
-                  )}
-                </div>
-                {data?.enabled && data.shareUrl && (
-                  <p className="text-xs font-mono text-muted-foreground break-all">{data.shareUrl}</p>
-                )}
+                <PartnerShareCard
+                  enabled={data?.enabled ?? false}
+                  shareUrl={data?.shareUrl ?? null}
+                  onToggle={toggleShare}
+                  onRefresh={load}
+                  toggling={toggling}
+                />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("partnerPage.quotesTitle")}</CardTitle>
+                <p className="text-sm text-muted-foreground">{t("partnerPage.quotesDesc")}</p>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 {!data?.quotes.length ? (
                   <p className="text-sm text-muted-foreground">{t("partnerPage.noQuotes")}</p>
                 ) : (
-                  data.quotes.map((q) => (
-                    <div key={q.id} className="rounded-lg border p-4 space-y-2">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium">{q.companyName}</p>
-                          <p className="text-sm text-muted-foreground">{q.contactEmail}</p>
+                  <>
+                    <QuoteComparator
+                      quotes={data.quotes}
+                      diyEstimate={diyEstimate}
+                      onStatusChange={(id, status) => void updateQuoteStatus(id, status)}
+                    />
+                    <div className="space-y-3 md:hidden">
+                      {data.quotes.map((q) => (
+                        <div key={q.id} className="rounded-lg border p-4 space-y-2">
+                          <div className="flex justify-between gap-2">
+                            <p className="font-medium">{q.companyName}</p>
+                            <Badge variant="secondary">
+                              {t(`partnerPage.status.${q.status}` as "partnerPage.status.pending")}
+                            </Badge>
+                          </div>
+                          <p className="text-sm font-semibold">
+                            {quoteAmountLabel(q, locale, formatCurrency)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {quoteServicesSummary(q, locale).join(" · ")}
+                          </p>
+                          {q.message && (
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{q.message}</p>
+                          )}
                         </div>
-                        <Badge variant={q.status === "accepted" ? "default" : "secondary"}>
-                          {t(`partnerPage.status.${q.status}` as "partnerPage.status.pending")}
-                        </Badge>
-                      </div>
-                      {q.amount != null && (
-                        <p className="text-sm font-semibold">{formatCurrency(q.amount, locale)}</p>
-                      )}
-                      {q.message && (
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{q.message}</p>
-                      )}
-                      {q.status === "pending" && (
-                        <div className="flex gap-2 pt-1">
-                          <Button size="sm" onClick={() => void updateQuoteStatus(q.id, "accepted")}>
-                            {t("partnerPage.acceptQuote")}
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => void updateQuoteStatus(q.id, "declined")}>
-                            {t("partnerPage.declineQuote")}
-                          </Button>
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  ))
+                  </>
                 )}
               </CardContent>
             </Card>
+
+            {data?.directory && <PartnerDirectory entries={data.directory} />}
           </div>
         )}
       </PageContainer>

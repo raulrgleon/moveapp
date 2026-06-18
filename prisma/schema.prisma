@@ -134,16 +134,24 @@ model Move {
 }
 
 model PartnerQuote {
-  id           String   @id @default(uuid())
-  moveId       String   @map("move_id")
-  move         Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
-  companyName  String   @map("company_name")
-  contactEmail String   @map("contact_email")
-  contactPhone String?  @map("contact_phone")
-  amount       Int?
-  message      String?  @db.Text
-  status       String   @default("pending")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id               String   @id @default(uuid())
+  moveId           String   @map("move_id")
+  move             Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  companyName      String   @map("company_name")
+  contactEmail     String   @map("contact_email")
+  contactPhone     String?  @map("contact_phone")
+  amount           Int?
+  amountMin        Int?     @map("amount_min")
+  amountMax        Int?     @map("amount_max")
+  message          String?  @db.Text
+  serviceType      String?  @map("service_type")
+  includesPacking  Boolean  @default(false) @map("includes_packing")
+  includesInsurance Boolean @default(false) @map("includes_insurance")
+  usdotNumber      String?  @map("usdot_number")
+  availableDate    String?  @map("available_date")
+  status           String   @default("pending")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@index([moveId])
   @@map("partner_quotes")

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { CityComparisonHint } from "@/components/budget/city-comparison-hint";
+import { DiyVsMoverCard } from "@/components/partner/diy-vs-mover-card";
 import { PlanShareCard } from "@/components/budget/plan-share-card";
 import { PilotSuggestionCard } from "@/components/pilot/pilot-suggestion-card";
 import { useMove } from "@/contexts/move-context";
@@ -65,20 +66,41 @@ export default function BudgetPage() {
   const [error, setError] = useState<string | null>(null);
   const [expandedBreakdown, setExpandedBreakdown] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [partnerSummary, setPartnerSummary] = useState<{
+    diyEstimate: number;
+    lowestQuote: number | null;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/api/budget");
-      const json = (await res.json()) as BudgetResponse;
+      const [budgetRes, partnerRes] = await Promise.all([
+        apiFetch("/api/budget"),
+        apiFetch("/api/partner/share").catch(() => null),
+      ]);
+      const json = (await budgetRes.json()) as BudgetResponse;
       setData(json);
       const drafts: Record<string, string> = {};
       json.items.forEach((item) => {
         drafts[item.id] = item.actual > 0 ? String(item.actual) : "";
       });
       setDraftActuals(drafts);
+
+      if (partnerRes?.ok) {
+        const partner = (await partnerRes.json()) as {
+          diyEstimate?: number;
+          lowestQuote?: number | null;
+        };
+        setPartnerSummary({
+          diyEstimate: partner.diyEstimate ?? json.totalEstimated,
+          lowestQuote: partner.lowestQuote ?? null,
+        });
+      } else {
+        setPartnerSummary(null);
+      }
     } catch {
       setData({ items: [], totalEstimated: 0, totalActual: 0, notes: [] });
+      setPartnerSummary(null);
     } finally {
       setLoading(false);
     }
@@ -193,6 +215,14 @@ export default function BudgetPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {partnerSummary && (
+          <DiyVsMoverCard
+            compact
+            diyEstimate={partnerSummary.diyEstimate}
+            lowestQuote={partnerSummary.lowestQuote}
+          />
+        )}
 
         <PlanShareCard />
 
