@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export default function AdminMaintenancePage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.maintenance")} />
-      <PageContainer className="max-w-2xl space-y-6">
+      <AdminPageContainer className="max-w-2xl space-y-6">
         <PageHeader title={t("adminConsole.maintenance")} description={t("adminConsole.maintenanceDesc")} />
         <Card>
           <CardHeader>
@@ -95,7 +95,7 @@ export default function AdminMaintenancePage() {
             </div>
           </CardContent>
         </Card>
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export default function AdminDocumentsPage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.documents")} />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader
           title={t("adminConsole.documents")}
           description={`${t("adminConsole.storageUsed")}: ${formatBytes(totalBytes)}`}
@@ -110,7 +110,7 @@ export default function AdminDocumentsPage() {
             </Table>
           </TableScroll>
         )}
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

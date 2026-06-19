@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ export default function AdminInvitesPage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.invites")} />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader title={t("adminConsole.pendingInvitations")} />
         {success && (
           <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 mb-4">
@@ -126,7 +126,7 @@ export default function AdminInvitesPage() {
             </Table>
           </TableScroll>
         )}
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

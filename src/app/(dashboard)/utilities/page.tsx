@@ -270,13 +270,13 @@ export default function UtilitiesPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-3 shrink-0">
-                    <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-[120px]">
+                    <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-0 flex-1 sm:min-w-[120px]">
                       <p className="text-xs text-muted-foreground">{t("utilities.estMonthlyTotal")}</p>
                       <p className="text-xl font-bold text-primary">
                         {formatCurrency(estimatedMonthlyTotal)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-[120px]">
+                    <div className="rounded-lg bg-background border px-4 py-3 text-center min-w-0 flex-1 sm:min-w-[120px]">
                       <p className="text-xs text-muted-foreground">{t("utilities.bestPicks")}</p>
                       <p className="text-xl font-bold">{bestPicks.length}</p>
                     </div>

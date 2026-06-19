@@ -300,6 +300,28 @@ export default function RoutePage() {
               <CardTitle className="text-base">{t("routePage.alternativeRoutes")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground lg:hidden">
+                {t("routePage.alternativeRoutesDesc")}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3 lg:hidden">
+                {stats.alternatives.slice(0, 3).map((alt) => (
+                  <button
+                    key={alt.index}
+                    type="button"
+                    onClick={() => setRouteIndex(alt.index)}
+                    className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                      alt.index === routeIndex
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <p className="font-medium">{t("routePage.routeOption", { n: alt.index + 1 })}</p>
+                    <p className="text-muted-foreground mt-1">
+                      {alt.distanceMiles.toLocaleString()} {t("routePage.miles")} · {alt.driveTimeLabel}
+                    </p>
+                  </button>
+                ))}
+              </div>
               <p className="text-sm text-muted-foreground hidden lg:block">
                 {t("routePage.alternativeRoutesDesc")}
               </p>

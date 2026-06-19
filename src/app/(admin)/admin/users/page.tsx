@@ -18,7 +18,7 @@ import {
 import { AdminUserMoveDialog } from "@/components/admin/admin-user-move-dialog";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { useAuth } from "@/contexts/auth-context";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,7 +254,7 @@ function AdminUsersPage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.users")} description={t("admin.pageDescFull")} />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader title={t("adminConsole.users")} description={t("admin.pageDescFull")} />
 
         {success && (
@@ -480,7 +480,7 @@ function AdminUsersPage() {
             </CardContent>
           </Card>
         </div>
-      </PageContainer>
+      </AdminPageContainer>
 
       <Dialog open={Boolean(editUser)} onOpenChange={(open) => !open && setEditUser(null)}>
         <DialogContent>

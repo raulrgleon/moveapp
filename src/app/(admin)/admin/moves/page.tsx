@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Trash2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Input } from "@/components/ui/input";
 import { TableScroll } from "@/components/dashboard/table-scroll";
@@ -82,7 +82,7 @@ export default function AdminMovesPage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.moves")} />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader title={t("adminConsole.moves")} />
         {success && (
           <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 mb-4">
@@ -148,7 +148,7 @@ export default function AdminMovesPage() {
             </Table>
           </TableScroll>
         )}
-      </PageContainer>
+      </AdminPageContainer>
 
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>

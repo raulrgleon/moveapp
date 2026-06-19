@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +65,7 @@ export default function AdminPartnerQuotesPage() {
         title={t("adminConsole.partnerQuotes")}
         description={t("adminConsole.partnerQuotesDesc")}
       />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader
           title={t("adminConsole.partnerQuotes")}
           description={t("adminConsole.partnerQuotesDesc")}
@@ -126,7 +126,7 @@ export default function AdminPartnerQuotesPage() {
             </Table>
           </TableScroll>
         )}
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

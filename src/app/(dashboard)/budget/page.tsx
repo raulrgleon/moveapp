@@ -19,6 +19,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -369,6 +370,95 @@ export default function BudgetPage() {
                 className="py-10"
               />
             ) : (
+              <>
+                <div className="md:hidden space-y-3">
+                  {items.map((item) => {
+                    const actualVal = Number(draftActuals[item.id] ?? 0) || item.actual;
+                    const diff = item.estimated - actualVal;
+                    const breakdown = data?.breakdowns?.find((b) => b.category === item.category);
+                    return (
+                      <div key={item.id} className="rounded-lg border p-4 space-y-3">
+                        <p className="font-medium">{item.category}</p>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">{t("budget.estimated")}</p>
+                            <p className="font-medium">{formatCurrency(item.estimated)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">{t("budget.difference")}</p>
+                            <p className="font-medium text-emerald-600">
+                              {diff > 0 ? formatCurrency(diff) : "—"}
+                            </p>
+                          </div>
+                        </div>
+                        {item.cheapestOption && (
+                          <p className="text-xs text-muted-foreground break-words">
+                            {t("budget.cheapest")}: {item.cheapestOption}
+                          </p>
+                        )}
+                        <div className="space-y-2">
+                          <Label className="text-xs">{t("budget.actual")}</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              className="h-10 flex-1 text-right"
+                              value={draftActuals[item.id] ?? ""}
+                              onChange={(e) =>
+                                setDraftActuals((prev) => ({
+                                  ...prev,
+                                  [item.id]: e.target.value,
+                                }))
+                              }
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-10 shrink-0"
+                              disabled={savingId === item.id}
+                              onClick={() => saveActual(item)}
+                            >
+                              {savingId === item.id ? t("common.saving") : t("budget.saveActual")}
+                            </Button>
+                          </div>
+                        </div>
+                        {breakdown && (
+                          <div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-0 text-xs"
+                              onClick={() =>
+                                setExpandedBreakdown(
+                                  expandedBreakdown === item.category ? null : item.category
+                                )
+                              }
+                            >
+                              {expandedBreakdown === item.category
+                                ? t("budget.hideCalc")
+                                : t("budget.showCalc")}
+                            </Button>
+                            {expandedBreakdown === item.category && (
+                              <ul className="text-xs text-muted-foreground space-y-1 mt-1">
+                                {breakdown.lines.map((line) => (
+                                  <li key={line}>• {line}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="rounded-lg border bg-muted/50 p-4 grid grid-cols-2 gap-2 text-sm font-semibold">
+                    <span>{t("budget.total")}</span>
+                    <span className="text-right">{formatCurrency(totalEstimated)}</span>
+                    <span className="text-muted-foreground font-normal">{t("budget.actualSpent")}</span>
+                    <span className="text-right">{formatCurrency(totalActual)}</span>
+                  </div>
+                </div>
+
+                <div className="hidden md:block">
               <TableScroll>
                 <Table>
                   <TableHeader>
@@ -467,6 +557,8 @@ export default function BudgetPage() {
                   </TableBody>
                 </Table>
               </TableScroll>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

@@ -56,7 +56,7 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
             />
           </SheetContent>
         </Sheet>
-        <LanguageToggle showLabel={false} className="shrink-0 h-9 w-9 sm:h-10 sm:w-auto" />
+        <LanguageToggle showLabel={false} className="hidden sm:flex shrink-0 h-9 w-9 sm:h-10 sm:w-auto" />
         <NotificationsBell />
         <UserAccountMenu />
       </div>

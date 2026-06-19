@@ -13,7 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -99,7 +99,7 @@ export default function AdminDashboardPage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.dashboard")} description={t("adminConsole.dashboardDesc")} />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader title={t("adminConsole.dashboard")} description={t("adminConsole.dashboardDesc")} />
 
         {loading ? (
@@ -258,7 +258,7 @@ export default function AdminDashboardPage() {
             )}
           </div>
         )}
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

@@ -20,7 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -133,7 +133,7 @@ export default function AdminActivityPage() {
         title={t("adminConsole.activity")}
         description={t("adminActivity.pageDesc")}
       />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader
           title={t("adminActivity.pageTitle")}
           description={t("adminActivity.pageDesc")}
@@ -202,7 +202,7 @@ export default function AdminActivityPage() {
                 setQuery(search);
               }}
             >
-              <div className="relative flex-1 min-w-[12rem]">
+              <div className="relative flex-1 min-w-0 sm:min-w-[12rem]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="pl-9"
@@ -277,7 +277,7 @@ export default function AdminActivityPage() {
             ))}
           </div>
         )}
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

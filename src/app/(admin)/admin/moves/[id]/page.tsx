@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,7 +69,7 @@ export default function AdminMoveDetailPage({ params }: { params: { id: string }
   return (
     <>
       <AdminHeader title={`${move.origin} → ${move.destination}` as string} />
-      <PageContainer className="max-w-4xl space-y-6">
+      <AdminPageContainer className="max-w-4xl space-y-6">
         <PageHeader
           title={`${String(move.origin)} → ${String(move.destination)}`}
           description={`${user.name} (${user.email})`}
@@ -160,7 +160,7 @@ export default function AdminMoveDetailPage({ params }: { params: { id: string }
             </Button>
           </CardContent>
         </Card>
-      </PageContainer>
+      </AdminPageContainer>
 
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent>

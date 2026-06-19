@@ -33,11 +33,12 @@ export function InventoryListRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors",
+        "flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors",
         selected && "ring-2 ring-primary/40"
       )}
     >
-      <Checkbox checked={selected} onCheckedChange={(v) => onSelect(v === true)} />
+      <div className="flex items-start gap-3 min-w-0 flex-1">
+      <Checkbox checked={selected} onCheckedChange={(v) => onSelect(v === true)} className="mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-sm">{t("inventory.boxLabel", { n: box.boxNumber })}</span>
@@ -54,11 +55,12 @@ export function InventoryListRow({
         <p className="text-xs text-muted-foreground mt-0.5">
           {roomLabel} · {t("inventory.destinationShort", { room: destLabel })}
         </p>
-        <p className="text-sm line-clamp-1 mt-1">{box.contents}</p>
+        <p className="text-sm line-clamp-2 sm:line-clamp-1 mt-1 break-words">{box.contents}</p>
       </div>
-      <div className="flex shrink-0 gap-1">
+      </div>
+      <div className="flex flex-wrap shrink-0 gap-1 pl-8 sm:pl-0 w-full sm:w-auto">
         {box.status !== "delivered" && (
-          <Button size="sm" variant="outline" className="h-8 text-xs hidden sm:inline-flex" onClick={() => onStatusChange("delivered")}>
+          <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => onStatusChange("delivered")}>
             {t("inventory.markDelivered")}
           </Button>
         )}

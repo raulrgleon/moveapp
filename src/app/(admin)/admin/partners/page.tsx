@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Handshake, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { PageContainer } from "@/components/dashboard/page-container";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Badge } from "@/components/ui/badge";
@@ -189,7 +189,7 @@ export default function AdminPartnersPage() {
         title={t("adminConsole.partners")}
         description={t("adminConsole.partnersDesc")}
       />
-      <PageContainer>
+      <AdminPageContainer>
         <PageHeader
           title={t("adminConsole.partners")}
           description={t("adminConsole.partnersDesc")}
@@ -304,7 +304,7 @@ export default function AdminPartnersPage() {
                   onChange={(e) => setForm((p) => ({ ...p, regions: e.target.value }))}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>USDOT</Label>
                   <Input
@@ -324,7 +324,7 @@ export default function AdminPartnersPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>{t("adminConsole.partnerYears")}</Label>
                   <Input
@@ -350,7 +350,7 @@ export default function AdminPartnersPage() {
                   onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>{t("adminConsole.partnerEmail")}</Label>
                   <Input
@@ -369,7 +369,7 @@ export default function AdminPartnersPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("adminConsole.partnerSpecialties")}</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {specialtyOptions.map((key) => (
                     <label key={key} className="flex items-center gap-2 text-sm">
                       <Checkbox
@@ -407,7 +407,7 @@ export default function AdminPartnersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </PageContainer>
+      </AdminPageContainer>
     </>
   );
 }

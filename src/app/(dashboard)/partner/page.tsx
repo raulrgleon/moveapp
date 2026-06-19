@@ -16,11 +16,9 @@ import { apiFetch } from "@/lib/api-client";
 import type { PartnerDirectoryEntry } from "@/lib/partner/directory";
 import type { MoveBrief } from "@/lib/partner/move-brief";
 import type { PartnerQuoteRow } from "@/lib/partner/quote-utils";
-import { quoteAmountLabel, quoteServicesSummary } from "@/lib/partner/quote-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { useLocale } from "@/contexts/locale-context";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 
@@ -128,14 +126,16 @@ export default function PartnerPage() {
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">{t("partnerPage.shareDesc")}</p>
                 {data?.moveSummary && (
-                  <p className="text-sm">
-                    <span className="font-medium">{data.moveSummary.origin}</span>
-                    {" → "}
-                    <span className="font-medium">{data.moveSummary.destination}</span>
-                    {" · "}
-                    {formatDate(data.moveSummary.moveDate, locale)}
-                    {" · "}
-                    {data.moveSummary.household}
+                  <p className="text-sm flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center break-words">
+                    <span>
+                      <span className="font-medium">{data.moveSummary.origin}</span>
+                      {" → "}
+                      <span className="font-medium">{data.moveSummary.destination}</span>
+                    </span>
+                    <span className="hidden sm:inline text-muted-foreground">·</span>
+                    <span>{formatDate(data.moveSummary.moveDate, locale)}</span>
+                    <span className="hidden sm:inline text-muted-foreground">·</span>
+                    <span>{data.moveSummary.household}</span>
                   </p>
                 )}
                 <PartnerShareCard
@@ -163,34 +163,11 @@ export default function PartnerPage() {
                     className="py-10"
                   />
                 ) : (
-                  <>
-                    <QuoteComparator
-                      quotes={data.quotes}
-                      diyEstimate={diyEstimate}
-                      onStatusChange={(id, status) => void updateQuoteStatus(id, status)}
-                    />
-                    <div className="space-y-3 md:hidden">
-                      {data.quotes.map((q) => (
-                        <div key={q.id} className="rounded-lg border p-4 space-y-2">
-                          <div className="flex justify-between gap-2">
-                            <p className="font-medium">{q.companyName}</p>
-                            <Badge variant="secondary">
-                              {t(`partnerPage.status.${q.status}` as "partnerPage.status.pending")}
-                            </Badge>
-                          </div>
-                          <p className="text-sm font-semibold">
-                            {quoteAmountLabel(q, locale, formatCurrency)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {quoteServicesSummary(q, locale).join(" · ")}
-                          </p>
-                          {q.message && (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{q.message}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
+                  <QuoteComparator
+                    quotes={data.quotes}
+                    diyEstimate={diyEstimate}
+                    onStatusChange={(id, status) => void updateQuoteStatus(id, status)}
+                  />
                 )}
               </CardContent>
             </Card>
