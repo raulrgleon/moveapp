@@ -1662,6 +1662,8 @@ export const en = {
       schoolRatingValue: "{score}/10",
       climate: "Climate (avg high)",
       climateValue: "{temp}°F avg high",
+      climateLow: "Climate (avg low)",
+      climateLowValue: "{temp}°F avg low",
       walkScore: "Walkability score",
       walkScoreValue: "{score}/100",
     },

@@ -89,6 +89,7 @@ export function FloatingPilotWidget() {
             onSend={() => void handleSend()}
             isLoading={isLoading}
             placeholder={t("guestChat.placeholder")}
+            autoFocus={open}
           />
           {!hasConversation && (
             <Button className="w-full h-11 text-sm" asChild>

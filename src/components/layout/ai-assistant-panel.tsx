@@ -63,6 +63,7 @@ export function AIAssistantPanel() {
           onSend={() => void handleSend()}
           isLoading={isLoading}
           compact
+          autoFocus={open}
         />
       </ChatPanelFooter>
     </>

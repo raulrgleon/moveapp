@@ -1666,6 +1666,8 @@ export const es = {
       schoolRatingValue: "{score}/10",
       climate: "Clima (máx. promedio)",
       climateValue: "{temp}°F máx. promedio",
+      climateLow: "Clima (mín. promedio)",
+      climateLowValue: "{temp}°F mín. promedio",
       walkScore: "Puntuación de caminabilidad",
       walkScoreValue: "{score}/100",
     },

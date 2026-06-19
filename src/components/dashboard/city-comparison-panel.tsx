@@ -122,6 +122,8 @@ function formatQoLDisplayValue(
       return t("cityComparison.qol.schoolRatingValue", { score: num });
     case "climate":
       return t("cityComparison.qol.climateValue", { temp: num });
+    case "climateLow":
+      return t("cityComparison.qol.climateLowValue", { temp: num });
     case "walkScore":
       return t("cityComparison.qol.walkScoreValue", { score: num });
     default:

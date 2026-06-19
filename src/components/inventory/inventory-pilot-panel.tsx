@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,21 @@ export function InventoryPilotPanel() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wasLoadingRef = useRef(false);
+
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (wasLoadingRef.current && !loading) {
+      focusInput();
+    }
+    wasLoadingRef.current = loading;
+  }, [loading, focusInput]);
 
   const ask = async (text: string) => {
     const q = text.trim();
@@ -86,18 +101,24 @@ export function InventoryPilotPanel() {
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void ask(question);
+          }}
+        >
           <Input
+            ref={inputRef}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={t("inventory.pilotPlaceholder")}
-            onKeyDown={(e) => e.key === "Enter" && void ask(question)}
             disabled={loading}
           />
-          <Button onClick={() => void ask(question)} disabled={loading || !question.trim()}>
+          <Button type="submit" disabled={loading || !question.trim()}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("inventory.pilotAsk")}
           </Button>
-        </div>
+        </form>
         {loading && !answer && (
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

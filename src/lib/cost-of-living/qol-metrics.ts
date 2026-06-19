@@ -226,6 +226,16 @@ export function buildQoLComparison(
       { informationalOnly: true }
     ),
     metric(
+      "climateLow",
+      "cityComparison.qol.climateLow",
+      op.avgLowF,
+      dp.avgLowF,
+      String(op.avgLowF),
+      String(dp.avgLowF),
+      false,
+      { informationalOnly: true }
+    ),
+    metric(
       "walkScore",
       "cityComparison.qol.walkScore",
       op.walkScore,

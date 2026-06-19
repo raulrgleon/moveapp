@@ -54,6 +54,7 @@ export default function AssistantPage() {
               onChange={setInput}
               onSend={() => void handleSend()}
               isLoading={isLoading}
+              autoFocus
             />
           </ChatPanelFooter>
         </div>

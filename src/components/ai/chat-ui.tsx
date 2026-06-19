@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Send } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useT } from "@/contexts/locale-context";
 import { MarkdownMessage } from "@/components/ai/markdown-message";
 import type { ChatMessage } from "@/hooks/use-ai-chat";
@@ -55,6 +55,10 @@ interface ChatInputBarProps {
   isLoading?: boolean;
   compact?: boolean;
   placeholder?: string;
+  /** Focus input when the chat panel opens. */
+  autoFocus?: boolean;
+  /** Refocus after send and when the assistant finishes (default true). */
+  keepFocus?: boolean;
 }
 
 export function ChatInputBar({
@@ -64,18 +68,44 @@ export function ChatInputBar({
   isLoading,
   compact,
   placeholder,
+  autoFocus,
+  keepFocus = true,
 }: ChatInputBarProps) {
   const t = useT();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wasLoadingRef = useRef(Boolean(isLoading));
+
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const id = window.setTimeout(() => focusInput(), 50);
+    return () => window.clearTimeout(id);
+  }, [autoFocus, focusInput]);
+
+  useEffect(() => {
+    if (keepFocus && wasLoadingRef.current && !isLoading) {
+      focusInput();
+    }
+    wasLoadingRef.current = Boolean(isLoading);
+  }, [isLoading, keepFocus, focusInput]);
 
   return (
     <form
       className="flex gap-2.5 items-stretch"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!isLoading && value.trim()) onSend();
+        if (!isLoading && value.trim()) {
+          onSend();
+        }
       }}
     >
       <Input
+        ref={inputRef}
         placeholder={placeholder ?? t("chat.placeholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
