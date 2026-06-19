@@ -92,6 +92,22 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmailVerification {
+  id                     String    @id @default(uuid())
+  email                  String
+  codeHash               String    @map("code_hash")
+  expiresAt              DateTime  @map("expires_at")
+  verifiedAt             DateTime? @map("verified_at")
+  registerToken          String?   @unique @map("register_token")
+  registerTokenExpiresAt DateTime? @map("register_token_expires_at")
+  attempts               Int       @default(0)
+  lastSentAt             DateTime  @default(now()) @map("last_sent_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("email_verifications")
+}
+
 model Move {
   id                    String             @id @default(uuid())
   userId                String             @map("user_id")
@@ -127,6 +143,7 @@ model Move {
   partnerShareEnabled   Boolean            @default(false) @map("partner_share_enabled")
   selectedRouteIndex    Int                @default(0) @map("selected_route_index")
   utilityPicks          Json?              @map("utility_picks")
+  supplyChecks          Json?              @map("supply_checks")
   planShareToken        String?            @unique @map("plan_share_token")
   planShareEnabled      Boolean            @default(false) @map("plan_share_enabled")
 

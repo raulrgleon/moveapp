@@ -1,6 +1,8 @@
 import type { UserProfile } from "@/lib/types";
 
 export const PROFILE_STORAGE_KEY = "movepilot_profile";
+/** Pre-login onboarding draft only — never used for authenticated sessions. */
+export const GUEST_PROFILE_STORAGE_KEY = "movepilot_guest_profile";
 
 export interface MoveProfile {
   name: string;
@@ -111,22 +113,40 @@ export function householdWithPetsFromCounts(
   return pets ? `${base}, ${pets}` : base;
 }
 
-export function loadProfileFromStorage(): MoveProfile | null {
+export function loadGuestProfileFromStorage(): MoveProfile | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    const raw =
+      localStorage.getItem(GUEST_PROFILE_STORAGE_KEY) ??
+      localStorage.getItem(PROFILE_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MoveProfile;
-    if (!parsed.name || !parsed.origin) return null;
+    if (!parsed.origin?.trim()) return null;
     return { ...DEFAULT_PROFILE, ...parsed };
   } catch {
     return null;
   }
 }
 
-export function saveProfileToStorage(profile: MoveProfile) {
+/** @deprecated Use loadGuestProfileFromStorage for guests only. */
+export function loadProfileFromStorage(): MoveProfile | null {
+  return loadGuestProfileFromStorage();
+}
+
+export function saveGuestProfileToStorage(profile: MoveProfile) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  localStorage.setItem(GUEST_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+}
+
+/** @deprecated Use saveGuestProfileToStorage for guests only. */
+export function saveProfileToStorage(profile: MoveProfile) {
+  saveGuestProfileToStorage(profile);
+}
+
+export function clearGuestProfileStorage() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(GUEST_PROFILE_STORAGE_KEY);
+  localStorage.removeItem(PROFILE_STORAGE_KEY);
 }
 
 export async function geocodeQuery(

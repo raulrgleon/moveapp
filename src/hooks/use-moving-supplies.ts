@@ -1,16 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  SUPPLY_ITEMS,
-  suppliesStorageKey,
-  type SupplyItemDef,
-} from "@/lib/inventory/supplies";
+import { useAuth } from "@/contexts/auth-context";
+import { apiFetch } from "@/lib/api-client";
+import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
+import { SUPPLY_ITEMS, type SupplyItemDef } from "@/lib/inventory/supplies";
 
-function loadChecked(key: string): Record<string, boolean> {
+function loadGuestChecks(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(key);
+    const raw = sessionStorage.getItem("movepilot_guest_supply_checks");
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, boolean>;
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -19,52 +18,79 @@ function loadChecked(key: string): Record<string, boolean> {
   }
 }
 
-export function useMovingSupplies(profile: {
-  email?: string;
-  origin?: string;
-  destination?: string;
-  moveDate?: string;
-}) {
-  const storageKey = suppliesStorageKey(profile);
+function saveGuestChecks(checks: Record<string, boolean>) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem("movepilot_guest_supply_checks", JSON.stringify(checks));
+}
+
+export function clearGuestSupplyChecks() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem("movepilot_guest_supply_checks");
+}
+
+/** Moving supplies checklist — persisted in PostgreSQL for authenticated users. */
+export function useMovingSupplies() {
+  const { isAuthenticated, isHydrated: authHydrated } = useAuth();
   const [checked, setCheckedState] = useState<Record<string, boolean>>({});
   const [isHydrated, setIsHydrated] = useState(false);
 
+  const load = useCallback(async () => {
+    if (!isAuthenticated) {
+      setCheckedState(loadGuestChecks());
+      setIsHydrated(true);
+      return;
+    }
+    try {
+      const res = await apiFetch("/api/move/supplies");
+      const json = (await res.json()) as { checks?: Record<string, boolean> };
+      setCheckedState(json.checks ?? {});
+    } catch {
+      setCheckedState({});
+    } finally {
+      setIsHydrated(true);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
-    setCheckedState(loadChecked(storageKey));
-    setIsHydrated(true);
-  }, [storageKey]);
+    if (!authHydrated) return;
+    void load();
+    return subscribeProfileUpdated(() => void load());
+  }, [authHydrated, load]);
 
   const persist = useCallback(
-    (next: Record<string, boolean>) => {
+    async (next: Record<string, boolean>) => {
       setCheckedState(next);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(storageKey, JSON.stringify(next));
+      if (!isAuthenticated) {
+        saveGuestChecks(next);
+        return;
       }
+      await apiFetch("/api/move/supplies", {
+        method: "PATCH",
+        body: JSON.stringify({ checks: next }),
+      });
     },
-    [storageKey]
+    [isAuthenticated]
   );
 
   const toggle = useCallback(
     (id: string, value?: boolean) => {
       setCheckedState((prev) => {
         const next = { ...prev, [id]: value ?? !prev[id] };
-        if (typeof window !== "undefined") {
-          localStorage.setItem(storageKey, JSON.stringify(next));
-        }
+        void persist(next);
         return next;
       });
     },
-    [storageKey]
+    [persist]
   );
 
   const reset = useCallback(() => {
-    persist({});
+    void persist({});
   }, [persist]);
 
   const markAll = useCallback(
     (items: SupplyItemDef[] = SUPPLY_ITEMS) => {
       const next = Object.fromEntries(items.map((item) => [item.id, true]));
-      persist(next);
+      void persist(next);
     },
     [persist]
   );

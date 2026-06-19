@@ -5,6 +5,8 @@ import { estimateFuelCostSync } from "@/lib/budget/fuel-cost";
 import { computeTruckOptionPrice, householdMultiplier, normalizedMoveMiles } from "@/lib/budget/pricing";
 import { resolveTruckChoiceOption } from "@/lib/trucks/truck-choice";
 import { truckOptionLabel } from "@/lib/trucks/truck-choice";
+import type { Locale } from "@/lib/i18n";
+import { translate } from "@/lib/i18n";
 
 export interface BudgetLineBreakdown {
   category: string;
@@ -19,6 +21,8 @@ export function buildBudgetBreakdowns(
   const miles = normalizedMoveMiles(context.distanceMiles ?? 800);
   const mult = householdMultiplier(profile.household);
   const vehicles = context.vehicles ?? [];
+  const locale: Locale = context.locale ?? "en";
+  const t = (key: string, p?: Record<string, string | number>) => translate(locale, key, p);
 
   return items.map((item) => {
     const lines: string[] = [];
@@ -32,43 +36,60 @@ export function buildBudgetBreakdowns(
         rentalKey: parseRentalPreferenceKey(profile.rentalPreference),
         origin: profile.origin,
         destination: profile.destination,
+        locale,
       });
-      lines.push(`Distance: ${miles.toLocaleString()} mi`);
+      lines.push(t("budgetNotes.breakdown.distance", { miles: miles.toLocaleString(locale === "es" ? "es-US" : "en-US") }));
       if (fuel.vehicleLines.length > 1) {
         for (const line of fuel.vehicleLines) {
           if (line.isElectric) {
-            lines.push(`${line.vehicleLabel}: ~${line.kwh} kWh (${line.mpg} MPGe)`);
+            lines.push(
+              t("budgetNotes.breakdown.evLine", {
+                vehicle: line.vehicleLabel,
+                kwh: line.kwh,
+                mpge: line.mpg,
+              })
+            );
           } else {
-            lines.push(`${line.vehicleLabel}: ~${line.gallons} gal @ ${line.mpg} MPG`);
+            lines.push(
+              t("budgetNotes.breakdown.gasLine", {
+                vehicle: line.vehicleLabel,
+                gallons: line.gallons,
+                mpg: line.mpg,
+              })
+            );
           }
         }
       } else {
-        lines.push(`Avg MPG: ${fuel.mpg}`);
+        lines.push(t("budgetNotes.breakdown.avgMpg", { mpg: fuel.mpg }));
       }
-      lines.push(`Fuel price: $${fuel.pricePerGallon.toFixed(2)}/gal`);
-      lines.push(`Gallons: ~${fuel.gallons}`);
-      lines.push(`Formula: sum per vehicle (miles ÷ MPG) × regional price`);
+      lines.push(t("budgetNotes.breakdown.fuelPrice", { price: fuel.pricePerGallon.toFixed(2) }));
+      lines.push(t("budgetNotes.breakdown.gallons", { gallons: fuel.gallons }));
+      lines.push(t("budgetNotes.breakdown.fuelFormula"));
     } else if (cat.includes("rental") || cat.includes("trailer") || cat.includes("truck")) {
       const saved = context.truckChoice
-        ? resolveTruckChoiceOption(profile, context.truckChoice, miles, context.locale ?? "en", vehicles)
+        ? resolveTruckChoiceOption(profile, context.truckChoice, miles, locale, vehicles)
         : null;
       if (saved) {
-        lines.push(`Saved choice: ${truckOptionLabel(saved)}`);
-        lines.push(`Base + mileage × household (${mult.toFixed(2)}×)`);
+        lines.push(t("budgetNotes.breakdown.savedChoice", { choice: truckOptionLabel(saved) }));
+        lines.push(t("budgetNotes.breakdown.baseMileage", { mult: mult.toFixed(2) }));
       } else if (item.cheapestOption) {
-        lines.push(`Preference: ${item.cheapestOption}`);
+        lines.push(t("budgetNotes.breakdown.preference", { preference: item.cheapestOption }));
       }
-      lines.push(`Distance: ${miles.toLocaleString()} mi`);
+      lines.push(t("budgetNotes.breakdown.distance", { miles: miles.toLocaleString(locale === "es" ? "es-US" : "en-US") }));
     } else if (cat.includes("hotel")) {
-      lines.push(`Route stops with overnight stays`);
-      lines.push(`Regional nightly rate × nights`);
+      lines.push(t("budgetNotes.breakdown.hotelStops"));
+      lines.push(t("budgetNotes.breakdown.hotelFormula"));
     } else if (cat.includes("vehicle") && cat.includes("transport")) {
-      lines.push(`Ship option selected: ${context.vehicleTransportChoice ?? "—"}`);
-      lines.push(`Distance: ${miles.toLocaleString()} mi`);
+      lines.push(
+        t("budgetNotes.breakdown.shipOption", {
+          choice: context.vehicleTransportChoice ?? "—",
+        })
+      );
+      lines.push(t("budgetNotes.breakdown.distance", { miles: miles.toLocaleString(locale === "es" ? "es-US" : "en-US") }));
     } else if (cat.includes("supplies")) {
-      lines.push(`Household size multiplier: ${mult.toFixed(2)}×`);
+      lines.push(t("budgetNotes.breakdown.householdMult", { mult: mult.toFixed(2) }));
     } else {
-      lines.push(`Estimate based on profile and route distance (${miles} mi)`);
+      lines.push(t("budgetNotes.breakdown.generic", { miles }));
     }
 
     return { category: item.category, lines };

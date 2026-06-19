@@ -24,7 +24,7 @@ export function InventorySuppliesPanel() {
   const t = useT();
   const { locale } = useLocale();
   const { profile } = useMove();
-  const { checked, toggle, reset, isHydrated } = useMovingSupplies(profile);
+  const { checked, toggle, reset, isHydrated } = useMovingSupplies();
   const [printing, setPrinting] = useState(false);
 
   const household = useMemo(

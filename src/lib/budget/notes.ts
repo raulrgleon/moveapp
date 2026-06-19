@@ -1,5 +1,9 @@
 import type { Locale } from "@/lib/i18n";
 import { translate } from "@/lib/i18n";
+import {
+  localizedHousehold,
+  localizedRentalPreference,
+} from "@/lib/budget/localize-labels";
 import type { RentalPreferenceKey } from "@/lib/move-profile";
 import type { RouteStop } from "@/lib/types";
 import { hotelEstimatesFromStops } from "@/lib/budget/hotel-cost";
@@ -22,7 +26,7 @@ export function buildBudgetNotes(
   const notes: string[] = [
     t("budgetNotes.distanceHousehold", {
       miles: params.distanceMiles.toLocaleString(locale === "es" ? "es-US" : "en-US"),
-      household: params.household || t("budgetNotes.yourHousehold"),
+      household: localizedHousehold(params.household, locale),
     }),
   ];
 
@@ -30,7 +34,9 @@ export function buildBudgetNotes(
     notes.push(t("budgetNotes.ownVehicle"));
   } else {
     notes.push(
-      t("budgetNotes.rentalPreference", { preference: params.rentalPreference })
+      t("budgetNotes.rentalPreference", {
+        preference: localizedRentalPreference(params.rentalPreference, locale),
+      })
     );
   }
 

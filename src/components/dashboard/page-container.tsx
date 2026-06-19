@@ -15,9 +15,11 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in",
+        "px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 space-y-6 sm:space-y-8 animate-fade-in",
         "max-w-full min-w-0 overflow-x-hidden",
-        withMobileNavPad && "page-bottom-pad",
+        withMobileNavPad
+          ? "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px)+3rem)] lg:pb-24 xl:pb-8"
+          : "pb-4 sm:pb-6 lg:pb-8",
         className
       )}
     >

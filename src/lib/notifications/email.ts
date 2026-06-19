@@ -50,6 +50,23 @@ export async function sendWelcomeEmail(
   await sendHtmlEmail(to, subject, body);
 }
 
+export async function sendEmailVerificationCode(
+  to: string,
+  code: string,
+  locale: EmailLocale = "en"
+) {
+  const subject =
+    locale === "es"
+      ? "Tu código de verificación — MovePilotAi"
+      : "Your verification code — MovePilotAi";
+  const body =
+    locale === "es"
+      ? `<p>Tu código para crear tu cuenta en MovePilotAi es:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>Válido 15 minutos. Si no solicitaste esto, ignora este correo.</p>`
+      : `<p>Your code to create your MovePilotAi account is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>Valid for 15 minutes. If you didn't request this, ignore this email.</p>`;
+
+  await sendHtmlEmail(to, subject, body);
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string,

@@ -15,13 +15,13 @@ import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { formatDestinationLabel } from "@/lib/geo/nominatim";
 import { refreshMoveData, subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { dispatchProfileUpdated } from "@/lib/move/profile-events";
-import { storeRouteIndex } from "@/hooks/use-route-stats";
 import {
+  clearGuestProfileStorage,
   DEFAULT_PROFILE,
   geocodeQuery,
   householdWithPets,
-  loadProfileFromStorage,
-  saveProfileToStorage,
+  loadGuestProfileFromStorage,
+  saveGuestProfileToStorage,
   type MoveProfile,
 } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
@@ -55,6 +55,8 @@ interface MoveContextValue {
   canEditProfile: boolean;
   truckChoice: string | null;
   vehicleTransportChoice: string | null;
+  selectedRouteIndex: number;
+  setSelectedRouteIndex: (index: number, syncBudget?: boolean) => void;
   setTruckChoice: (choice: string | null) => void;
   setVehicleTransportChoice: (choice: string | null) => void;
   confirmAddress: (suggestion: AddressSuggestion) => void;
@@ -90,14 +92,34 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   const [profileVersion, setProfileVersion] = useState(0);
   const [moveRole, setMoveRole] = useState<"owner" | "editor" | "viewer">("owner");
   const [ownerName, setOwnerName] = useState("");
-  const [canEdit, setCanEdit] = useState(false);
-  const [canEditProfile, setCanEditProfile] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
+  const [canEditProfile, setCanEditProfile] = useState(true);
   const [truckChoice, setTruckChoiceState] = useState<string | null>(null);
   const [vehicleTransportChoice, setVehicleTransportChoiceState] = useState<string | null>(null);
+  const [selectedRouteIndex, setSelectedRouteIndexState] = useState(0);
 
   const bumpProfileVersion = useCallback(() => {
     setProfileVersion((v) => v + 1);
   }, []);
+
+  async function mergeGuestProfileIntoDb(email: string): Promise<UserDataPayload | null> {
+    const guest = loadGuestProfileFromStorage();
+    if (!guest?.origin?.trim() || !guest?.destination?.trim()) {
+      clearGuestProfileStorage();
+      return null;
+    }
+    try {
+      await apiFetch("/api/move", {
+        method: "PATCH",
+        body: JSON.stringify({ profile: guest }),
+      });
+      clearGuestProfileStorage();
+      await refreshMoveData(email);
+      return loadUserData(email, true);
+    } catch {
+      return null;
+    }
+  }
 
   const applyUserData = useCallback((data: UserDataPayload) => {
     if (data.profile) setProfile(data.profile);
@@ -108,9 +130,9 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     setVehiclesState(data.vehicles.length ? data.vehicles : []);
     setTruckChoiceState(data.truckChoice ?? null);
     setVehicleTransportChoiceState(data.vehicleTransportChoice ?? null);
-    if (typeof data.selectedRouteIndex === "number") {
-      storeRouteIndex(data.selectedRouteIndex);
-    }
+    setSelectedRouteIndexState(
+      typeof data.selectedRouteIndex === "number" ? data.selectedRouteIndex : 0
+    );
     if (data.isAddressConfirmed && data.destinationAddress) {
       setConfirmed({
         displayName: data.destinationAddress,
@@ -138,12 +160,18 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       if (!isAuthenticated || !user?.email || user.role === "admin" || !canEditProfile) {
         return;
       }
-      await apiFetch("/api/move", {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-      await refreshMoveData(user.email);
-      bumpProfileVersion();
+      try {
+        await apiFetch("/api/move", {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        await refreshMoveData(user.email);
+        bumpProfileVersion();
+        dispatchProfileUpdated();
+      } catch (error) {
+        console.error("Failed to sync move profile:", error);
+        throw error;
+      }
     },
     [isAuthenticated, user?.email, user?.role, bumpProfileVersion, canEditProfile]
   );
@@ -151,24 +179,50 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authHydrated) return;
 
+    let cancelled = false;
+
     async function load() {
+      setIsHydrated(false);
+      setConfirmed(null);
+      setProfile(DEFAULT_PROFILE);
+      setVehiclesState([]);
+      setTruckChoiceState(null);
+      setVehicleTransportChoiceState(null);
+      setSelectedRouteIndexState(0);
+
       if (isAuthenticated && user?.email) {
         try {
-          const data = await loadUserData(user.email);
+          let data = await loadUserData(user.email);
+          if (cancelled) return;
+
+          const serverEmpty =
+            !data.profile?.origin?.trim() || !data.profile?.destination?.trim();
+          if (serverEmpty) {
+            const merged = await mergeGuestProfileIntoDb(user.email);
+            if (merged && !cancelled) data = merged;
+          } else {
+            clearGuestProfileStorage();
+          }
+
+          if (cancelled) return;
           applyUserData(data);
         } catch {
-          setProfile(loadProfileFromStorage() ?? DEFAULT_PROFILE);
+          if (cancelled) return;
+          setProfile(DEFAULT_PROFILE);
           setVehiclesState([]);
         }
       } else {
-        setProfile(loadProfileFromStorage() ?? DEFAULT_PROFILE);
+        setProfile(loadGuestProfileFromStorage() ?? DEFAULT_PROFILE);
         setVehiclesState([]);
       }
-      setIsHydrated(true);
+      if (!cancelled) setIsHydrated(true);
     }
 
-    load();
-  }, [authHydrated, isAuthenticated, user?.email, applyUserData]);
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, isAuthenticated, user?.email, user?.id, applyUserData]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.email) return;
@@ -225,6 +279,41 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     [setVehicles]
   );
 
+  const setSelectedRouteIndex = useCallback(
+    (index: number, syncBudget = true) => {
+      setSelectedRouteIndexState(index);
+      if (!isAuthenticated || !canEdit) return;
+
+      void (async () => {
+        try {
+          const res = await apiFetch("/api/move/route-index", {
+            method: "PATCH",
+            body: JSON.stringify({ routeIndex: index, syncBudget }),
+          });
+          if (!res.ok) return;
+          const json = (await res.json()) as {
+            budgetDelta?: {
+              previousEstimated: number;
+              newEstimated: number;
+              delta: number;
+            } | null;
+          };
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("movepilot:budget-route-sync", {
+                detail: json.budgetDelta ?? null,
+              })
+            );
+          }
+          bumpProfileVersion();
+        } catch {
+          /* best-effort */
+        }
+      })();
+    },
+    [isAuthenticated, canEdit, bumpProfileVersion]
+  );
+
   const setTruckChoice = useCallback(
     (choice: string | null) => {
       setTruckChoiceState(choice);
@@ -242,7 +331,7 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateProfile = useCallback(
-    async (patch: Partial<MoveProfile>, geocode = true, sync = true) => {
+    async (patch: Partial<MoveProfile>, geocode = true, _sync = true) => {
       const next = { ...profile, ...patch };
       if (geocode) {
         if (patch.origin !== undefined) {
@@ -261,10 +350,14 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setProfile(next);
-      saveProfileToStorage(next);
-      if (!sync || !isAuthenticated || user?.role === "admin" || !canEditProfile) {
+
+      const isGuest = !isAuthenticated || user?.role === "admin";
+      if (isGuest) {
+        saveGuestProfileToStorage(next);
         return;
       }
+      if (!canEditProfile) return;
+
       await syncToDb({ profile: next, vehicles });
     },
     [profile, isAuthenticated, user?.role, canEditProfile, syncToDb, vehicles]
@@ -293,6 +386,8 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       canEditProfile,
       truckChoice,
       vehicleTransportChoice,
+      selectedRouteIndex,
+      setSelectedRouteIndex,
       setTruckChoice,
       setVehicleTransportChoice,
       confirmAddress,
@@ -324,6 +419,8 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     canEditProfile,
     truckChoice,
     vehicleTransportChoice,
+    selectedRouteIndex,
+    setSelectedRouteIndex,
     setTruckChoice,
     setVehicleTransportChoice,
     confirmAddress,

@@ -4,6 +4,7 @@ import {
   redirectToUpgrade,
   showPaywallModal,
 } from "@/lib/billing/paywall-bridge";
+import { LOCALE_STORAGE_KEY, type Locale } from "@/lib/i18n";
 
 function parseApiError(text: string, status: number): Error {
   try {
@@ -21,10 +22,20 @@ export function isUpgradeRequiredResponse(res: Response): boolean {
   return res.status === 402;
 }
 
+function clientLocale(): Locale | null {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+  return stored === "en" || stored === "es" ? stored : null;
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
+  }
+  const locale = clientLocale();
+  if (locale && !headers.has("X-Locale")) {
+    headers.set("X-Locale", locale);
   }
 
   const res = await fetch(path, { ...init, headers, credentials: "include" });

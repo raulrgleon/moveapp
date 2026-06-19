@@ -1,10 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMove } from "@/contexts/move-context";
-import { useAuth } from "@/contexts/auth-context";
 import type { RouteStop } from "@/lib/types";
-import { apiFetch } from "@/lib/api-client";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 
 export interface RouteBudgetDelta {
@@ -31,7 +29,6 @@ export interface RouteStatsResponse {
   selectedRouteIndex: number;
 }
 
-const ROUTE_INDEX_KEY = "movepilot_selected_route";
 const CLIENT_ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface CachedRoutePayload {
@@ -138,15 +135,11 @@ async function fetchAllRouteStopsCached(
 }
 
 export function getStoredRouteIndex(): number {
-  if (typeof window === "undefined") return 0;
-  const v = localStorage.getItem(ROUTE_INDEX_KEY);
-  const n = v ? parseInt(v, 10) : 0;
-  return Number.isFinite(n) && n >= 0 ? n : 0;
+  return 0;
 }
 
-export function storeRouteIndex(index: number) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(ROUTE_INDEX_KEY, String(index));
+export function storeRouteIndex(_index: number) {
+  /* route index is persisted in PostgreSQL via MoveContext */
 }
 
 function pickAlternative(
@@ -163,8 +156,16 @@ function pickAlternative(
 }
 
 export function useRouteStats() {
-  const { isAuthenticated } = useAuth();
-  const { profile, lat, lon, isHydrated, vehicles, canEdit, profileVersion } = useMove();
+  const {
+    profile,
+    lat,
+    lon,
+    isHydrated,
+    vehicles,
+    profileVersion,
+    selectedRouteIndex: routeIndex,
+    setSelectedRouteIndex,
+  } = useMove();
   const [baseStats, setBaseStats] = useState<Omit<
     RouteStatsResponse,
     "distanceMiles" | "durationHours" | "driveTimeLabel" | "stops" | "selectedRouteIndex"
@@ -173,67 +174,15 @@ export function useRouteStats() {
   const [loading, setLoading] = useState(true);
   const [stopsLoading, setStopsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [routeIndex, setRouteIndexState] = useState(0);
-  const routeIndexRef = useRef(0);
 
   const destLat = profile.destinationLat ?? lat;
   const destLon = profile.destinationLon ?? lon;
 
-  useEffect(() => {
-    const stored = getStoredRouteIndex();
-    routeIndexRef.current = stored;
-    setRouteIndexState(stored);
-  }, []);
-
-  useEffect(() => {
-    if (!isHydrated || !isAuthenticated) return;
-    void (async () => {
-      try {
-        const res = await apiFetch("/api/move/route-index");
-        if (!res.ok) return;
-        const json = (await res.json()) as { routeIndex?: number };
-        if (typeof json.routeIndex === "number") {
-          storeRouteIndex(json.routeIndex);
-          routeIndexRef.current = json.routeIndex;
-          setRouteIndexState(json.routeIndex);
-        }
-      } catch {
-        /* use localStorage fallback */
-      }
-    })();
-  }, [isHydrated, isAuthenticated]);
-
   const setRouteIndex = useCallback(
     (index: number) => {
-      if (index === routeIndexRef.current) return;
-      routeIndexRef.current = index;
-      setRouteIndexState(index);
-
-      if (!isAuthenticated || !canEdit) return;
-
-      storeRouteIndex(index);
-
-      void (async () => {
-        try {
-          const res = await apiFetch("/api/move/route-index", {
-            method: "PATCH",
-            body: JSON.stringify({ routeIndex: index, syncBudget: true }),
-          });
-          if (!res.ok) return;
-          const json = (await res.json()) as { budgetDelta?: RouteBudgetDelta | null };
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("movepilot:budget-route-sync", {
-                detail: json.budgetDelta ?? null,
-              })
-            );
-          }
-        } catch {
-          /* sync best-effort */
-        }
-      })();
+      setSelectedRouteIndex(index, true);
     },
-    [isAuthenticated, canEdit]
+    [setSelectedRouteIndex]
   );
 
   const vehicleFingerprint = useMemo(

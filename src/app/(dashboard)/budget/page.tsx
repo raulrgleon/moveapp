@@ -8,7 +8,7 @@ import { DiyVsMoverCard } from "@/components/partner/diy-vs-mover-card";
 import { PlanShareCard } from "@/components/budget/plan-share-card";
 import { PilotSuggestionCard } from "@/components/pilot/pilot-suggestion-card";
 import { useMove } from "@/contexts/move-context";
-import { useT } from "@/contexts/locale-context";
+import { useLocale, useT } from "@/contexts/locale-context";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { EstimateDisclaimer } from "@/components/marketing/estimate-disclaimer";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -28,9 +28,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getStoredRouteIndex } from "@/hooks/use-route-stats";
 import { apiFetch } from "@/lib/api-client";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { budgetCategoryLabel } from "@/lib/budget/category-labels";
 import { AlertTriangle, DollarSign, Handshake, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
 
 interface BudgetItemRow {
@@ -57,9 +57,35 @@ interface BudgetResponse {
   isEstimate?: boolean;
 }
 
+function BudgetDifference({
+  diff,
+  locale,
+  className,
+}: {
+  diff: number;
+  locale: ReturnType<typeof useLocale>["locale"];
+  className?: string;
+}) {
+  if (diff === 0) {
+    return <span className={cn("text-muted-foreground", className)}>—</span>;
+  }
+  return (
+    <span
+      className={cn(
+        "font-medium",
+        diff > 0 ? "text-emerald-600" : "text-red-600",
+        className
+      )}
+    >
+      {formatCurrency(diff, locale)}
+    </span>
+  );
+}
+
 export default function BudgetPage() {
   const t = useT();
-  const { truckChoice, profile } = useMove();
+  const { locale } = useLocale();
+  const { truckChoice, profile, selectedRouteIndex } = useMove();
   const [data, setData] = useState<BudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
@@ -110,7 +136,7 @@ export default function BudgetPage() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     return subscribeProfileUpdated(() => void load());
@@ -122,7 +148,7 @@ export default function BudgetPage() {
     try {
       const res = await apiFetch("/api/budget", {
         method: "PATCH",
-        body: JSON.stringify({ recalculate: true, routeIndex: getStoredRouteIndex() }),
+        body: JSON.stringify({ recalculate: true, routeIndex: selectedRouteIndex }),
       });
       if (!res.ok) {
         setError(t("budget.recalculateFailed"));
@@ -305,7 +331,7 @@ export default function BudgetPage() {
                 return (
                   <div key={item.id} className="space-y-1">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span className="truncate pr-2">{item.category}</span>
+                      <span className="truncate pr-2">{budgetCategoryLabel(item.category, t)}</span>
                       <span className="shrink-0">
                         {formatCurrency(item.estimated)} / {formatCurrency(item.actual)}
                       </span>
@@ -378,7 +404,7 @@ export default function BudgetPage() {
                     const breakdown = data?.breakdowns?.find((b) => b.category === item.category);
                     return (
                       <div key={item.id} className="rounded-lg border p-4 space-y-3">
-                        <p className="font-medium">{item.category}</p>
+                        <p className="font-medium">{budgetCategoryLabel(item.category, t)}</p>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <p className="text-xs text-muted-foreground">{t("budget.estimated")}</p>
@@ -386,9 +412,7 @@ export default function BudgetPage() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">{t("budget.difference")}</p>
-                            <p className="font-medium text-emerald-600">
-                              {diff > 0 ? formatCurrency(diff) : "—"}
-                            </p>
+                            <BudgetDifference diff={diff} locale={locale} />
                           </div>
                         </div>
                         {item.cheapestOption && (
@@ -400,14 +424,14 @@ export default function BudgetPage() {
                           <Label className="text-xs">{t("budget.actual")}</Label>
                           <div className="flex gap-2">
                             <Input
-                              type="number"
-                              min={0}
-                              className="h-10 flex-1 text-right"
+                              type="text"
+                              inputMode="decimal"
+                              className="h-10 flex-1 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               value={draftActuals[item.id] ?? ""}
                               onChange={(e) =>
                                 setDraftActuals((prev) => ({
                                   ...prev,
-                                  [item.id]: e.target.value,
+                                  [item.id]: e.target.value.replace(/[^\d.]/g, ""),
                                 }))
                               }
                             />
@@ -478,19 +502,19 @@ export default function BudgetPage() {
                       const breakdown = data?.breakdowns?.find((b) => b.category === item.category);
                       return (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.category}</TableCell>
+                          <TableCell className="font-medium">{budgetCategoryLabel(item.category, t)}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.estimated)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-1.5 sm:gap-2">
                               <Input
-                                type="number"
-                                min={0}
-                                className="w-full sm:w-24 h-9 sm:h-8 text-right"
+                                type="text"
+                                inputMode="decimal"
+                                className="w-full sm:w-24 h-9 sm:h-8 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={draftActuals[item.id] ?? ""}
                                 onChange={(e) =>
                                   setDraftActuals((prev) => ({
                                     ...prev,
-                                    [item.id]: e.target.value,
+                                    [item.id]: e.target.value.replace(/[^\d.]/g, ""),
                                   }))
                                 }
                               />
@@ -505,8 +529,8 @@ export default function BudgetPage() {
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right text-emerald-600 hidden md:table-cell">
-                            {diff > 0 ? formatCurrency(diff) : "—"}
+                          <TableCell className="text-right hidden md:table-cell">
+                            <BudgetDifference diff={diff} locale={locale} className="inline-block" />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground max-w-[200px] hidden lg:table-cell">
                             {item.cheapestOption ?? "—"}
@@ -549,8 +573,8 @@ export default function BudgetPage() {
                       <TableCell>{t("budget.total")}</TableCell>
                       <TableCell className="text-right">{formatCurrency(totalEstimated)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(totalActual)}</TableCell>
-                      <TableCell className="text-right text-emerald-600">
-                        {formatCurrency(difference)}
+                      <TableCell className="text-right">
+                        <BudgetDifference diff={difference} locale={locale} className="inline-block" />
                       </TableCell>
                       <TableCell />
                     </TableRow>

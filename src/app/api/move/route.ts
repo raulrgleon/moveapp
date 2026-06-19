@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser, requireCanEditProfile, requireMoveAccess, unauthorized } from "@/lib/api-auth";
+import { requireCanEditProfile, requireMoveAccess } from "@/lib/api-auth";
 import { updateMoveForUserId } from "@/lib/db/move-service";
 import type { MoveProfile } from "@/lib/move-profile";
-import { requireProSubscription } from "@/lib/billing/require-pro";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 
+/** Core move profile (cities, household, etc.) — always savable by the move owner. */
 export async function PATCH(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

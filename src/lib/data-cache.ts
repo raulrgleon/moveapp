@@ -18,6 +18,7 @@ export interface UserDataPayload {
   truckChoice?: string | null;
   vehicleTransportChoice?: string | null;
   selectedRouteIndex?: number;
+  supplyChecks?: Record<string, boolean>;
   inventory: InventoryBox[];
   checklist: ChecklistTask[];
   documents: (DocumentItem & { fileName?: string; hasFile?: boolean })[];
@@ -28,19 +29,18 @@ export interface UserDataPayload {
 }
 
 let cached: UserDataPayload | null = null;
-let cachedEmail: string | null = null;
+let cachedKey: string | null = null;
 
 export function invalidateUserData() {
   cached = null;
-  cachedEmail = null;
+  cachedKey = null;
 }
 
-export async function loadUserData(email: string, force = false): Promise<UserDataPayload> {
-  const key = email.trim().toLowerCase();
-  if (!force && cached && cachedEmail === key) return cached;
+export async function loadUserData(_email: string, force = false): Promise<UserDataPayload> {
+  if (!force && cached) return cached;
   const res = await apiFetch("/api/data");
   const data = (await res.json()) as UserDataPayload;
   cached = data;
-  cachedEmail = key;
+  cachedKey = data.user?.id ?? null;
   return data;
 }

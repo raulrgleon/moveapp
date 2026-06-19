@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 export function MovingPlanSuppliesCard() {
   const t = useT();
   const { profile } = useMove();
-  const { checked, isHydrated } = useMovingSupplies(profile);
+  const { checked, isHydrated } = useMovingSupplies();
   const progress = suppliesProgress(checked);
 
   return (

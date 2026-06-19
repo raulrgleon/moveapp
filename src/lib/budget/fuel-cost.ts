@@ -1,6 +1,8 @@
 import type { RentalPreferenceKey } from "@/lib/move-profile";
 import type { RouteStop } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
+import type { Locale } from "@/lib/i18n";
+import { translate } from "@/lib/i18n";
 import {
   effectiveFuelMiles,
   mpgForVehicle,
@@ -18,7 +20,7 @@ export interface FuelCostInput {
   destination: string;
   routeStops?: RouteStop[];
   vehicles?: VehicleInfo[];
-  locale?: "en" | "es";
+  locale?: Locale;
 }
 
 export interface VehicleFuelLine {
@@ -128,7 +130,8 @@ export function computeVehicleFuelLines(
 function genericFuelLines(
   fuelMiles: number,
   rentalKey: RentalPreferenceKey,
-  vehicleCount: number
+  vehicleCount: number,
+  locale: Locale = "en"
 ): VehicleFuelLine[] {
   const count = Math.max(1, vehicleCount);
   const mpg = fallbackMpg(rentalKey);
@@ -136,9 +139,9 @@ function genericFuelLines(
     vehicleLabel:
       count === 1
         ? rentalKey === "truck"
-          ? "Rental truck"
-          : "Your vehicle"
-        : `Vehicle ${index + 1}`,
+          ? translate(locale, "budgetNotes.fuelRentalTruck")
+          : translate(locale, "budgetNotes.fuelYourVehicle")
+        : translate(locale, "budgetNotes.fuelVehicleN", { n: index + 1 }),
     mpg,
     gallons: Math.round((fuelMiles / mpg) * 10) / 10,
     kwh: 0,
@@ -191,12 +194,13 @@ function resolveFuelLines(
   fuelMiles: number,
   rentalKey: RentalPreferenceKey,
   vehicles: VehicleInfo[],
-  vehicleCount: number
+  vehicleCount: number,
+  locale: Locale = "en"
 ): VehicleFuelLine[] {
   const lines = computeVehicleFuelLines(fuelMiles, rentalKey, vehicles, vehicleCount);
   if (lines.length) return lines;
   if (rentalKey === "movers") return [];
-  return genericFuelLines(fuelMiles, rentalKey, vehicleCount);
+  return genericFuelLines(fuelMiles, rentalKey, vehicleCount, locale);
 }
 
 export async function estimateFuelCost(input: FuelCostInput): Promise<{
@@ -212,7 +216,7 @@ export async function estimateFuelCost(input: FuelCostInput): Promise<{
   const vehicles = (input.vehicles ?? []).filter((v) => v.make?.trim() && v.model?.trim());
   const fuelMiles = effectiveFuelMiles(input.distanceMiles);
   const locale = input.locale ?? "en";
-  const lines = resolveFuelLines(fuelMiles, input.rentalKey, vehicles, input.vehicleCount);
+  const lines = resolveFuelLines(fuelMiles, input.rentalKey, vehicles, input.vehicleCount, locale);
 
   if (!lines.length) {
     return {
@@ -221,7 +225,7 @@ export async function estimateFuelCost(input: FuelCostInput): Promise<{
       gallons: 0,
       mpg: 0,
       fuelMiles,
-      note: locale === "es" ? "Sin combustible (solo mudadores)." : "No fuel (movers only).",
+      note: translate(locale, "budgetNotes.fuelMoversOnly"),
       isElectric: false,
       vehicleLines: [],
     };
@@ -260,10 +264,11 @@ export async function estimateFuelCost(input: FuelCostInput): Promise<{
     .map((line) => formatFuelLineNote(line, pricePerGallon, pricePerKwh, locale))
     .join(" · ");
 
-  const note =
-    locale === "es"
-      ? `~${totalGallons > 0 ? `${totalGallons} gal` : `${totalKwh} kWh`} total (${fuelMiles} mi efectivas) · ${perVehicle}`
-      : `~${totalGallons > 0 ? `${totalGallons} gal` : `${totalKwh} kWh`} total (${fuelMiles} effective mi) · ${perVehicle}`;
+  const note = translate(locale, "budgetNotes.fuelTotalNote", {
+    amount: totalGallons > 0 ? `${totalGallons} gal` : `${totalKwh} kWh`,
+    miles: fuelMiles,
+    detail: perVehicle,
+  });
 
   return {
     total: Math.round(total),
@@ -289,11 +294,12 @@ export function estimateFuelCostSync(
   note: string;
   vehicleLines: VehicleFuelLine[];
 } {
+  const locale = input.locale ?? "en";
   const vehicles = (input.vehicles ?? []).filter((v) => v.make?.trim() && v.model?.trim());
   const fuelMiles = effectiveFuelMiles(input.distanceMiles);
   const pricePerGallon = input.pricePerGallon ?? 3.45;
   const pricePerKwh = input.pricePerKwh ?? 0.16;
-  const lines = resolveFuelLines(fuelMiles, input.rentalKey, vehicles, input.vehicleCount);
+  const lines = resolveFuelLines(fuelMiles, input.rentalKey, vehicles, input.vehicleCount, locale);
 
   let total = 0;
   for (const line of lines) {
@@ -308,8 +314,19 @@ export function estimateFuelCostSync(
       : mpgForRental(input.rentalKey, vehicles);
 
   const perVehicle = lines
-    .map((line) => formatFuelLineNote(line, pricePerGallon, pricePerKwh, "en"))
+    .map((line) => formatFuelLineNote(line, pricePerGallon, pricePerKwh, locale))
     .join(" · ");
+
+  const note = perVehicle
+    ? translate(locale, "budgetNotes.fuelTotalNote", {
+        amount: `${totalGallons} gal`,
+        miles: fuelMiles,
+        detail: perVehicle,
+      })
+    : translate(locale, "budgetNotes.fuelFallbackNote", {
+        total: Math.round(total),
+        miles: fuelMiles,
+      });
 
   return {
     total: Math.round(total),
@@ -317,9 +334,7 @@ export function estimateFuelCostSync(
     gallons: totalGallons,
     mpg,
     fuelMiles,
-    note: perVehicle
-      ? `~${totalGallons} gal total (${fuelMiles} mi) · ${perVehicle}`
-      : `~${Math.round(total)} total (${fuelMiles} mi).`,
+    note,
     vehicleLines: lines,
   };
 }

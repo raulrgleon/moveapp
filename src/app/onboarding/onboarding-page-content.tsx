@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { EmailVerificationFields } from "@/components/auth/email-verification-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -85,6 +86,7 @@ export function OnboardingPageContent() {
   const [accountPassword, setAccountPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [accountError, setAccountError] = useState("");
+  const [emailRegisterToken, setEmailRegisterToken] = useState<string | null>(null);
   const [moveDateError, setMoveDateError] = useState("");
   const [stepError, setStepError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -158,7 +160,7 @@ export function OnboardingPageContent() {
     return message || t("onboarding.stepSaveFailed");
   };
 
-  const saveStepData = async (sync = false) => {
+  const saveStepData = async (sync = isAuthenticated) => {
     await updateProfile(
       {
         origin,
@@ -218,6 +220,10 @@ export function OnboardingPageContent() {
       setAccountError(t("auth.passwordMin"));
       return;
     }
+    if (!emailRegisterToken) {
+      setAccountError(t("auth.verifyEmailRequired"));
+      return;
+    }
     if (!termsAccepted) {
       setAccountError(t("legal.acceptTermsRequired"));
       return;
@@ -245,6 +251,7 @@ export function OnboardingPageContent() {
         destinationLat: profile.destinationLat,
         destinationLon: profile.destinationLon,
         isAddressConfirmed,
+        registerToken: emailRegisterToken,
       });
       sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
@@ -395,7 +402,7 @@ export function OnboardingPageContent() {
                     void updateProfile(
                       { origin: city.label, originLat: city.lat, originLon: city.lon },
                       false,
-                      false
+                      isAuthenticated
                     );
                   }}
                   placeholder={t("onboarding.cityPlaceholder")}
@@ -420,7 +427,7 @@ export function OnboardingPageContent() {
                         destinationLon: city.lon,
                       },
                       false,
-                      false
+                      isAuthenticated
                     );
                   }}
                   placeholder={t("onboarding.cityPlaceholder")}
@@ -605,17 +612,13 @@ export function OnboardingPageContent() {
                     placeholder={t("onboarding.namePlaceholder")}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accountEmail">{t("settings.email")}</Label>
-                  <Input
-                    id="accountEmail"
-                    type="email"
-                    autoComplete="email"
-                    value={accountEmail}
-                    onChange={(e) => setAccountEmail(e.target.value)}
-                    required
-                  />
-                </div>
+                <EmailVerificationFields
+                  email={accountEmail}
+                  onEmailChange={setAccountEmail}
+                  registerToken={emailRegisterToken}
+                  onVerified={setEmailRegisterToken}
+                  onClearVerification={() => setEmailRegisterToken(null)}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="accountPassword">{t("login.password")}</Label>
                   <Input

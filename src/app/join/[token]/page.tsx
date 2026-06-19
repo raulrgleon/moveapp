@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { EmailVerificationFields } from "@/components/auth/email-verification-fields";
 import { AuthBrandPanel } from "@/components/brand/auth-brand-panel";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
@@ -32,6 +33,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [registerToken, setRegisterToken] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -59,6 +61,10 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       setError(t("auth.passwordMin"));
       return;
     }
+    if (!registerToken) {
+      setError(t("auth.verifyEmailRequired"));
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -67,6 +73,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
         password,
         name: name.trim() || info.email.split("@")[0],
         inviteToken: params.token,
+        registerToken,
       });
       router.push("/dashboard");
     } catch (err) {
@@ -119,6 +126,13 @@ export default function JoinPage({ params }: { params: { token: string } }) {
                       <Label htmlFor="join-email">{t("settings.email")}</Label>
                       <Input id="join-email" type="email" value={info.email} disabled />
                     </div>
+                    <EmailVerificationFields
+                      email={info.email}
+                      emailDisabled
+                      registerToken={registerToken}
+                      onVerified={setRegisterToken}
+                      onClearVerification={() => setRegisterToken(null)}
+                    />
                     <div className="space-y-2">
                       <Label htmlFor="join-password">{t("login.password")}</Label>
                       <Input

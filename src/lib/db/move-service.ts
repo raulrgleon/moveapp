@@ -358,6 +358,7 @@ export async function getUserDataByUserId(userId: string) {
       canEdit: true,
       canEditProfile: true,
       stats: { checklist: 0, inventory: 0, documents: 0, vehicles: 0 },
+      supplyChecks: {},
     };
   }
 
@@ -376,6 +377,7 @@ export async function getUserDataByUserId(userId: string) {
     truckChoice: move.truckChoice ?? null,
     vehicleTransportChoice: move.vehicleTransportChoice ?? null,
     selectedRouteIndex: move.selectedRouteIndex ?? 0,
+    supplyChecks: (move.supplyChecks as Record<string, boolean> | null) ?? {},
     inventory: move.inventoryBoxes.map(dbToInventory),
     checklist: move.checklistTasks.map(dbToChecklist),
     documents: move.documents.map(dbToDocument),

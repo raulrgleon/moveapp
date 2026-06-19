@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
 import { estimateBudget } from "@/lib/budget/estimator";
-import { requireProSubscription } from "@/lib/billing/require-pro";
 import type { MoveProfile } from "@/lib/move-profile";
 
 function buildProfile(
@@ -49,8 +48,6 @@ function buildProfile(
 }
 
 export async function GET(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -65,8 +62,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

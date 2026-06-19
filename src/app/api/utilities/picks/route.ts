@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
-import { requireProSubscription } from "@/lib/billing/require-pro";
 import { prisma } from "@/lib/prisma";
 
 export interface UtilityPick {
@@ -11,8 +10,6 @@ export interface UtilityPick {
 }
 
 export async function GET(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -26,8 +23,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -64,8 +59,6 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

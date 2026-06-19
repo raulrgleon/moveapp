@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { invalidateUserData } from "@/lib/data-cache";
+import { clearGuestProfileStorage } from "@/lib/move-profile";
 
 export type UserRole = "user" | "admin";
 
@@ -47,6 +48,7 @@ interface AuthContextValue {
     destinationLon?: number;
     isAddressConfirmed?: boolean;
     inviteToken?: string;
+    registerToken?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -122,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       destinationLon?: number;
       isAddressConfirmed?: boolean;
       inviteToken?: string;
+      registerToken?: string;
     }) => {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -144,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     invalidateUserData();
+    clearGuestProfileStorage();
     setUser(null);
     setIsImpersonating(false);
   }, []);

@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/session";
 import { jsonError, resolveRequestLocale } from "@/lib/api-errors";
 import { sendWelcomeEmail } from "@/lib/notifications/email";
+import { consumeRegisterToken, emailAlreadyRegistered, normalizeSignupEmail } from "@/lib/auth/email-verification";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import type { Locale } from "@/lib/i18n";
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
       destinationLon?: number;
       isAddressConfirmed?: boolean;
       inviteToken?: string;
+      registerToken?: string;
     };
 
     const email = body.email?.trim();
@@ -45,10 +47,25 @@ export async function POST(req: NextRequest) {
       return jsonError("passwordTooShort", 400, userLocale);
     }
 
+    const normalizedEmail = normalizeSignupEmail(email);
+
+    if (!body.registerToken?.trim()) {
+      return jsonError("verificationRequired", 400, userLocale);
+    }
+
+    const verified = await consumeRegisterToken(normalizedEmail, body.registerToken);
+    if (!verified) {
+      return jsonError("verificationRequired", 400, userLocale);
+    }
+
+    if (await emailAlreadyRegistered(normalizedEmail)) {
+      return jsonError("userExists", 409, userLocale);
+    }
+
     const user = inviteToken
-      ? await registerUserWithoutMove(email, name, password, userLocale)
+      ? await registerUserWithoutMove(normalizedEmail, name, password, userLocale)
       : await registerUserWithPassword(
-          email,
+          normalizedEmail,
           name,
           password,
           "user",
