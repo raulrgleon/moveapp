@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus, Trash2, CheckCircle2, Circle, ClipboardList } from "lucide-react";
 import { useChecklist } from "@/contexts/checklist-context";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
@@ -30,6 +30,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { TaskAssigneeField } from "@/components/collaboration/task-assignee-field";
+import { EmptyState } from "@/components/dashboard/empty-state";
 import {
   Select,
   SelectContent,
@@ -41,8 +42,6 @@ import { CHECKLIST_CATEGORIES } from "@/lib/constants";
 import { isPackingSuppliesTask } from "@/lib/inventory/supplies";
 import type { ChecklistTask, TaskPriority, TaskStatus } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
-
-const STATUS_CYCLE: TaskStatus[] = ["pending", "in_progress", "completed"];
 
 const ALL_CATEGORIES = ["Planning", ...CHECKLIST_CATEGORIES] as const;
 
@@ -75,8 +74,8 @@ export default function ChecklistPage() {
   const [saving, setSaving] = useState(false);
   const [popTaskId, setPopTaskId] = useState<string | null>(null);
 
-  const handleStatusCycle = (taskId: string, current: TaskStatus) => {
-    const next = cycleStatus(current);
+  const handleToggleComplete = (taskId: string, current: TaskStatus) => {
+    const next: TaskStatus = current === "completed" ? "pending" : "completed";
     void setTaskStatus(taskId, next);
     if (next === "completed") {
       setPopTaskId(taskId);
@@ -113,11 +112,6 @@ export default function ChecklistPage() {
     const timer = setTimeout(() => setHighlightTaskId(null), 5000);
     return () => clearTimeout(timer);
   }, [searchParams, tasks]);
-
-  const cycleStatus = (current: TaskStatus): TaskStatus => {
-    const idx = STATUS_CYCLE.indexOf(current);
-    return STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
-  };
 
   const openNotes = (task: ChecklistTask) => {
     setNotesTaskId(task.id);
@@ -230,13 +224,34 @@ export default function ChecklistPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {filteredTasks.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {dueDateFilter
-                      ? t("checklistPage.noTasksForDate")
-                      : t("checklistPage.allTasks")}
-                  </p>
-                )}
+                {tasks.length === 0 ? (
+                  <EmptyState
+                    icon={ClipboardList}
+                    emoji="✅"
+                    title={t("checklistPage.noTasksTitle")}
+                    description={t("checklistPage.noTasksDesc")}
+                    actionLabel={canEdit ? t("checklistPage.addTask") : undefined}
+                    onAction={canEdit ? () => setAddOpen(true) : undefined}
+                    className="py-10"
+                  />
+                ) : filteredTasks.length === 0 ? (
+                  <EmptyState
+                    icon={ClipboardList}
+                    emoji="🔍"
+                    title={
+                      dueDateFilter
+                        ? t("checklistPage.noTasksForDate")
+                        : t("checklistPage.noFilterResultsTitle")
+                    }
+                    description={t("checklistPage.noFilterResultsDesc")}
+                    actionLabel={dueDateFilter ? t("checklistPage.clearDateFilter") : t("checklistPage.all")}
+                    onAction={() => {
+                      if (dueDateFilter) setDueDateFilter("");
+                      else setFilter("all");
+                    }}
+                    className="py-10"
+                  />
+                ) : null}
                 {filteredTasks.map((task) => (
                   <div
                     key={task.id}
@@ -244,11 +259,38 @@ export default function ChecklistPage() {
                     className={cn(
                       "flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-lg border p-4 transition-colors",
                       highlightTaskId === task.id && "border-primary bg-primary/5 ring-1 ring-primary/30",
-                      popTaskId === task.id && "task-complete-pop border-emerald-500/40 bg-emerald-500/5"
+                      popTaskId === task.id && "task-complete-pop border-emerald-500/40 bg-emerald-500/5",
+                      task.status === "completed" && "opacity-75"
                     )}
                   >
-                    <div className="space-y-2 flex-1">
-                      <p className="font-medium text-sm">{task.title}</p>
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => handleToggleComplete(task.id, task.status)}
+                          aria-label={
+                            task.status === "completed"
+                              ? t("checklistPage.markPending")
+                              : t("checklistPage.markComplete")
+                          }
+                        >
+                          {task.status === "completed" ? (
+                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                          ) : (
+                            <Circle className="h-5 w-5" />
+                          )}
+                        </button>
+                      ) : null}
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <p
+                          className={cn(
+                            "font-medium text-sm",
+                            task.status === "completed" && "line-through text-muted-foreground"
+                          )}
+                        >
+                          {task.title}
+                        </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{categoryLabel(t, task.category)}</Badge>
                         {task.dueDate && (
@@ -272,20 +314,14 @@ export default function ChecklistPage() {
                         </Button>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 sm:pl-0 pl-8">
                       <PriorityBadge priority={task.priority} />
                       <TaskStatusBadge status={task.status} />
                       {canEdit && (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => openNotes(task)}>
                             {t("checklistPage.editNotes")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleStatusCycle(task.id, task.status)}
-                          >
-                            {t("common.update")}
                           </Button>
                           <Button
                             variant="ghost"

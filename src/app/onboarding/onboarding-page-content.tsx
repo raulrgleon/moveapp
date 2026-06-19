@@ -24,6 +24,7 @@ import {
   formatPetDetails,
   rentalPreferenceFromKey,
 } from "@/lib/move-profile";
+import { parseHouseholdCounts } from "@/lib/move/household";
 import { useT } from "@/contexts/locale-context";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatLocalISO, startOfDay } from "@/lib/dates/local-date";
@@ -70,7 +71,7 @@ export function OnboardingPageContent() {
   const [destination, setDestination] = useState("");
   const [destRegion, setDestRegion] = useState<AddressSearchRegion>({});
   const [moveDate, setMoveDate] = useState(profile.moveDate);
-  const [adults, setAdults] = useState(0);
+  const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [petCount, setPetCount] = useState(0);
   const [rentalKey, setRentalKey] = useState("own");
@@ -122,7 +123,13 @@ export function OnboardingPageContent() {
     if (profile.origin?.trim()) setOrigin(profile.origin);
     if (profile.destination?.trim()) setDestination(profile.destination);
     if (profile.moveDate) setMoveDate(profile.moveDate);
-  }, [moveHydrated, profile.origin, profile.destination, profile.moveDate]);
+    const counts = parseHouseholdCounts(profile);
+    if (counts.adults > 0 || counts.children > 0 || counts.petCount > 0) {
+      setAdults(Math.max(1, counts.adults));
+      setChildren(counts.children);
+      setPetCount(counts.petCount);
+    }
+  }, [moveHydrated, profile]);
 
   useEffect(() => {
     const parsed = parseCityStateLabel(destination);
@@ -183,6 +190,10 @@ export function OnboardingPageContent() {
         return;
       }
       setMoveDateError("");
+    }
+    if (step === 2 && adults < 1) {
+      setStepError(t("onboarding.householdRequired"));
+      return;
     }
 
     setStepLoading(true);

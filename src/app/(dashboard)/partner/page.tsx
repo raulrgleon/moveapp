@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Handshake, Loader2, RefreshCw } from "lucide-react";
+import { Handshake, Loader2, RefreshCw, MessageSquareQuote } from "lucide-react";
+import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -154,7 +155,13 @@ export default function PartnerPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {!data?.quotes.length ? (
-                  <p className="text-sm text-muted-foreground">{t("partnerPage.noQuotes")}</p>
+                  <EmptyState
+                    icon={MessageSquareQuote}
+                    emoji="📋"
+                    title={t("partnerPage.noQuotesTitle")}
+                    description={t("partnerPage.noQuotesDesc")}
+                    className="py-10"
+                  />
                 ) : (
                   <>
                     <QuoteComparator

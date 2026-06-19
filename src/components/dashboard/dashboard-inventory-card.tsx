@@ -13,7 +13,26 @@ export function DashboardInventoryCard() {
   const t = useT();
   const { boxes, isHydrated } = useInventory();
 
-  if (!isHydrated || boxes.length === 0) return null;
+  if (!isHydrated) return null;
+
+  if (boxes.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Package className="h-4 w-4 text-primary" />
+            {t("inventory.dashboardTitle")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t("inventory.dashboardEmptyDesc")}</p>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/inventory">{t("inventory.dashboardEmptyAction")}</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const stats = inventoryStats(boxes);
   const deliveredPct = stats.total

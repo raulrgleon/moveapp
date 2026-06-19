@@ -53,7 +53,7 @@ export function buildJourneySteps(input: {
     {
       id: "address",
       labelKey: "gettingStarted.stepAddress",
-      href: "/utilities",
+      href: "/settings",
       done: isAddressConfirmed,
     },
     {

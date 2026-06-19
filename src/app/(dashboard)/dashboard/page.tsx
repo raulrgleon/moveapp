@@ -41,7 +41,9 @@ import { NextActionCard } from "@/components/dashboard/next-action-card";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useRouteStats } from "@/hooks/use-route-stats";
 import { calculateMoveScore } from "@/lib/gamification/move-score";
+import { buildJourneySteps, journeyProgress } from "@/lib/dashboard/journey-steps";
 import { hasRouteCoordinates } from "@/lib/move/profile-completeness";
+import { useUtilityPicks } from "@/hooks/use-utility-picks";
 import { generateAlerts } from "@/lib/dashboard/generate-alerts";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { apiFetch } from "@/lib/api-client";
@@ -55,6 +57,7 @@ const QUICK_ACTION_KEYS = [
 ] as const;
 
 const CELEBRATE_KEY = "movepilot_celebrate";
+const NEW_USER_JOURNEY_THRESHOLD = 3;
 
 export default function DashboardPage() {
   const t = useT();
@@ -64,6 +67,7 @@ export default function DashboardPage() {
   const { documents } = useDocuments();
   const { stats: routeStats } = useRouteStats();
   const { boxes } = useInventory();
+  const { count: utilityPickCount } = useUtilityPicks();
   const [budgetTotals, setBudgetTotals] = useState({ totalEstimated: 0, totalActual: 0 });
   const [celebrate, setCelebrate] = useState(false);
 
@@ -145,6 +149,28 @@ export default function DashboardPage() {
     ]
   );
 
+  const journey = useMemo(() => {
+    const steps = buildJourneySteps({
+      profile,
+      isAddressConfirmed,
+      tasks,
+      boxesCount: boxes.length,
+      truckChoice,
+      hasRouteCoords: hasRouteCoordinates(profile),
+      utilityPickCount,
+    });
+    return journeyProgress(steps);
+  }, [
+    profile,
+    isAddressConfirmed,
+    tasks,
+    boxes.length,
+    truckChoice,
+    utilityPickCount,
+  ]);
+
+  const isNewUserFocus = journey.done < NEW_USER_JOURNEY_THRESHOLD && !journey.complete;
+
   return (
     <>
       <ConfettiBurst active={celebrate} />
@@ -154,7 +180,29 @@ export default function DashboardPage() {
       />
       <PageContainer>
         <PendingInvitesBanner />
-        <UpgradeProBanner />
+        {!isNewUserFocus && <UpgradeProBanner />}
+        {isNewUserFocus ? (
+          <>
+            <JourneyNextCard />
+            <MoveCommandHero
+              origin={profile.origin}
+              destination={profile.destination}
+              moveDate={profile.moveDate}
+              daysLeft={daysLeft}
+              distanceMiles={routeStats?.distanceMiles}
+              driveTimeLabel={routeStats?.driveTimeLabel}
+              gamification={gamification}
+            />
+            <NextActionCard />
+            <p className="text-center text-sm text-muted-foreground pb-2">
+              {t("dashboardPage.moreAfterSetup", {
+                done: journey.done,
+                total: NEW_USER_JOURNEY_THRESHOLD,
+              })}
+            </p>
+          </>
+        ) : (
+          <>
         <GettingStartedCard />
         <JourneyNextCard />
         <PageHeader
@@ -291,6 +339,8 @@ export default function DashboardPage() {
           </Card>
           <MoveActivityFeed />
         </div>
+          </>
+        )}
       </PageContainer>
     </>
   );

@@ -11,6 +11,7 @@ import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import { EstimateDisclaimer } from "@/components/marketing/estimate-disclaimer";
+import { EmptyState } from "@/components/dashboard/empty-state";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
@@ -358,7 +359,15 @@ export default function BudgetPage() {
             {loading ? (
               <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
             ) : items.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("budget.empty")}</p>
+              <EmptyState
+                icon={PiggyBank}
+                emoji="💰"
+                title={t("budget.emptyTitle")}
+                description={t("budget.emptyDesc")}
+                actionLabel={t("budget.emptyActionRoute")}
+                actionHref="/route"
+                className="py-10"
+              />
             ) : (
               <TableScroll>
                 <Table>
