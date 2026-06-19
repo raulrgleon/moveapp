@@ -24,10 +24,10 @@ export function getTwilioConfigStatus(): TwilioConfigStatus {
   if (!from) missing.push("TWILIO_PHONE_NUMBER");
 
   let authMethod: TwilioConfigStatus["authMethod"] = null;
-  if (apiKeySid && apiKeySecret) {
-    authMethod = "api_key";
-  } else if (authToken) {
+  if (authToken) {
     authMethod = "auth_token";
+  } else if (apiKeySid && apiKeySecret) {
+    authMethod = "api_key";
   } else {
     missing.push("TWILIO_AUTH_TOKEN or TWILIO_API_KEY_SID + TWILIO_API_KEY_SECRET");
   }
@@ -51,12 +51,12 @@ export function getTwilioCredentials(): TwilioCredentials | null {
   const apiKeySid = process.env.TWILIO_API_KEY_SID?.trim();
   const apiKeySecret = process.env.TWILIO_API_KEY_SECRET?.trim();
 
-  if (apiKeySid && apiKeySecret) {
-    return { accountSid, username: apiKeySid, password: apiKeySecret, from };
-  }
-
   if (authToken) {
     return { accountSid, username: accountSid, password: authToken, from };
+  }
+
+  if (apiKeySid && apiKeySecret) {
+    return { accountSid, username: apiKeySid, password: apiKeySecret, from };
   }
 
   return null;

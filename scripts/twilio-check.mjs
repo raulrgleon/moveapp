@@ -34,7 +34,6 @@ const apiKeySecret = env.TWILIO_API_KEY_SECRET?.trim();
 
 const missing = [];
 if (!accountSid) missing.push("TWILIO_ACCOUNT_SID");
-if (!phone) missing.push("TWILIO_PHONE_NUMBER");
 if (!(authToken || (apiKeySid && apiKeySecret))) {
   missing.push("TWILIO_AUTH_TOKEN or TWILIO_API_KEY_SID + TWILIO_API_KEY_SECRET");
 }
@@ -44,17 +43,20 @@ console.log("Twilio configuration check\n");
 if (missing.length) {
   console.log("Missing:");
   for (const m of missing) console.log(`  - ${m}`);
-  console.log("\nAdd these to .env.local, then: pm2 restart moveapp");
   process.exit(1);
 }
 
-const username = apiKeySid && apiKeySecret ? apiKeySid : accountSid;
-const password = apiKeySid && apiKeySecret ? apiKeySecret : authToken;
+if (!phone) {
+  console.log("Note: TWILIO_PHONE_NUMBER not set yet.\n");
+}
+
+const username = authToken ? accountSid : apiKeySid;
+const password = authToken ? authToken : apiKeySecret;
 const auth = Buffer.from(`${username}:${password}`).toString("base64");
 
 console.log(`Account SID: ${accountSid}`);
-console.log(`From number: ${phone}`);
-console.log(`Auth method: ${apiKeySid ? "API Key" : "Auth Token"}`);
+console.log(`From number: ${phone ?? "(not set)"}`);
+console.log(`Auth method: ${apiKeySid && apiKeySecret && !authToken ? "API Key" : "Auth Token"}`);
 
 const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`, {
   headers: { Authorization: `Basic ${auth}` },
@@ -63,12 +65,16 @@ const body = await res.text();
 
 if (!res.ok) {
   console.error(`\nTwilio API error (${res.status}):`, body);
-  console.error("\nIf using an API Key, confirm TWILIO_ACCOUNT_SID matches the key's account.");
-  console.error("Or use TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN from the Twilio dashboard.");
+  console.error("\nRegenerate the Auth Token in Twilio Console → Account → Live credentials.");
   process.exit(1);
 }
 
 console.log("\nTwilio credentials OK.");
+
+if (!phone) {
+  console.log("\nStill missing TWILIO_PHONE_NUMBER — buy a number in Twilio → Phone Numbers.");
+  process.exit(1);
+}
 
 const numbersRes = await fetch(
   `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json?PageSize=5`,
