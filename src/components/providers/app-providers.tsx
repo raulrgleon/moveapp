@@ -11,12 +11,14 @@ import { MoveProvider } from "@/contexts/move-context";
 import { MovingPlanProvider } from "@/contexts/moving-plan-context";
 import { CookieConsent } from "@/components/marketing/cookie-consent";
 import { FloatingPilotLauncher } from "@/components/marketing/floating-pilot-launcher";
+import { PaywallProvider } from "@/components/billing/paywall-provider";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <ThemeProvider>
         <LocaleProvider>
+          <PaywallProvider>
           <MoveProvider>
           <InventoryProvider>
             <ChecklistProvider>
@@ -32,6 +34,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             </ChecklistProvider>
           </InventoryProvider>
         </MoveProvider>
+          </PaywallProvider>
         </LocaleProvider>
       </ThemeProvider>
     </AuthProvider>

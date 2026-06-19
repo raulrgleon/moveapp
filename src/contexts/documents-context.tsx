@@ -10,7 +10,8 @@ import {
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
-import { apiFetch, redirectToUpgrade } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
+import { showPaywallModal } from "@/lib/billing/paywall-bridge";
 import { invalidateUserData, loadUserData } from "@/lib/data-cache";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
@@ -103,7 +104,23 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
         credentials: "include",
       });
       if (res.status === 402) {
-        redirectToUpgrade();
+        let trialExpired = false;
+        let trialDaysLeft = 0;
+        try {
+          const json = (await res.json()) as {
+            trialExpired?: boolean;
+            trialDaysLeft?: number;
+          };
+          trialExpired = Boolean(json.trialExpired);
+          trialDaysLeft = json.trialDaysLeft ?? 0;
+        } catch {
+          /* ignore */
+        }
+        showPaywallModal({
+          trialExpired,
+          trialDaysLeft,
+          returnTo: window.location.pathname + window.location.search,
+        });
         return;
       }
       if (!res.ok) {

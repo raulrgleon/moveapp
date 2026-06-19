@@ -1743,6 +1743,28 @@ export const es = {
     stepPlan: "Revisa tu plan de mudanza",
     stepInventory: "Agrega tu primera caja al inventario",
   },
+  paywall: {
+    titleExpired: "Tu prueba terminó",
+    titleRequired: "Función Pro",
+    descExpired:
+      "Actualiza a Pro para seguir editando ruta, presupuesto, checklist, documentos y chat con Pilot.",
+    descRequired: "Esta acción requiere MovePilot Pro. Puedes seguir navegando y actualizar cuando quieras.",
+    trialDaysLeft: "Te quedan {days} días de acceso completo",
+    perkHint: "Pro incluye ruta y presupuesto, Pilot ilimitado, enlaces para compartir y recordatorios por email.",
+    upgradeCta: "Actualizar a Pro — {price}",
+    continueBrowsing: "Seguir navegando",
+  },
+  welcome: {
+    title: "Bienvenido a MovePilotAi",
+    desc: "Tu prueba de {days} días desbloquea todo — ruta, presupuesto, checklist y tu co-piloto Pilot.",
+    startCta: "Empieza aquí",
+    askPilot: "Preguntar a Pilot",
+    explore: "Exploraré por mi cuenta",
+  },
+  pilotIntro: {
+    chip: "¿Primera vez? Pregúntale a Pilot qué hacer primero.",
+    dismiss: "Cerrar",
+  },
   invite: {
     title: "Invitación a mudanza",
     subtitle: "Te invitaron a colaborar en una mudanza",

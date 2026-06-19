@@ -1740,6 +1740,28 @@ export const en = {
     stepPlan: "Review your moving plan",
     stepInventory: "Add your first inventory box",
   },
+  paywall: {
+    titleExpired: "Your trial has ended",
+    titleRequired: "Pro feature",
+    descExpired:
+      "Upgrade to keep editing your route, budget, checklist, documents, and Pilot chat.",
+    descRequired: "This action needs MovePilot Pro. You can keep browsing — upgrade when you're ready.",
+    trialDaysLeft: "{days} days left on your full-access trial",
+    perkHint: "Pro includes route & budget sync, unlimited Pilot, share links, and email reminders.",
+    upgradeCta: "Upgrade to Pro — {price}",
+    continueBrowsing: "Continue browsing",
+  },
+  welcome: {
+    title: "Welcome to MovePilotAi",
+    desc: "Your {days}-day trial unlocks the full app — route, budget, checklist, and your AI co-pilot Pilot.",
+    startCta: "Start here",
+    askPilot: "Ask Pilot for help",
+    explore: "I'll explore on my own",
+  },
+  pilotIntro: {
+    chip: "New here? Ask Pilot what to do first.",
+    dismiss: "Dismiss",
+  },
   invite: {
     title: "Move invitation",
     subtitle: "You've been invited to collaborate on a move",

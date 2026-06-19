@@ -6,7 +6,8 @@ import { useLocale, useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { isUpgradeRequiredResponse, redirectToUpgrade } from "@/lib/api-client";
+import { isUpgradeRequiredResponse } from "@/lib/api-client";
+import { showPaywallModal } from "@/lib/billing/paywall-bridge";
 
 const QUICK_KEYS = ["pilotQuick1", "pilotQuick2", "pilotQuick3", "pilotQuick4"] as const;
 
@@ -30,7 +31,23 @@ export function InventoryPilotPanel() {
         body: JSON.stringify({ question: q, locale }),
       });
       if (isUpgradeRequiredResponse(res)) {
-        redirectToUpgrade();
+        let trialExpired = false;
+        let trialDaysLeft = 0;
+        try {
+          const json = (await res.json()) as {
+            trialExpired?: boolean;
+            trialDaysLeft?: number;
+          };
+          trialExpired = Boolean(json.trialExpired);
+          trialDaysLeft = json.trialDaysLeft ?? 0;
+        } catch {
+          /* ignore */
+        }
+        showPaywallModal({
+          trialExpired,
+          trialDaysLeft,
+          returnTo: window.location.pathname + window.location.search,
+        });
         return;
       }
       if (!res.ok) throw new Error("failed");

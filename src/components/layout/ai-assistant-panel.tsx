@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bot, X } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
 import { PilotBadge } from "@/components/brand/pilot-badge";
 import { PilotAvatar } from "@/components/pilot/pilot-avatar";
 import { useAiChat, useAiQuickQuestions } from "@/contexts/ai-chat-context";
+import { subscribeOpenPilot } from "@/lib/pilot/pilot-ui-bridge";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -25,6 +26,8 @@ export function AIAssistantPanel() {
   const { messages, isLoading, sendMessage } = useAiChat();
   const quickQuestions = useAiQuickQuestions();
   const hasConversation = messages.some((m) => m.role === "user");
+
+  useEffect(() => subscribeOpenPilot(() => setOpen(true)), []);
 
   const onAssistantPage = pathname === "/assistant";
 

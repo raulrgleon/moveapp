@@ -5,6 +5,8 @@ import { DashboardAuthGuard } from "@/components/auth/dashboard-auth-guard";
 import { MoveSetupGuard } from "@/components/auth/move-setup-guard";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { SystemAnnouncementBanner } from "@/components/layout/system-announcement-banner";
+import { FirstRunWelcome } from "@/components/dashboard/first-run-welcome";
+import { PilotIntroChip } from "@/components/dashboard/pilot-intro-chip";
 
 export default function DashboardLayout({
   children,
@@ -29,6 +31,8 @@ export default function DashboardLayout({
             <MobileBottomNav />
           </div>
         </div>
+        <FirstRunWelcome />
+        <PilotIntroChip />
       </div>
       </MoveSetupGuard>
     </DashboardAuthGuard>

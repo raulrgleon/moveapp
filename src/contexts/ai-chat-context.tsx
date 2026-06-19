@@ -20,7 +20,8 @@ import {
   stripPilotActions,
 } from "@/lib/ai/pilot-actions";
 import { resolveReplyLocale } from "@/lib/ai/detect-message-locale";
-import { isUpgradeRequiredResponse, redirectToUpgrade } from "@/lib/api-client";
+import { isUpgradeRequiredResponse } from "@/lib/api-client";
+import { showPaywallModal } from "@/lib/billing/paywall-bridge";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import type { AIQuickQuestion } from "@/lib/types";
 
@@ -161,7 +162,23 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (isUpgradeRequiredResponse(res)) {
-          redirectToUpgrade();
+          let trialExpired = false;
+          let trialDaysLeft = 0;
+          try {
+            const json = (await res.json()) as {
+              trialExpired?: boolean;
+              trialDaysLeft?: number;
+            };
+            trialExpired = Boolean(json.trialExpired);
+            trialDaysLeft = json.trialDaysLeft ?? 0;
+          } catch {
+            /* ignore */
+          }
+          showPaywallModal({
+            trialExpired,
+            trialDaysLeft,
+            returnTo: window.location.pathname + window.location.search,
+          });
           return;
         }
 
