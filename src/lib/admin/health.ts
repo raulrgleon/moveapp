@@ -61,6 +61,11 @@ export async function getSystemHealth() {
     rentcast: envConfigured("RENTCAST_API_KEY"),
     resend: envConfigured("RESEND_API_KEY"),
     googleOAuth: envConfigured("GOOGLE_CLIENT_ID") && envConfigured("GOOGLE_CLIENT_SECRET"),
+    appleOAuth:
+      envConfigured("APPLE_CLIENT_ID") &&
+      envConfigured("APPLE_TEAM_ID") &&
+      envConfigured("APPLE_KEY_ID") &&
+      envConfigured("APPLE_PRIVATE_KEY"),
     twilio: envConfigured("TWILIO_ACCOUNT_SID") && envConfigured("TWILIO_AUTH_TOKEN"),
     cron: envConfigured("CRON_SECRET"),
   };
@@ -81,6 +86,7 @@ export async function getSystemHealth() {
       databaseUrl: maskEnv("DATABASE_URL"),
       resend: maskEnv("RESEND_API_KEY"),
       googleClientId: maskEnv("GOOGLE_CLIENT_ID"),
+      appleClientId: maskEnv("APPLE_CLIENT_ID"),
     },
   };
 }

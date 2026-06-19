@@ -31,6 +31,7 @@ import { useLocale } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -637,10 +638,7 @@ export function OnboardingPageContent() {
                   </Label>
                 </div>
                 {accountError && <p className="text-sm text-destructive">{accountError}</p>}
-                <Separator />
-                <Button variant="outline" className="w-full" asChild>
-                  <a href="/api/auth/google">{t("onboarding.continueWithGoogle")}</a>
-                </Button>
+                <OAuthButtons />
               </>
             )}
 

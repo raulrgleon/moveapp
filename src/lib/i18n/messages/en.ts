@@ -356,6 +356,7 @@ export const en = {
     password: "Password",
     signIn: "Sign in",
     google: "Continue with Google",
+    apple: "Continue with Apple",
     noAccount: "Don't have an account?",
     startMove: "Start your move",
     forgotPassword: "Forgot password?",
@@ -1700,7 +1701,7 @@ export const en = {
     resetError: "Could not reset password. The link may have expired.",
     invalidResetLink: "This reset link is invalid or expired.",
     registerFailed: "Could not create account",
-    oauthNotConfigured: "Google sign-in is not configured on this server. Use email and password.",
+    oauthNotConfigured: "Social sign-in is not available right now. Use email and password.",
   },
   notifications: {
     empty: "No notifications right now.",

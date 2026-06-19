@@ -1,31 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import {
-  COOKIE_NAME,
-  createSession,
-  isSecureRequest,
-  sessionCookieOptions,
-} from "@/lib/auth/session";
-import { resolveTrialEndsAt } from "@/lib/billing/plan";
-import { buildDefaultMoveData } from "@/lib/db/move-service";
-import { sendWelcomeEmail } from "@/lib/notifications/email";
+import { NextRequest } from "next/server";
+import { findOrCreateOAuthUser } from "@/lib/auth/oauth-user";
+import { getOAuthBaseUrl, isGoogleOAuthConfigured } from "@/lib/auth/oauth-providers";
+import { completeOAuthLogin, oauthFailureRedirect } from "@/lib/auth/oauth-session";
+
+const STATE_COOKIE = "oauth_state";
 
 export async function GET(req: NextRequest) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const base = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
-  const redirectUri = `${base}/api/auth/google/callback`;
-
-  if (!clientId || !clientSecret) {
-    return NextResponse.redirect(`${base}/login?error=oauth`);
+  if (!isGoogleOAuthConfigured()) {
+    return oauthFailureRedirect(req);
   }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID!;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
+  const base = getOAuthBaseUrl(req);
+  const redirectUri = `${base}/api/auth/google/callback`;
 
   const state = req.nextUrl.searchParams.get("state");
   const code = req.nextUrl.searchParams.get("code");
-  const savedState = req.cookies.get("oauth_state")?.value;
+  const savedState = req.cookies.get(STATE_COOKIE)?.value;
 
   if (!code || !state || state !== savedState) {
-    return NextResponse.redirect(`${base}/login?error=oauth`);
+    return oauthFailureRedirect(req);
   }
 
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -41,7 +36,7 @@ export async function GET(req: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(`${base}/login?error=oauth`);
+    return oauthFailureRedirect(req);
   }
 
   const tokens = (await tokenRes.json()) as { access_token: string };
@@ -50,7 +45,7 @@ export async function GET(req: NextRequest) {
   });
 
   if (!profileRes.ok) {
-    return NextResponse.redirect(`${base}/login?error=oauth`);
+    return oauthFailureRedirect(req);
   }
 
   const googleUser = (await profileRes.json()) as {
@@ -59,44 +54,16 @@ export async function GET(req: NextRequest) {
     name?: string;
   };
 
-  let user = await prisma.user.findFirst({
-    where: {
-      OR: [{ googleId: googleUser.id }, { email: googleUser.email.toLowerCase() }],
-    },
-  });
-
-  let isNewUser = false;
-
-  if (!user) {
-    isNewUser = true;
-    const trialEndsAt = resolveTrialEndsAt({ createdAt: new Date(), trialEndsAt: null });
-    user = await prisma.user.create({
-      data: {
-        email: googleUser.email.toLowerCase(),
-        name: googleUser.name || googleUser.email.split("@")[0],
-        googleId: googleUser.id,
-        role: "user",
-        planTier: "trial",
-        trialEndsAt,
-        moves: { create: await buildDefaultMoveData() },
-      },
+  try {
+    const { user, isNewUser } = await findOrCreateOAuthUser({
+      provider: "google",
+      providerId: googleUser.id,
+      email: googleUser.email,
+      name: googleUser.name,
     });
-  } else if (!user.googleId) {
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { googleId: googleUser.id },
-    });
-  }
 
-  if (isNewUser) {
-    const locale = user.locale === "es" ? "es" : "en";
-    await sendWelcomeEmail(user.email, user.name, locale);
+    return completeOAuthLogin(req, user, isNewUser, STATE_COOKIE);
+  } catch {
+    return oauthFailureRedirect(req);
   }
-
-  const { token, expiresAt } = await createSession(user.id, user.email, user.role);
-  const redirectPath = isNewUser ? `${base}/onboarding?complete=1` : `${base}/dashboard`;
-  const res = NextResponse.redirect(redirectPath);
-  res.cookies.set(COOKIE_NAME, token, sessionCookieOptions(expiresAt, isSecureRequest(req)));
-  res.cookies.set("oauth_state", "", { maxAge: 0, path: "/" });
-  return res;
 }

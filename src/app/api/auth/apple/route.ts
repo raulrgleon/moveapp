@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getOAuthBaseUrl, isGoogleOAuthConfigured } from "@/lib/auth/oauth-providers";
+import { getOAuthBaseUrl, isAppleOAuthConfigured } from "@/lib/auth/oauth-providers";
 
-const STATE_COOKIE = "oauth_state";
+const STATE_COOKIE = "oauth_state_apple";
 
 export async function GET(req: NextRequest) {
-  if (!isGoogleOAuthConfigured()) {
-    return NextResponse.json({ error: "Google OAuth not configured" }, { status: 503 });
+  if (!isAppleOAuthConfigured()) {
+    return NextResponse.json({ error: "Apple Sign In not configured" }, { status: 503 });
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID!;
+  const clientId = process.env.APPLE_CLIENT_ID!;
   const base = getOAuthBaseUrl(req);
-  const redirectUri = `${base}/api/auth/google/callback`;
+  const redirectUri = `${base}/api/auth/apple/callback`;
   const state = randomUUID();
 
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "openid email profile",
+    response_mode: "form_post",
+    scope: "name email",
     state,
-    prompt: "select_account",
   });
 
-  const res = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  const res = NextResponse.redirect(`https://appleid.apple.com/auth/authorize?${params}`);
   res.cookies.set(STATE_COOKIE, state, { httpOnly: true, path: "/", maxAge: 600, sameSite: "lax" });
   return res;
 }

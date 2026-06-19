@@ -16,6 +16,7 @@ model User {
   role           String               @default("user")
   phone          String?
   googleId       String?              @unique @map("google_id")
+  appleId        String?              @unique @map("apple_id")
   emailReminders Boolean              @default(true) @map("email_reminders")
   smsReminders   Boolean              @default(false) @map("sms_reminders")
   activeMoveId   String?              @map("active_move_id")

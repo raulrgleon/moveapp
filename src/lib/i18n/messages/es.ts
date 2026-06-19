@@ -356,6 +356,7 @@ export const es = {
     password: "Contraseña",
     signIn: "Iniciar sesión",
     google: "Continuar con Google",
+    apple: "Continuar con Apple",
     noAccount: "¿No tienes cuenta?",
     startMove: "Prueba gratis",
     forgotPassword: "¿Olvidaste tu contraseña?",
@@ -1703,7 +1704,7 @@ export const es = {
     resetError: "No se pudo restablecer. El enlace puede haber expirado.",
     invalidResetLink: "Este enlace no es válido o expiró.",
     registerFailed: "No se pudo crear la cuenta",
-    oauthNotConfigured: "Inicio con Google no está configurado. Usa email y contraseña.",
+    oauthNotConfigured: "El inicio con redes sociales no está disponible. Usa email y contraseña.",
   },
   notifications: {
     empty: "No hay notificaciones por ahora.",
