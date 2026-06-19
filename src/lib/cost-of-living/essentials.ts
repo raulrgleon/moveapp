@@ -1,6 +1,7 @@
 import { normalizeUsState } from "@/lib/geo/address-region";
 import type { ResolvedLocation } from "@/lib/geo/resolve-location";
-import type { HousingTrend } from "@/lib/rentcast/types";
+import { compareValues } from "@/lib/comparison/trend";
+import type { ComparisonDirection, HousingTrend } from "@/lib/rentcast/types";
 import {
   METRO_GROCERY_PREMIUM,
   STATE_GAS_PRICE,
@@ -52,6 +53,7 @@ export interface EssentialsComparisonMetric {
   originPrice: number;
   destinationPrice: number;
   trend: HousingTrend;
+  direction: ComparisonDirection;
 }
 
 const ESSENTIALS_CATALOG: { key: EssentialsItemKey; labelKey: string; unitKey: string; baseKey?: keyof typeof NATIONAL_WALMART_BASE }[] = [
@@ -109,12 +111,11 @@ function fmtPrice(value: number): string {
   }).format(value);
 }
 
-function compareTrend(originNum: number, destNum: number, lowerIsBetter: boolean): HousingTrend {
-  const threshold = Math.max(Math.abs(originNum) * 0.03, 0.05);
-  const diff = destNum - originNum;
-  if (Math.abs(diff) <= threshold) return "neutral";
-  if (lowerIsBetter) return diff < 0 ? "better" : "worse";
-  return diff > 0 ? "better" : "worse";
+function compareEssentials(originNum: number, destNum: number, lowerIsBetter: boolean) {
+  return compareValues(originNum, destNum, lowerIsBetter, {
+    thresholdRatio: 0.03,
+    minThreshold: 0.05,
+  });
 }
 
 export function buildEssentialsSummary(location: ResolvedLocation): EssentialsSummary {
@@ -173,6 +174,7 @@ export function buildEssentialsComparisonMetrics(
     const o = originMap.get(item.key);
     const d = destMap.get(item.key);
     if (!o || !d) continue;
+    const { trend, direction } = compareEssentials(o.price, d.price, true);
     metrics.push({
       key: item.key,
       labelKey: item.labelKey,
@@ -181,10 +183,16 @@ export function buildEssentialsComparisonMetrics(
       destinationValue: fmtPrice(d.price),
       originPrice: o.price,
       destinationPrice: d.price,
-      trend: compareTrend(o.price, d.price, true),
+      trend,
+      direction,
     });
   }
 
+  const weeklyCompare = compareEssentials(
+    origin.weeklyBasketTotal,
+    destination.weeklyBasketTotal,
+    true
+  );
   metrics.push({
     key: "weekly_basket",
     labelKey: "cityComparison.essentials.weeklyBasket",
@@ -193,9 +201,15 @@ export function buildEssentialsComparisonMetrics(
     destinationValue: fmtPrice(destination.weeklyBasketTotal),
     originPrice: origin.weeklyBasketTotal,
     destinationPrice: destination.weeklyBasketTotal,
-    trend: compareTrend(origin.weeklyBasketTotal, destination.weeklyBasketTotal, true),
+    trend: weeklyCompare.trend,
+    direction: weeklyCompare.direction,
   });
 
+  const monthlyCompare = compareEssentials(
+    origin.monthlyGroceriesEstimate,
+    destination.monthlyGroceriesEstimate,
+    true
+  );
   metrics.push({
     key: "monthly_groceries",
     labelKey: "cityComparison.essentials.monthlyGroceries",
@@ -204,7 +218,8 @@ export function buildEssentialsComparisonMetrics(
     destinationValue: fmtPrice(destination.monthlyGroceriesEstimate),
     originPrice: origin.monthlyGroceriesEstimate,
     destinationPrice: destination.monthlyGroceriesEstimate,
-    trend: compareTrend(origin.monthlyGroceriesEstimate, destination.monthlyGroceriesEstimate, true),
+    trend: monthlyCompare.trend,
+    direction: monthlyCompare.direction,
   });
 
   return metrics;

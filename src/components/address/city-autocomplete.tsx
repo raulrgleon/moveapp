@@ -69,12 +69,19 @@ export function CityAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const skipSearchRef = useRef(false);
 
   useEffect(() => {
     setQuery(value);
   }, [value]);
 
   const search = useCallback(async (text: string) => {
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      setLoading(false);
+      return;
+    }
+
     if (text.trim().length < 2) {
       setSuggestions([]);
       setOpen(false);
@@ -90,12 +97,12 @@ export function CityAutocomplete({
       const data = (await res.json()) as CitySuggestion[];
       setSuggestions(data);
       setHasSearched(true);
-      setOpen(true);
+      setOpen(data.length > 0);
       setActiveIndex(-1);
     } catch {
       setSuggestions([]);
       setHasSearched(true);
-      setOpen(true);
+      setOpen(false);
     } finally {
       setLoading(false);
     }
@@ -121,10 +128,12 @@ export function CityAutocomplete({
 
   const handleSelect = (suggestion: CitySuggestion) => {
     const labelText = formatCityLabel(suggestion);
+    skipSearchRef.current = true;
     setQuery(labelText);
     onChange(labelText);
     setOpen(false);
     setSuggestions([]);
+    setHasSearched(false);
     onSelect({
       label: labelText,
       lat: suggestion.lat,
@@ -135,6 +144,7 @@ export function CityAutocomplete({
   };
 
   const handleInputChange = (text: string) => {
+    skipSearchRef.current = false;
     setQuery(text);
     onChange(text);
     if (text.trim().length >= 2) {

@@ -1,6 +1,7 @@
+import { compareValues } from "@/lib/comparison/trend";
 import { normalizeUsState } from "@/lib/geo/address-region";
 import type { ResolvedLocation } from "@/lib/geo/resolve-location";
-import type { HousingTrend } from "@/lib/rentcast/types";
+import type { ComparisonDirection, HousingTrend } from "@/lib/rentcast/types";
 
 /** Relative indices vs U.S. average = 100 (approximate public data, rounded). */
 export interface StateQoLProfile {
@@ -94,7 +95,10 @@ export interface QoLComparisonMetric {
   labelKey: string;
   originValue: string;
   destinationValue: string;
+  originNum: number;
+  destNum: number;
   trend: HousingTrend;
+  direction: ComparisonDirection;
 }
 
 function profileForLocation(location: ResolvedLocation): QoLSummary {
@@ -103,12 +107,10 @@ function profileForLocation(location: ResolvedLocation): QoLSummary {
   return { label: location.label, state, profile };
 }
 
-function compareTrend(originNum: number, destNum: number, lowerIsBetter: boolean): HousingTrend {
-  const threshold = Math.max(Math.abs(originNum) * 0.04, 0.5);
-  const diff = destNum - originNum;
-  if (Math.abs(diff) <= threshold) return "neutral";
-  if (lowerIsBetter) return diff < 0 ? "better" : "worse";
-  return diff > 0 ? "better" : "worse";
+function colIndexLabel(index: number): string {
+  if (index < 95) return "belowAvg";
+  if (index > 105) return "aboveAvg";
+  return "nearAvg";
 }
 
 function metric(
@@ -118,14 +120,21 @@ function metric(
   destNum: number,
   originValue: string,
   destValue: string,
-  lowerIsBetter: boolean
+  lowerIsBetter: boolean,
+  options?: { informationalOnly?: boolean }
 ): QoLComparisonMetric {
+  const { trend, direction } = compareValues(originNum, destNum, lowerIsBetter, {
+    informationalOnly: options?.informationalOnly,
+  });
   return {
     key,
     labelKey,
     originValue,
     destinationValue: destValue,
-    trend: compareTrend(originNum, destNum, lowerIsBetter),
+    originNum,
+    destNum,
+    trend,
+    direction,
   };
 }
 
@@ -139,15 +148,88 @@ export function buildQoLComparison(
   const dp = d.profile;
 
   const metrics: QoLComparisonMetric[] = [
-    metric("colIndex", "cityComparison.qol.colIndex", op.costOfLivingIndex, dp.costOfLivingIndex, `${op.costOfLivingIndex}`, `${dp.costOfLivingIndex}`, true),
-    metric("crimeIndex", "cityComparison.qol.crimeIndex", op.crimeIndex, dp.crimeIndex, `${op.crimeIndex}`, `${dp.crimeIndex}`, true),
-    metric("avgSalary", "cityComparison.qol.avgSalary", op.avgAnnualSalary, dp.avgAnnualSalary, `$${op.avgAnnualSalary.toLocaleString()}`, `$${dp.avgAnnualSalary.toLocaleString()}`, false),
-    metric("unemployment", "cityComparison.qol.unemployment", op.unemploymentPct, dp.unemploymentPct, `${op.unemploymentPct}%`, `${dp.unemploymentPct}%`, true),
-    metric("incomeTax", "cityComparison.qol.incomeTax", op.stateIncomeTaxPct, dp.stateIncomeTaxPct, `${op.stateIncomeTaxPct}%`, `${dp.stateIncomeTaxPct}%`, true),
-    metric("salesTax", "cityComparison.qol.salesTax", op.avgSalesTaxPct, dp.avgSalesTaxPct, `${op.avgSalesTaxPct}%`, `${dp.avgSalesTaxPct}%`, true),
-    metric("schoolRating", "cityComparison.qol.schoolRating", op.schoolRating, dp.schoolRating, `${op.schoolRating}/10`, `${dp.schoolRating}/10`, false),
-    metric("climate", "cityComparison.qol.climate", op.avgHighF, dp.avgHighF, `${op.avgHighF}°F avg high`, `${dp.avgHighF}°F avg high`, false),
-    metric("walkScore", "cityComparison.qol.walkScore", op.walkScore, dp.walkScore, `${op.walkScore}/100`, `${dp.walkScore}/100`, false),
+    metric(
+      "colIndex",
+      "cityComparison.qol.colIndex",
+      op.costOfLivingIndex,
+      dp.costOfLivingIndex,
+      colIndexLabel(op.costOfLivingIndex),
+      colIndexLabel(dp.costOfLivingIndex),
+      true
+    ),
+    metric(
+      "crimeIndex",
+      "cityComparison.qol.crimeIndex",
+      op.crimeIndex,
+      dp.crimeIndex,
+      `${op.crimeIndex}`,
+      `${dp.crimeIndex}`,
+      true
+    ),
+    metric(
+      "avgSalary",
+      "cityComparison.qol.avgSalary",
+      op.avgAnnualSalary,
+      dp.avgAnnualSalary,
+      String(op.avgAnnualSalary),
+      String(dp.avgAnnualSalary),
+      false
+    ),
+    metric(
+      "unemployment",
+      "cityComparison.qol.unemployment",
+      op.unemploymentPct,
+      dp.unemploymentPct,
+      String(op.unemploymentPct),
+      String(dp.unemploymentPct),
+      true
+    ),
+    metric(
+      "incomeTax",
+      "cityComparison.qol.incomeTax",
+      op.stateIncomeTaxPct,
+      dp.stateIncomeTaxPct,
+      String(op.stateIncomeTaxPct),
+      String(dp.stateIncomeTaxPct),
+      true
+    ),
+    metric(
+      "salesTax",
+      "cityComparison.qol.salesTax",
+      op.avgSalesTaxPct,
+      dp.avgSalesTaxPct,
+      String(op.avgSalesTaxPct),
+      String(dp.avgSalesTaxPct),
+      true
+    ),
+    metric(
+      "schoolRating",
+      "cityComparison.qol.schoolRating",
+      op.schoolRating,
+      dp.schoolRating,
+      String(op.schoolRating),
+      String(dp.schoolRating),
+      false
+    ),
+    metric(
+      "climate",
+      "cityComparison.qol.climate",
+      op.avgHighF,
+      dp.avgHighF,
+      String(op.avgHighF),
+      String(dp.avgHighF),
+      false,
+      { informationalOnly: true }
+    ),
+    metric(
+      "walkScore",
+      "cityComparison.qol.walkScore",
+      op.walkScore,
+      dp.walkScore,
+      String(op.walkScore),
+      String(dp.walkScore),
+      false
+    ),
   ];
 
   return { origin: o, destination: d, metrics };

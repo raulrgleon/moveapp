@@ -1,5 +1,7 @@
 import { resolveZipFromQuery } from "@/lib/geo/resolve-zip";
+import { compareValues } from "@/lib/comparison/trend";
 import type {
+  ComparisonDirection,
   HousingComparisonMetric,
   HousingTrend,
   MarketLocationSummary,
@@ -104,17 +106,15 @@ function fmtCount(value: number | null | undefined): string {
   return value.toLocaleString("en-US");
 }
 
-function compareTrend(
+function compareHousing(
   originNum: number | null,
   destNum: number | null,
   lowerIsBetter: boolean
-): HousingTrend {
-  if (originNum == null || destNum == null) return "neutral";
-  const diff = destNum - originNum;
-  const threshold = Math.max(Math.abs(originNum) * 0.03, 1);
-  if (Math.abs(diff) <= threshold) return "neutral";
-  if (lowerIsBetter) return diff < 0 ? "better" : "worse";
-  return diff > 0 ? "better" : "worse";
+): { trend: HousingTrend; direction: ComparisonDirection } {
+  return compareValues(originNum, destNum, lowerIsBetter, {
+    thresholdRatio: 0.03,
+    minThreshold: 1,
+  });
 }
 
 function metric(
@@ -126,12 +126,14 @@ function metric(
   destValue: string,
   lowerIsBetter: boolean
 ): HousingComparisonMetric {
+  const { trend, direction } = compareHousing(originNum, destNum, lowerIsBetter);
   return {
     key,
     labelKey,
     originValue,
     destinationValue: destValue,
-    trend: compareTrend(originNum, destNum, lowerIsBetter),
+    trend,
+    direction,
   };
 }
 

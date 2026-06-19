@@ -16,12 +16,15 @@ export interface MarketLocationSummary {
 
 export type HousingTrend = "better" | "worse" | "neutral";
 
+export type ComparisonDirection = "higher" | "lower" | "neutral";
+
 export interface HousingComparisonMetric {
   key: string;
   labelKey: string;
   originValue: string;
   destinationValue: string;
   trend: HousingTrend;
+  direction: ComparisonDirection;
 }
 
 export interface HousingMarketResponse {

@@ -17,7 +17,9 @@ import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import type { CityComparisonResponse } from "@/lib/city-comparison/types";
-import type { HousingTrend } from "@/lib/rentcast/types";
+import type { QoLComparisonMetric } from "@/lib/cost-of-living/qol-metrics";
+import type { ComparisonDirection, HousingTrend } from "@/lib/rentcast/types";
+import type { Locale } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,30 +42,85 @@ function extractZip(text: string): string | undefined {
 
 function TrendBadge({
   trend,
+  direction,
   rightLabel,
 }: {
   trend: HousingTrend;
+  direction: ComparisonDirection;
   rightLabel: string;
 }) {
   const t = useT();
   const city = rightLabel.split(",")[0];
+
+  if (direction === "neutral") {
+    return <Badge variant="secondary">{t("cityComparison.similar")}</Badge>;
+  }
+
+  const label =
+    direction === "lower"
+      ? t("cityComparison.lowerInDest", { city })
+      : t("cityComparison.higherInDest", { city });
+  const Icon = direction === "lower" ? TrendingDown : TrendingUp;
+
   if (trend === "better") {
     return (
       <Badge variant="success" className="gap-1">
-        <TrendingDown className="h-3 w-3" />
-        {t("cityComparison.betterInDest", { city })}
+        <Icon className="h-3 w-3" />
+        {label}
       </Badge>
     );
   }
   if (trend === "worse") {
     return (
       <Badge variant="warning" className="gap-1">
-        <TrendingUp className="h-3 w-3" />
-        {t("cityComparison.higherInDest", { city })}
+        <Icon className="h-3 w-3" />
+        {label}
       </Badge>
     );
   }
-  return <Badge variant="secondary">{t("cityComparison.similar")}</Badge>;
+
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <Icon className="h-3 w-3" />
+      {label}
+    </Badge>
+  );
+}
+
+function formatQoLDisplayValue(
+  metric: QoLComparisonMetric,
+  side: "origin" | "destination",
+  locale: Locale,
+  t: ReturnType<typeof useT>
+): string {
+  const num = side === "origin" ? metric.originNum : metric.destNum;
+  const raw = side === "origin" ? metric.originValue : metric.destinationValue;
+
+  switch (metric.key) {
+    case "colIndex": {
+      const key =
+        raw === "belowAvg"
+          ? "cityComparison.qol.colIndexBelowAvg"
+          : raw === "aboveAvg"
+            ? "cityComparison.qol.colIndexAboveAvg"
+            : "cityComparison.qol.colIndexNearAvg";
+      return t(key);
+    }
+    case "avgSalary":
+      return formatCurrency(num, locale);
+    case "unemployment":
+    case "incomeTax":
+    case "salesTax":
+      return `${num}%`;
+    case "schoolRating":
+      return t("cityComparison.qol.schoolRatingValue", { score: num });
+    case "climate":
+      return t("cityComparison.qol.climateValue", { temp: num });
+    case "walkScore":
+      return t("cityComparison.qol.walkScoreValue", { score: num });
+    default:
+      return raw;
+  }
 }
 
 function MetricCompareBar({ trend }: { trend: HousingTrend }) {
@@ -340,7 +397,7 @@ export function CityComparisonPanel() {
                           </div>
                           <MetricCompareBar trend={metric.trend} />
                           <div className="mt-2">
-                            <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                            <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
                           </div>
                         </CardContent>
                       </Card>
@@ -369,7 +426,7 @@ export function CityComparisonPanel() {
                                 <TableCell>{metric.originValue}</TableCell>
                                 <TableCell>{metric.destinationValue}</TableCell>
                                 <TableCell>
-                                  <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                                  <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -469,7 +526,7 @@ export function CityComparisonPanel() {
                               <span className="text-sm font-semibold">{metric.destinationValue}</span>
                             </div>
                             <div className="mt-2">
-                              <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                              <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
                             </div>
                           </CardContent>
                         </Card>
@@ -510,7 +567,7 @@ export function CityComparisonPanel() {
                                 <TableCell>{metric.originValue}</TableCell>
                                 <TableCell>{metric.destinationValue}</TableCell>
                                 <TableCell>
-                                  <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                                  <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -542,13 +599,15 @@ export function CityComparisonPanel() {
                         <CardContent className="p-4">
                           <p className="text-xs text-muted-foreground">{t(metric.labelKey)}</p>
                           <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="text-sm">{metric.originValue}</span>
+                            <span className="text-sm">{formatQoLDisplayValue(metric, "origin", locale, t)}</span>
                             <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <span className="text-sm font-semibold">{metric.destinationValue}</span>
+                            <span className="text-sm font-semibold">
+                              {formatQoLDisplayValue(metric, "destination", locale, t)}
+                            </span>
                           </div>
                           <MetricCompareBar trend={metric.trend} />
                           <div className="mt-2">
-                            <TrendBadge trend={metric.trend} rightLabel={rightCity} />
+                            <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
                           </div>
                         </CardContent>
                       </Card>
