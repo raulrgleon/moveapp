@@ -26,6 +26,18 @@ function loadEnvFile(filename) {
 const baseEnv = loadEnvFile(".env");
 const localEnv = loadEnvFile(".env.local");
 
+function mergeEnv(...sources) {
+  const merged = {};
+  for (const source of sources) {
+    for (const [key, value] of Object.entries(source)) {
+      if (value !== undefined && value !== "") merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+const appEnv = mergeEnv(baseEnv, localEnv);
+
 module.exports = {
   apps: [
     {
@@ -36,8 +48,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: 3000,
-        ...baseEnv,
-        ...localEnv,
+        ...appEnv,
       },
       max_restarts: 10,
       min_uptime: "10s",
