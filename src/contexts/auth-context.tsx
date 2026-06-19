@@ -27,6 +27,7 @@ export interface AuthUser {
   planTier?: string;
   trialEndsAt?: string | null;
   planPaidAt?: string | null;
+  hasPassword?: boolean;
 }
 
 interface AuthContextValue {

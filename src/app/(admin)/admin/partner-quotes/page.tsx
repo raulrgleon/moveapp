@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,11 +65,6 @@ export default function AdminPartnerQuotesPage() {
         description={t("adminConsole.partnerQuotesDesc")}
       />
       <AdminPageContainer>
-        <PageHeader
-          title={t("adminConsole.partnerQuotes")}
-          description={t("adminConsole.partnerQuotesDesc")}
-        />
-
         {loading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-12 justify-center">
             <Loader2 className="h-5 w-5 animate-spin" />

@@ -22,6 +22,8 @@ import { householdWithPets, useMove } from "@/contexts/move-context";
 import {
   formatHousehold,
   formatPetDetails,
+  formatBudgetInput,
+  parseBudgetInput,
   rentalPreferenceFromKey,
 } from "@/lib/move-profile";
 import { parseHouseholdCounts } from "@/lib/move/household";
@@ -79,7 +81,7 @@ export function OnboardingPageContent() {
   const [needsVehicleTransport, setNeedsVehicleTransport] = useState(
     profile.needsVehicleTransport
   );
-  const [budget, setBudget] = useState(String(profile.budget));
+  const [budget, setBudget] = useState(() => formatBudgetInput(profile.budget));
   const [needsHousingHelp, setNeedsHousingHelp] = useState(profile.needsHousingHelp);
   const [accountName, setAccountName] = useState(profile.name);
   const [accountEmail, setAccountEmail] = useState(profile.email);
@@ -131,6 +133,7 @@ export function OnboardingPageContent() {
       setChildren(counts.children);
       setPetCount(counts.petCount);
     }
+    setBudget(formatBudgetInput(profile.budget));
   }, [moveHydrated, profile]);
 
   useEffect(() => {
@@ -169,7 +172,7 @@ export function OnboardingPageContent() {
         household,
         pets,
         petDetails,
-        budget: Number(budget) || profile.budget,
+        budget: parseBudgetInput(budget),
         rentalPreference: rentalPreferenceFromKey(rentalKey),
         needsHousingHelp,
         needsVehicleTransport,
@@ -236,7 +239,7 @@ export function OnboardingPageContent() {
         ...previewProfile,
         name: accountName.trim() || accountEmail.split("@")[0],
         email: accountEmail.trim(),
-        budget: Number(budget) || profile.budget,
+        budget: parseBudgetInput(budget),
         destinationLat: profile.destinationLat,
         destinationLon: profile.destinationLon,
       };
@@ -287,7 +290,7 @@ export function OnboardingPageContent() {
     household,
     pets,
     petDetails,
-    budget: Number(budget) || profile.budget,
+    budget: parseBudgetInput(budget),
     rentalPreference: rentalPreferenceFromKey(rentalKey),
   };
 
@@ -536,7 +539,8 @@ export function OnboardingPageContent() {
                   <Label htmlFor="budget">{t("onboarding.estimatedBudget")}</Label>
                   <Input
                     id="budget"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
                     placeholder="USD"
@@ -588,7 +592,9 @@ export function OnboardingPageContent() {
                   </p>
                   <p>
                     <span className="font-medium">{t("onboarding.estimatedBudget")}:</span>{" "}
-                    {formatCurrency(Number(budget) || profile.budget, locale)}
+                    {parseBudgetInput(budget) > 0
+                      ? formatCurrency(parseBudgetInput(budget), locale)
+                      : "—"}
                   </p>
                   {needsHousingHelp && (
                     <p className="text-muted-foreground">{t("onboarding.needHousing")}</p>

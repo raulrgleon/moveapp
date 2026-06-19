@@ -169,11 +169,12 @@ export function InventoryPageContent() {
 
   return (
     <>
-      <DashboardHeader title={t("inventory.title")} description={t("inventory.subtitle")} />
+      <DashboardHeader
+        title={t("inventory.title")}
+        description={t("inventory.pageDesc", { count: boxes.length })}
+      />
       <PageContainer>
         <PageHeader
-          title={t("inventory.pageTitle")}
-          description={t("inventory.pageDesc", { count: boxes.length })}
           action={
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>

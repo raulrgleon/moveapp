@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bot, Crown, LayoutGrid } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Bot, Crown } from "lucide-react";
 import { UpgradeProBanner } from "@/components/billing/upgrade-pro-banner";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { NAV_ITEMS } from "@/lib/constants";
 import { useT } from "@/contexts/locale-context";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,17 @@ const MOBILE_MORE_HREFS = new Set([
 export default function MorePage() {
   const t = useT();
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => {
+      if (mq.matches) router.replace("/dashboard");
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [router]);
 
   const items = NAV_ITEMS.filter((item) => MOBILE_MORE_HREFS.has(item.href));
 
@@ -37,8 +48,6 @@ export default function MorePage() {
     <>
       <DashboardHeader title={t("mobileNav.more")} description={t("morePage.subtitle")} />
       <PageContainer>
-        <PageHeader title={t("mobileNav.more")} description={t("morePage.subtitle")} />
-
         <UpgradeProBanner />
 
         <Link href="/upgrade" className="block mb-3">
@@ -94,13 +103,6 @@ export default function MorePage() {
             </Card>
           </Link>
         </div>
-
-        <Card className="mt-4 bg-muted/30">
-          <CardContent className="p-4 flex items-start gap-3 text-sm text-muted-foreground">
-            <LayoutGrid className="h-5 w-5 shrink-0 mt-0.5" />
-            <p>{t("morePage.desktopHint")}</p>
-          </CardContent>
-        </Card>
       </PageContainer>
     </>
   );

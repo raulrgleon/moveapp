@@ -95,8 +95,6 @@ export default function PartnerPage() {
       <DashboardHeader title={t("partnerPage.title")} description={t("partnerPage.subtitle")} />
       <PageContainer>
         <PageHeader
-          title={t("partnerPage.pageTitle")}
-          description={t("partnerPage.pageDesc")}
           action={
             <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />

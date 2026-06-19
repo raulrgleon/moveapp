@@ -120,13 +120,59 @@ export function RouteMap({
   const homePoint = newHome ?? MOVE_ROUTE_POINTS.newHome;
   const selectedRoute = findSelectedRoute(alternatives, selectedRouteIndex);
 
-  const invalidateMapSize = useCallback(() => {
+  const fitMapToRoute = useCallback(() => {
+    const map = mapRef.current;
+    const Lmod = leafletRef.current;
+    if (!map || !Lmod) return;
+
+    const padding: [number, number] = expanded
+      ? prefersTouch
+        ? [32, 32]
+        : [56, 56]
+      : prefersTouch
+        ? [24, 24]
+        : [40, 40];
+
+    if (selectedRoute?.coordinates?.length) {
+      const bounds = Lmod.latLngBounds([
+        [origin.lat, origin.lon],
+        [destination.lat, destination.lon],
+      ]);
+      for (const [lon, lat] of selectedRoute.coordinates) {
+        bounds.extend([lat, lon]);
+      }
+      map.fitBounds(bounds, { padding });
+      return;
+    }
+
+    map.fitBounds(
+      Lmod.latLngBounds([
+        [origin.lat, origin.lon],
+        [destination.lat, destination.lon],
+      ]),
+      { padding }
+    );
+  }, [
+    expanded,
+    prefersTouch,
+    origin.lat,
+    origin.lon,
+    destination.lat,
+    destination.lon,
+    selectedRoute,
+  ]);
+
+  const invalidateMapSize = useCallback((refit = false) => {
     const map = mapRef.current;
     if (!map) return;
     window.requestAnimationFrame(() => {
       map.invalidateSize({ animate: false });
+      window.requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false });
+        if (refit) fitMapToRoute();
+      });
     });
-  }, []);
+  }, [fitMapToRoute]);
 
   // Init map once per coordinate set (not on label/locale changes)
   useEffect(() => {
@@ -175,7 +221,7 @@ export function RouteMap({
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
         keepBuffer: 4,
-        updateWhenIdle: true,
+        updateWhenIdle: false,
       }).addTo(map);
 
       originMarkerRef.current = L.marker([origin.lat, origin.lon]).addTo(map);
@@ -254,14 +300,20 @@ export function RouteMap({
     }
   }, [mapReady, origin.label, destination.label, homePoint?.label, t]);
 
-  // Resize when container or cinematic mode changes
+  // Resize and refit when container or cinematic mode changes
   useEffect(() => {
     if (!mapReady || !containerRef.current) return;
-    invalidateMapSize();
+    invalidateMapSize(true);
+    const t1 = window.setTimeout(() => invalidateMapSize(true), 120);
+    const t2 = window.setTimeout(() => invalidateMapSize(true), 350);
     const node = containerRef.current;
-    const ro = new ResizeObserver(() => invalidateMapSize());
+    const ro = new ResizeObserver(() => invalidateMapSize(false));
     ro.observe(node);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, [mapReady, expanded, invalidateMapSize]);
 
   // Draw selected route, stops, and weather
@@ -340,12 +392,7 @@ export function RouteMap({
     }
 
     if (lastFitRouteRef.current !== selectedRouteIndex) {
-      const bounds = Lmod.latLngBounds([
-        [origin.lat, origin.lon],
-        [destination.lat, destination.lon],
-      ]);
-      latLngs.forEach((ll) => bounds.extend(ll));
-      map.fitBounds(bounds, { padding: prefersTouch ? [24, 24] : [40, 40] });
+      fitMapToRoute();
       lastFitRouteRef.current = selectedRouteIndex;
     }
 
@@ -397,6 +444,7 @@ export function RouteMap({
     destination.lat,
     destination.lon,
     prefersTouch,
+    fitMapToRoute,
   ]);
 
   const handleSelectRoute = useCallback(
@@ -411,7 +459,11 @@ export function RouteMap({
     : null;
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border ${className ?? ""}`}>
+    <div
+      className={`relative overflow-hidden rounded-xl border ${
+        expanded ? "flex h-full min-h-0 flex-col" : ""
+      } ${className ?? ""}`}
+    >
       <style>{`
         .route-weather-marker-wrap, .route-stop-marker-wrap {
           background: transparent !important;
@@ -448,7 +500,7 @@ export function RouteMap({
       `}</style>
       <div
         ref={containerRef}
-        className={`route-map-container h-full w-full z-0 ${
+        className={`route-map-container z-0 w-full ${
           expanded
             ? "min-h-0 flex-1"
             : "min-h-[min(52dvh,28rem)] sm:min-h-[360px] lg:min-h-[400px]"

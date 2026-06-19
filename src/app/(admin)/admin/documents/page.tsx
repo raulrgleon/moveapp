@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,12 +56,11 @@ export default function AdminDocumentsPage() {
 
   return (
     <>
-      <AdminHeader title={t("adminConsole.documents")} />
+      <AdminHeader
+        title={t("adminConsole.documents")}
+        description={`${t("adminConsole.storageUsed")}: ${formatBytes(totalBytes)}`}
+      />
       <AdminPageContainer>
-        <PageHeader
-          title={t("adminConsole.documents")}
-          description={`${t("adminConsole.storageUsed")}: ${formatBytes(totalBytes)}`}
-        />
         {loading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-8 justify-center">
             <Loader2 className="h-5 w-5 animate-spin" />

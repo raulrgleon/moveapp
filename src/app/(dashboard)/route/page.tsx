@@ -95,6 +95,15 @@ export default function RoutePage() {
   const [budgetSyncNote, setBudgetSyncNote] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!cinematic) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [cinematic]);
+
+  useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const onSync = (event: Event) => {
@@ -159,14 +168,15 @@ export default function RoutePage() {
 
   return (
     <>
-      <DashboardHeader title={t("routePage.title")} description={t("routePage.subtitle")} />
+      <DashboardHeader
+        title={t("routePage.title")}
+        description={t("routePage.pageDesc", {
+          origin: profile.origin,
+          destination: profile.destination,
+        })}
+      />
       <PageContainer>
         <PageHeader
-          title={t("routePage.pageTitle")}
-          description={t("routePage.pageDesc", {
-            origin: profile.origin,
-            destination: profile.destination,
-          })}
           action={
             googleUrl || appleUrl ? (
               <div className="flex flex-wrap gap-2">
@@ -237,8 +247,8 @@ export default function RoutePage() {
           <div
             className={
               cinematic
-                ? "fixed inset-0 z-50 bg-background p-3 sm:p-4 flex flex-col safe-top safe-bottom"
-                : "relative"
+                ? "fixed inset-0 z-50 flex flex-col bg-background p-3 sm:p-4 safe-top safe-bottom"
+                : "relative min-h-[min(52dvh,28rem)] sm:min-h-[360px]"
             }
           >
             {cinematic && (

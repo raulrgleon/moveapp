@@ -39,7 +39,6 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   }
 
   const res = await fetch(path, { ...init, headers, credentials: "include" });
-  if (res.status === 401) throw new Error("Not authenticated");
   if (isUpgradeRequiredResponse(res)) {
     let trialExpired = false;
     let trialDaysLeft = 0;

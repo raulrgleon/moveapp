@@ -24,7 +24,6 @@ import {
 import { parseCityStateLabel } from "@/lib/geo/address-region";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { UtilityProviderCard } from "@/components/dashboard/utility-provider-card";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
@@ -148,6 +147,12 @@ export default function UtilitiesPage() {
         })
       : t("utilities.pageDescLocked");
 
+  const utilitiesPageDesc = isPrecise
+    ? t("utilities.pageDescConfirmed")
+    : hasLocation
+      ? t("utilities.pageDescCityEstimate", { city: profile.destination })
+      : t("utilities.pageDescLocked");
+
   if (!isHydrated) {
     return (
       <>
@@ -163,19 +168,8 @@ export default function UtilitiesPage() {
 
   return (
     <>
-      <DashboardHeader title={t("utilities.title")} description={t("utilities.subtitle")} />
+      <DashboardHeader title={t("utilities.title")} description={utilitiesPageDesc} />
       <PageContainer>
-        <PageHeader
-          title={t("utilities.pageTitle")}
-          description={
-            isPrecise
-              ? t("utilities.pageDescConfirmed")
-              : hasLocation
-                ? t("utilities.pageDescCityEstimate", { city: profile.destination })
-                : t("utilities.pageDescLocked")
-          }
-        />
-
         {savedPicks.length > 0 && (
           <Card className="border-dashed">
             <CardHeader className="pb-2">

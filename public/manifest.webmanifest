@@ -2,11 +2,11 @@
   "name": "MovePilotAi",
   "short_name": "MovePilot",
   "description": "Your AI co-pilot for moving anywhere",
-  "start_url": "/dashboard",
+  "start_url": "/dashboard?utm_source=pwa",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0D9488",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon.svg",

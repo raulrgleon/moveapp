@@ -130,13 +130,11 @@ export default function AdminActivityPage() {
   return (
     <>
       <AdminHeader
-        title={t("adminConsole.activity")}
+        title={t("adminActivity.pageTitle")}
         description={t("adminActivity.pageDesc")}
       />
       <AdminPageContainer>
         <PageHeader
-          title={t("adminActivity.pageTitle")}
-          description={t("adminActivity.pageDesc")}
           action={
             <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
               <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />

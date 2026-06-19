@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Loader2, Megaphone } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,8 +82,6 @@ export default function AdminSettingsPage() {
     <>
       <AdminHeader title={t("adminConsole.settings")} />
       <AdminPageContainer className="max-w-3xl space-y-6">
-        <PageHeader title={t("adminConsole.settings")} />
-
         {success && (
           <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
             {success}

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Loader2, Trash2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { Input } from "@/components/ui/input";
 import { TableScroll } from "@/components/dashboard/table-scroll";
 import {
@@ -82,9 +81,7 @@ export default function AdminMovesPage() {
   return (
     <>
       <AdminHeader title={t("adminConsole.moves")} />
-      <AdminPageContainer>
-        <PageHeader title={t("adminConsole.moves")} />
-        {success && (
+      <AdminPageContainer>        {success && (
           <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 mb-4">
             {success}
           </p>

@@ -1,16 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { ADMIN_CONSOLE_NAV, NAV_ITEMS } from "@/lib/constants";
+import { ADMIN_CONSOLE_NAV, isDashboardAppPath } from "@/lib/constants";
 import { FloatingPilotWidget } from "./floating-pilot-widget";
 
-const HIDDEN = [
-  ...NAV_ITEMS.map((n) => n.href),
-  ...ADMIN_CONSOLE_NAV.map((n) => n.href),
-];
-
 function shouldShowWidget(pathname: string): boolean {
-  for (const path of HIDDEN) {
+  if (isDashboardAppPath(pathname)) return false;
+  for (const path of ADMIN_CONSOLE_NAV.map((n) => n.href)) {
     if (pathname === path || pathname.startsWith(`${path}/`)) return false;
   }
   return true;

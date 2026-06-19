@@ -32,11 +32,27 @@ export const DEFAULT_PROFILE: MoveProfile = {
   household: "",
   pets: false,
   petDetails: "",
-  budget: 5000,
+  budget: 0,
   rentalPreference: "Use my own vehicle (no rental)",
   needsHousingHelp: false,
   needsVehicleTransport: false,
 };
+
+/** Parse budget from form input; empty or invalid → 0. */
+export function parseBudgetInput(value: string | number | undefined): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0 ? Math.round(value) : 0;
+  }
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return 0;
+  const n = Number(trimmed);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+}
+
+/** Empty string when budget is unset (0). */
+export function formatBudgetInput(value: number): string {
+  return value > 0 ? String(value) : "";
+}
 
 export const RENTAL_PREFERENCE_LABELS: Record<string, string> = {
   own: "Use my own vehicle (no rental)",

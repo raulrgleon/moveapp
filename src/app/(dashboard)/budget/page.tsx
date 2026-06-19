@@ -200,8 +200,6 @@ export default function BudgetPage() {
       <DashboardHeader title={t("budget.title")} description={t("budget.subtitle")} />
       <PageContainer>
         <PageHeader
-          title={t("budget.pageTitle")}
-          description={t("budget.pageDesc")}
           action={
             <Button variant="outline" size="sm" onClick={recalculate} disabled={recalculating}>
               <RefreshCw className={`mr-2 h-4 w-4 ${recalculating ? "animate-spin" : ""}`} />

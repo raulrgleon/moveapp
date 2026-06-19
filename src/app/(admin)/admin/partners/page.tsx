@@ -191,8 +191,6 @@ export default function AdminPartnersPage() {
       />
       <AdminPageContainer>
         <PageHeader
-          title={t("adminConsole.partners")}
-          description={t("adminConsole.partnersDesc")}
           action={
             <Button onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" />

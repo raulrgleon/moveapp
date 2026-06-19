@@ -1,28 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, unauthorized } from "@/lib/api-auth";
+import { jsonError, resolveRequestLocale } from "@/lib/api-errors";
 import { verifyPassword } from "@/lib/auth/password";
 import { destroyAllUserSessions } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { deleteDocumentFile } from "@/lib/storage/documents";
 
-export async function DELETE(req: NextRequest) {
+async function parseDeleteBody(req: NextRequest): Promise<{
+  password?: string;
+  confirmEmail?: string;
+}> {
+  try {
+    return (await req.json()) as { password?: string; confirmEmail?: string };
+  } catch {
+    return {};
+  }
+}
+
+async function handleDeleteAccount(req: NextRequest) {
+  const locale = resolveRequestLocale(req);
   const user = await getSessionUser(req);
   if (!user) return unauthorized();
 
   if (user.role === "admin") {
-    return NextResponse.json({ error: "Delete admin accounts from the admin panel" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Delete admin accounts from the admin panel" },
+      { status: 400 }
+    );
   }
 
   try {
-    const body = (await req.json()) as { password?: string };
+    const body = await parseDeleteBody(req);
     const password = body.password?.trim();
-    if (!password) {
-      return NextResponse.json({ error: "Password required" }, { status: 400 });
-    }
+    const confirmEmail = body.confirmEmail?.trim().toLowerCase();
 
-    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-    if (!dbUser?.passwordHash || !(await verifyPassword(password, dbUser.passwordHash))) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, passwordHash: true },
+    });
+    if (!dbUser) return jsonError("notFound", 404, locale);
+
+    if (dbUser.passwordHash) {
+      if (!password) {
+        return jsonError("passwordRequired", 400, locale);
+      }
+      const valid = await verifyPassword(password, dbUser.passwordHash);
+      if (!valid) {
+        return jsonError("invalidPassword", 401, locale);
+      }
+    } else {
+      const email = confirmEmail ?? password?.toLowerCase();
+      if (!email || email !== dbUser.email.toLowerCase()) {
+        return jsonError("emailConfirmMismatch", 400, locale);
+      }
     }
 
     const docs = await prisma.document.findMany({
@@ -41,6 +71,14 @@ export async function DELETE(req: NextRequest) {
     return res;
   } catch (error) {
     console.error("DELETE /api/user/delete-account error:", error);
-    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
+    return jsonError("deleteFailed", 500, locale);
   }
+}
+
+export async function POST(req: NextRequest) {
+  return handleDeleteAccount(req);
+}
+
+export async function DELETE(req: NextRequest) {
+  return handleDeleteAccount(req);
 }

@@ -100,8 +100,6 @@ export default function DocumentsPage() {
       <DashboardHeader title={t("documentsPage.title")} description={t("documentsPage.subtitle")} />
       <PageContainer>
         <PageHeader
-          title={t("documentsPage.pageTitle")}
-          description={t("documentsPage.pageDesc")}
           action={
             canEdit ? (
               <Button onClick={() => void handleUpload()} disabled={uploading}>

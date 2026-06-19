@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { VehicleListEditor } from "@/components/vehicles/vehicle-list-editor";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { Badge } from "@/components/ui/badge";
@@ -68,13 +67,11 @@ export default function VehiclesPage() {
 
   return (
     <>
-      <DashboardHeader title={t("vehicles.title")} description={t("vehicles.subtitle")} />
+      <DashboardHeader
+        title={t("vehicles.title")}
+        description={getMultiVehicleSummary(vehicles, locale) || t("vehicles.subtitle")}
+      />
       <PageContainer>
-        <PageHeader
-          title={t("vehicles.pageTitle")}
-          description={getMultiVehicleSummary(vehicles, locale)}
-        />
-
         <Card className="border-dashed bg-muted/30">
           <CardContent className="flex flex-col gap-3 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>{t("vehicles.householdGoodsBanner")}</p>

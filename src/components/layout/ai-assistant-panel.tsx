@@ -11,7 +11,6 @@ import {
   QuickQuestions,
 } from "@/components/ai/chat-ui";
 import { PilotBadge } from "@/components/brand/pilot-badge";
-import { PilotAvatar } from "@/components/pilot/pilot-avatar";
 import { useAiChat, useAiQuickQuestions } from "@/contexts/ai-chat-context";
 import { subscribeOpenPilot } from "@/lib/pilot/pilot-ui-bridge";
 import { useT } from "@/contexts/locale-context";
@@ -77,14 +76,11 @@ export function AIAssistantPanel() {
     <>
       <aside className="hidden xl:flex xl:w-80 xl:flex-col xl:border-l xl:bg-card shrink-0">
         <div className="border-b p-4 shrink-0 bg-gradient-to-r from-brand-accent-soft/50 to-transparent">
-          <div className="flex items-center gap-3">
-            <PilotAvatar thinking={isLoading} size="md" />
-            <PilotBadge
-              title={t("brand.pilotName")}
-              subtitle={t("aiPanel.subtitle")}
-              size="sm"
-            />
-          </div>
+          <PilotBadge
+            title={t("brand.pilotName")}
+            subtitle={t("aiPanel.subtitle")}
+            size="sm"
+          />
         </div>
         <div className="flex flex-1 flex-col min-h-0">{panelBody}</div>
       </aside>

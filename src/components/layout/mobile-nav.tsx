@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "./logo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { SidebarUpgradeCTA } from "@/components/billing/upgrade-pro-banner";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -57,7 +58,8 @@ export function MobileNav() {
             );
           })}
         </nav>
-        <div className="border-t p-4 mt-auto">
+        <div className="border-t p-4 mt-auto space-y-3">
+          <SidebarUpgradeCTA />
           <LogoutButton variant="outline" size="sm" className="w-full" />
         </div>
       </SheetContent>

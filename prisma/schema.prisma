@@ -123,7 +123,7 @@ model Move {
   household             String
   petDetails            String?            @map("pet_details")
   pets                  Boolean            @default(false)
-  budget                Int                @default(4000)
+  budget                Int                @default(0)
   rentalPreference      String             @map("rental_preference")
   needsHousingHelp      Boolean            @default(false) @map("needs_housing_help")
   needsVehicleTransport Boolean            @default(false) @map("needs_vehicle_transport")

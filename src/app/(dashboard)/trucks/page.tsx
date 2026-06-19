@@ -6,7 +6,6 @@ import { ChevronDown, ExternalLink, Loader2, Sparkles, Truck } from "lucide-reac
 import { EstimateDisclaimer } from "@/components/marketing/estimate-disclaimer";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { PilotSuggestionCard } from "@/components/pilot/pilot-suggestion-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,23 +69,17 @@ export default function TrucksPage() {
     window.setTimeout(() => setHeroSynced(false), 4000);
   };
 
+  const trucksPageDesc =
+    t("trucksPage.pageDesc", {
+      origin: profile.origin,
+      destination: profile.destination,
+    }) +
+    (stats ? t("trucksPage.pageDescMiles", { miles: stats.distanceMiles.toLocaleString() }) : "");
+
   return (
     <>
-      <DashboardHeader title={t("trucksPage.title")} description={t("trucksPage.subtitle")} />
+      <DashboardHeader title={t("trucksPage.title")} description={trucksPageDesc} />
       <PageContainer>
-        <PageHeader
-          title={t("trucksPage.pageTitle")}
-          description={
-            t("trucksPage.pageDesc", {
-              origin: profile.origin,
-              destination: profile.destination,
-            }) +
-            (stats
-              ? t("trucksPage.pageDescMiles", { miles: stats.distanceMiles.toLocaleString() })
-              : "")
-          }
-        />
-
         <Card className="border-dashed bg-muted/30">
           <CardContent className="flex flex-col gap-3 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>{t("trucksPage.householdGoodsBanner")}</p>

@@ -19,7 +19,6 @@ import { AdminUserMoveDialog } from "@/components/admin/admin-user-move-dialog";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { useAuth } from "@/contexts/auth-context";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -255,8 +254,6 @@ function AdminUsersPage() {
     <>
       <AdminHeader title={t("adminConsole.users")} description={t("admin.pageDescFull")} />
       <AdminPageContainer>
-        <PageHeader title={t("adminConsole.users")} description={t("admin.pageDescFull")} />
-
         {success && (
           <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
             {success}

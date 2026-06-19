@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,13 +67,11 @@ export default function AdminMoveDetailPage({ params }: { params: { id: string }
 
   return (
     <>
-      <AdminHeader title={`${move.origin} → ${move.destination}` as string} />
+      <AdminHeader
+        title={`${move.origin} → ${move.destination}` as string}
+        description={`${user.name} (${user.email})`}
+      />
       <AdminPageContainer className="max-w-4xl space-y-6">
-        <PageHeader
-          title={`${String(move.origin)} → ${String(move.destination)}`}
-          description={`${user.name} (${user.email})`}
-        />
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("adminConsole.moveDate")}</CardTitle>

@@ -66,6 +66,22 @@ export const MOBILE_NAV_ITEMS = [
   { href: "/more", labelKey: "mobileNav.more", icon: LayoutGrid },
 ] as const;
 
+/** All authenticated dashboard routes — keep in sync with app/(dashboard) pages. */
+export const DASHBOARD_APP_PATHS = [
+  ...NAV_ITEMS.map((item) => item.href),
+  "/more",
+  "/move-day",
+  "/assistant",
+  "/upgrade",
+  "/upgrade/success",
+] as const;
+
+export function isDashboardAppPath(pathname: string): boolean {
+  return DASHBOARD_APP_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+}
+
 export const UTILITY_CATEGORIES = [
   { id: "all", labelKey: "utilityCategories.all" },
   { id: "electricity", labelKey: "utilityCategories.electricity" },
@@ -99,5 +115,6 @@ export const CHECKLIST_CATEGORIES = [
   "Pets",
   "Documents",
   "Packing",
+  "Moving",
   "Travel",
 ] as const;

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
-import type { MoveProfile } from "@/lib/move-profile";
+import { formatBudgetInput, type MoveProfile } from "@/lib/move-profile";
 import { formatCurrency } from "@/lib/utils";
 
 interface AdminUserRow {
@@ -126,7 +126,7 @@ export function AdminUserMoveDialog({ user, onClose, onSaved }: AdminUserMoveDia
         setDestination(data.profile.destination);
         setMoveDate(data.profile.moveDate);
         setHousehold(data.profile.household);
-        setBudget(String(data.profile.budget));
+        setBudget(formatBudgetInput(data.profile.budget));
         setRentalPreference(data.profile.rentalPreference);
         setPetDetails(data.profile.petDetails);
         setPets(data.profile.pets);

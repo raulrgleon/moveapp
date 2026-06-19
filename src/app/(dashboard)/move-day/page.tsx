@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
 import { useMove } from "@/contexts/move-context";
 import { useChecklist } from "@/contexts/checklist-context";
@@ -54,19 +53,15 @@ export default function MoveDayPage() {
 
   return (
     <>
-      <DashboardHeader title={t("moveDayPage.title")} description={t("moveDayPage.subtitle")} />
+      <DashboardHeader
+        title={t("moveDayPage.title")}
+        description={
+          isMoveDay
+            ? t("moveDayPage.today")
+            : t("moveDayPage.countdown", { days: Math.max(0, daysUntil) })
+        }
+      />
       <PageContainer>
-        <div className="sticky top-14 sm:top-16 z-10 -mx-4 px-4 py-3 mb-4 bg-background/95 backdrop-blur border-b md:static md:border-0 md:bg-transparent md:backdrop-blur-none md:p-0">
-          <PageHeader
-            title={t("moveDayPage.pageTitle")}
-            description={
-              isMoveDay
-                ? t("moveDayPage.today")
-                : t("moveDayPage.countdown", { days: Math.max(0, daysUntil) })
-            }
-          />
-        </div>
-
         <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-transparent">
           <CardContent className="p-6">
             <div className="flex items-center gap-3">

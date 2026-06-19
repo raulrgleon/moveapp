@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/contexts/locale-context";
@@ -100,8 +99,6 @@ export default function AdminDashboardPage() {
     <>
       <AdminHeader title={t("adminConsole.dashboard")} description={t("adminConsole.dashboardDesc")} />
       <AdminPageContainer>
-        <PageHeader title={t("adminConsole.dashboard")} description={t("adminConsole.dashboardDesc")} />
-
         {loading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-12 justify-center">
             <Loader2 className="h-5 w-5 animate-spin" />

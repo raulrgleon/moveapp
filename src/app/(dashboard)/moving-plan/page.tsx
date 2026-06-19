@@ -61,14 +61,15 @@ export default function MovingPlanPage() {
 
   return (
     <>
-      <DashboardHeader title={t("movingPlanPage.title")} description={t("movingPlanPage.subtitle")} />
+      <DashboardHeader
+        title={t("movingPlanPage.title")}
+        description={t("movingPlanPage.pageDesc", {
+          origin: profile.origin,
+          destination: profile.destination,
+        })}
+      />
       <PageContainer>
         <PageHeader
-          title={t("movingPlanPage.pageTitle")}
-          description={t("movingPlanPage.pageDesc", {
-            origin: profile.origin,
-            destination: profile.destination,
-          })}
           action={
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={exportIcal}>

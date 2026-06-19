@@ -5,7 +5,6 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Crown, Loader2, Sparkles } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
-import { PageHeader } from "@/components/dashboard/page-header";
 import { useT } from "@/contexts/locale-context";
 import { usePlan } from "@/hooks/use-plan";
 import { PRO_PRICE_USD, TRIAL_DAYS } from "@/lib/billing/plan";
@@ -50,8 +49,6 @@ export default function UpgradePage() {
             {t("upgrade.backDashboard")}
           </Link>
         </Button>
-
-        <PageHeader title={t("upgrade.pageTitle")} description={t("upgrade.pageDesc")} />
 
         <Card className="border-primary/30 overflow-hidden shadow-lg shadow-primary/10">
           <div className="h-1 bg-gradient-to-r from-brand-blue via-primary to-brand-accent" />

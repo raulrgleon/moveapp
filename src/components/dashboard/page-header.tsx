@@ -1,10 +1,19 @@
 interface PageHeaderProps {
-  title: string;
+  title?: string;
   description?: string;
   action?: React.ReactNode;
 }
 
 export function PageHeader({ title, description, action }: PageHeaderProps) {
+  if (!title && !description) {
+    if (!action) return null;
+    return (
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 w-full [&>button]:w-full sm:[&>button]:w-auto [&_.flex]:w-full sm:[&_.flex]:w-auto">
+        {action}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">

@@ -45,6 +45,14 @@ import { cn, formatDate } from "@/lib/utils";
 
 const ALL_CATEGORIES = ["Planning", ...CHECKLIST_CATEGORIES] as const;
 
+function orderedTabCategories(tasks: ChecklistTask[]): string[] {
+  const known = new Set<string>(ALL_CATEGORIES);
+  const extras = Array.from(new Set(tasks.map((task) => task.category))).filter(
+    (cat) => cat && !known.has(cat)
+  );
+  return [...ALL_CATEGORIES, ...extras];
+}
+
 function categoryLabel(t: (key: string) => string, category: string) {
   const key = `checklistCategories.${category}`;
   const translated = t(key);
@@ -86,6 +94,8 @@ export default function ChecklistPage() {
   const completed = tasks.filter((task) => task.status === "completed").length;
   const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
 
+  const tabCategories = useMemo(() => orderedTabCategories(tasks), [tasks]);
+
   const filteredTasks = useMemo(() => {
     let list = filter === "all" ? tasks : tasks.filter((task) => task.category === filter);
     if (dueDateFilter) {
@@ -96,10 +106,10 @@ export default function ChecklistPage() {
 
   useEffect(() => {
     const category = searchParams.get("category");
-    if (category && ALL_CATEGORIES.includes(category as (typeof ALL_CATEGORIES)[number])) {
+    if (category && tabCategories.includes(category)) {
       setFilter(category);
     }
-  }, [searchParams]);
+  }, [searchParams, tabCategories]);
 
   useEffect(() => {
     const taskId = searchParams.get("task");
@@ -161,11 +171,6 @@ export default function ChecklistPage() {
       <DashboardHeader title={t("checklistPage.title")} description={t("checklistPage.subtitle")} />
       <PageContainer>
         <PageHeader
-          title={t("checklistPage.pageTitle")}
-          description={t("checklistPage.progressDesc", {
-            completed,
-            total: tasks.length,
-          })}
           action={
             canEdit ? (
               <Button onClick={() => setAddOpen(true)}>
@@ -207,7 +212,7 @@ export default function ChecklistPage() {
         <Tabs value={filter} onValueChange={setFilter}>
           <TabsList className="flex h-auto w-full overflow-x-auto flex-nowrap justify-start gap-1 pb-1">
             <TabsTrigger value="all">{t("checklistPage.all")}</TabsTrigger>
-            {ALL_CATEGORIES.map((cat) => (
+            {tabCategories.map((cat) => (
               <TabsTrigger key={cat} value={cat} className="text-xs">
                 {categoryLabel(t, cat)}
               </TabsTrigger>
@@ -366,7 +371,7 @@ export default function ChecklistPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ALL_CATEGORIES.map((cat) => (
+                    {tabCategories.map((cat) => (
                       <SelectItem key={cat} value={cat}>
                         {categoryLabel(t, cat)}
                       </SelectItem>

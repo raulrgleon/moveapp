@@ -23,26 +23,28 @@ export async function GET(req: NextRequest) {
       planTier: true,
       trialEndsAt: true,
       planPaidAt: true,
+      passwordHash: true,
     },
   });
 
   if (!user) return unauthorized();
 
-  let trialEndsAt = user.trialEndsAt;
-  if (!trialEndsAt && user.planTier !== "pro") {
-    trialEndsAt = resolveTrialEndsAt({ createdAt: user.createdAt, trialEndsAt: null });
+  const { passwordHash, ...publicUser } = user;
+
+  let trialEndsAt = publicUser.trialEndsAt;
+  if (!trialEndsAt && publicUser.planTier !== "pro") {
+    trialEndsAt = resolveTrialEndsAt({ createdAt: publicUser.createdAt, trialEndsAt: null });
   }
 
   return NextResponse.json({
-    user: user
-      ? {
-          ...user,
-          locale: user.locale ?? "en",
-          trialEndsAt: trialEndsAt?.toISOString() ?? null,
-          planPaidAt: user.planPaidAt?.toISOString() ?? null,
-          createdAt: user.createdAt.toISOString(),
-        }
-      : user,
+    user: {
+      ...publicUser,
+      hasPassword: Boolean(passwordHash),
+      locale: publicUser.locale ?? "en",
+      trialEndsAt: trialEndsAt?.toISOString() ?? null,
+      planPaidAt: publicUser.planPaidAt?.toISOString() ?? null,
+      createdAt: publicUser.createdAt.toISOString(),
+    },
     impersonatedBy: session.impersonatedBy ?? null,
     isImpersonating: Boolean(session.impersonatedBy),
   });
