@@ -52,7 +52,6 @@ export const PARTNER_DIRECTORY: PartnerDirectoryEntry[] = [
 ];
 
 export function partnersForRoute(origin: string, destination: string): PartnerDirectoryEntry[] {
-  const hay = `${origin} ${destination}`.toLowerCase();
   const isLongDistance =
     origin.split(",")[1]?.trim().toLowerCase() !== destination.split(",")[1]?.trim().toLowerCase();
 
@@ -62,6 +61,11 @@ export function partnersForRoute(origin: string, destination: string): PartnerDi
     }
     return entry.specialties.includes("local") || entry.regions.includes("Nationwide");
   }).slice(0, 4);
+}
+
+/** @deprecated Use listActivePartnersForRoute from partner-store */
+export function partnersForRouteSync(origin: string, destination: string): PartnerDirectoryEntry[] {
+  return partnersForRoute(origin, destination);
 }
 
 export function specialtyLabel(key: string, locale: Locale): string {

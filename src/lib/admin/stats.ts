@@ -17,6 +17,9 @@ export async function getAdminStats() {
     totalChecklistTasks,
     completedTasks,
     overdueTasks,
+    totalPartners,
+    totalPartnerQuotes,
+    activePartners,
     recentUsers,
   ] = await Promise.all([
     prisma.user.count({ where: { role: { not: "admin" } } }),
@@ -35,6 +38,9 @@ export async function getAdminStats() {
         dueDate: { lt: now },
       },
     }),
+    prisma.movingPartner.count(),
+    prisma.partnerQuote.count(),
+    prisma.movingPartner.count({ where: { active: true } }),
     prisma.user.findMany({
       where: { role: { not: "admin" } },
       orderBy: { createdAt: "desc" },
@@ -61,6 +67,9 @@ export async function getAdminStats() {
     totalChecklistTasks,
     completedTasks,
     overdueTasks,
+    totalPartners,
+    totalPartnerQuotes,
+    activePartners,
     recentUsers,
   };
 }

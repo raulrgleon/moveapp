@@ -24,7 +24,7 @@ export function AdminSidebar() {
       <p className="px-4 pt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t("adminConsole.consoleTitle")}
       </p>
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
         {ADMIN_CONSOLE_NAV.map((item) => {
           const isActive =
             "exact" in item && item.exact
@@ -48,6 +48,13 @@ export function AdminSidebar() {
           );
         })}
       </nav>
+      <div className="px-4 pb-2">
+        <p className="text-xs text-muted-foreground mb-2">{t("adminConsole.adminTipsTitle")}</p>
+        <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+          <li>{t("adminConsole.adminTipPartners")}</li>
+          <li>{t("adminConsole.adminTipImpersonate")}</li>
+        </ul>
+      </div>
       <div className="border-t p-4 space-y-3">
         {user && (
           <div className="space-y-2">

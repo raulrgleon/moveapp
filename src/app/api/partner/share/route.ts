@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { mergeProfileForSync } from "@/lib/db/move-service";
-import { partnersForRoute } from "@/lib/partner/directory";
+import { listActivePartnersForRoute } from "@/lib/partner/partner-store";
 import { lowestQuoteAmount } from "@/lib/partner/quote-utils";
 import { resolveMoveBriefForPartner, serializeQuote } from "@/lib/partner/resolve-brief";
 import { prisma } from "@/lib/prisma";
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     brief,
     diyEstimate: brief.diyEstimate ?? brief.budgetEstimate,
     lowestQuote,
-    directory: partnersForRoute(move.origin, move.destination),
+    directory: await listActivePartnersForRoute(move.origin, move.destination),
     moveSummary: {
       origin: move.origin,
       destination: move.destination,

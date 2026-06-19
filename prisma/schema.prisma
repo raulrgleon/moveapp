@@ -157,6 +157,27 @@ model PartnerQuote {
   @@map("partner_quotes")
 }
 
+model MovingPartner {
+  id              String   @id @default(uuid())
+  name            String
+  regions         String[] @default([])
+  usdot           String?
+  rating          Float?
+  yearsInBusiness Int?     @map("years_in_business")
+  specialties     String[] @default([])
+  website         String?
+  contactEmail    String?  @map("contact_email")
+  contactPhone    String?  @map("contact_phone")
+  notes           String?  @db.Text
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder])
+  @@map("moving_partners")
+}
+
 model MoveCollaborator {
   id          String    @id @default(uuid())
   moveId      String    @map("move_id")

@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   Activity,
   FileText,
+  Handshake,
   Loader2,
   MapPin,
+  MessageSquareQuote,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -28,6 +30,9 @@ interface Stats {
   usersThisWeek: number;
   totalDocuments: number;
   overdueTasks: number;
+  totalPartners: number;
+  totalPartnerQuotes: number;
+  activePartners: number;
   recentUsers: {
     id: string;
     name: string;
@@ -82,6 +87,12 @@ export default function AdminDashboardPage() {
         { label: t("adminConsole.usersToday"), value: stats.usersToday, icon: Activity },
         { label: t("adminConsole.usersWeek"), value: stats.usersThisWeek, icon: Activity },
         { label: t("adminConsole.totalDocuments"), value: stats.totalDocuments, icon: FileText },
+        { label: t("adminConsole.totalPartners"), value: stats.totalPartners, icon: Handshake },
+        {
+          label: t("adminConsole.totalPartnerQuotes"),
+          value: stats.totalPartnerQuotes,
+          icon: MessageSquareQuote,
+        },
       ]
     : [];
 
@@ -98,6 +109,43 @@ export default function AdminDashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Link
+                href="/admin/partners"
+                className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              >
+                <Handshake className="h-5 w-5 text-primary mb-2" />
+                <p className="font-medium text-sm">{t("adminConsole.partners")}</p>
+                <p className="text-xs text-muted-foreground">{t("adminConsole.partnersQuick")}</p>
+              </Link>
+              <Link
+                href="/admin/partner-quotes"
+                className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              >
+                <MessageSquareQuote className="h-5 w-5 text-primary mb-2" />
+                <p className="font-medium text-sm">{t("adminConsole.partnerQuotes")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.totalPartnerQuotes ?? 0} {t("adminConsole.quotesTotal")}
+                </p>
+              </Link>
+              <Link
+                href="/admin/users"
+                className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              >
+                <Users className="h-5 w-5 text-primary mb-2" />
+                <p className="font-medium text-sm">{t("adminConsole.users")}</p>
+                <p className="text-xs text-muted-foreground">{t("adminConsole.usersQuick")}</p>
+              </Link>
+              <Link
+                href="/admin/moves"
+                className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              >
+                <MapPin className="h-5 w-5 text-primary mb-2" />
+                <p className="font-medium text-sm">{t("adminConsole.moves")}</p>
+                <p className="text-xs text-muted-foreground">{t("adminConsole.movesQuick")}</p>
+              </Link>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {statCards.map((card) => (
                 <Card key={card.label}>
