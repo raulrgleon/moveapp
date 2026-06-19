@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendTaskReminderEmail } from "@/lib/notifications/email";
 import { sendTaskReminderSms } from "@/lib/notifications/sms";
+import { isValidE164Phone, normalizePhoneInput } from "@/lib/phone/normalize";
 
 export async function processDueReminders() {
   const now = new Date();
@@ -64,20 +65,28 @@ export async function processDueReminders() {
 
     if (user.smsReminders && user.phone) {
       const top = taskPayload[0];
+      const phone = normalizePhoneInput(user.phone);
+      if (!phone || !isValidE164Phone(phone)) {
+        console.warn(`[sms] Invalid phone for user ${user.id}: ${user.phone}`);
+        continue;
+      }
+
       const already = await prisma.reminderLog.findFirst({
         where: { userId: user.id, taskId: top.id, channel: "sms" },
       });
       if (!already) {
-        await sendTaskReminderSms(
-          user.phone,
+        const result = await sendTaskReminderSms(
+          phone,
           top.title,
           top.dueDate,
           user.locale === "es" ? "es" : "en"
         );
-        await prisma.reminderLog.create({
-          data: { userId: user.id, taskId: top.id, channel: "sms" },
-        });
-        sent++;
+        if (result.ok) {
+          await prisma.reminderLog.create({
+            data: { userId: user.id, taskId: top.id, channel: "sms" },
+          });
+          sent++;
+        }
       }
     }
   }

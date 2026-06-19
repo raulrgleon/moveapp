@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { processDueReminders } from "@/lib/notifications/reminders";
 import { getNotificationConfigStatus } from "@/lib/notifications/config";
 import { sendWelcomeEmail } from "@/lib/notifications/email";
+import { sendTestSms } from "@/lib/notifications/sms";
+import { isValidE164Phone, normalizePhoneInput } from "@/lib/phone/normalize";
+import { verifyTwilioConnection } from "@/lib/notifications/twilio-config";
 
 type RouteContext = { params: { action: string } };
 
@@ -60,6 +63,52 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ipAddress: getClientIp(req),
     });
     return NextResponse.json({ ok: true, to });
+  }
+
+  if (params.action === "verify-twilio") {
+    const result = await verifyTwilioConnection();
+    await logAdminAction({
+      adminId: admin.id,
+      action: "maintenance.verify_twilio",
+      details: { ...result },
+      ipAddress: getClientIp(req),
+    });
+    return NextResponse.json({
+      ok: result.ok,
+      error: result.error,
+      status: result.status,
+      config: getNotificationConfigStatus().sms,
+    });
+  }
+
+  if (params.action === "test-sms") {
+    const status = getNotificationConfigStatus();
+    if (!status.sms.configured) {
+      return NextResponse.json(
+        { ok: false, error: "Twilio not configured", missing: status.sms.missing },
+        { status: 400 }
+      );
+    }
+    const body = (await req.json()) as { to?: string };
+    const raw = body.to?.trim() || admin.phone?.trim();
+    if (!raw) {
+      return NextResponse.json({ ok: false, error: "Phone number required" }, { status: 400 });
+    }
+    const to = normalizePhoneInput(raw);
+    if (!to || !isValidE164Phone(to)) {
+      return NextResponse.json({ ok: false, error: "Invalid phone format. Use +15551234567" }, { status: 400 });
+    }
+    const result = await sendTestSms(to, admin.locale === "es" ? "es" : "en");
+    await logAdminAction({
+      adminId: admin.id,
+      action: "maintenance.test_sms",
+      details: { to, ...result },
+      ipAddress: getClientIp(req),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ ok: false, error: result.error, status: result.status }, { status: 502 });
+    }
+    return NextResponse.json({ ok: true, to, sid: result.sid });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 404 });

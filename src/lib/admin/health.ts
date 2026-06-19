@@ -2,6 +2,7 @@ import { execSync } from "child_process";
 import { statfsSync } from "fs";
 import path from "path";
 import { getNotificationConfigStatus } from "@/lib/notifications/config";
+import { isTwilioConfigured } from "@/lib/notifications/twilio-config";
 import { prisma } from "@/lib/prisma";
 
 function envConfigured(key: string) {
@@ -66,7 +67,7 @@ export async function getSystemHealth() {
       envConfigured("APPLE_TEAM_ID") &&
       envConfigured("APPLE_KEY_ID") &&
       envConfigured("APPLE_PRIVATE_KEY"),
-    twilio: envConfigured("TWILIO_ACCOUNT_SID") && envConfigured("TWILIO_AUTH_TOKEN"),
+    twilio: isTwilioConfigured(),
     cron: envConfigured("CRON_SECRET"),
   };
 

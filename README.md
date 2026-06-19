@@ -40,7 +40,14 @@ Set `NEXT_PUBLIC_APP_URL` to your public HTTPS URL. Daily task reminders run via
 | `WEATHERAPI_KEY` | Weather along route (optional) |
 | `RENTCAST_API_KEY` | Housing market data (optional) |
 | `CRON_SECRET` | Protects `/api/cron/reminders` |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID (`AC…`) |
+| `TWILIO_PHONE_NUMBER` | Twilio SMS sender number (`+1…`) |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token **or** use API key below |
+| `TWILIO_API_KEY_SID` | Twilio API key SID (`SK…`) |
+| `TWILIO_API_KEY_SECRET` | Twilio API key secret |
 | `ADMIN_PASSWORD` | Used by `npm run seed:admin` only |
+
+SMS reminders: configure Twilio vars, then run `npm run twilio:check`. Users enable SMS under **Settings → Notifications**. Admin can test via **Admin → Maintenance**.
 
 Maps use **OpenStreetMap** tiles and **OSRM** routing — no API key required.
 

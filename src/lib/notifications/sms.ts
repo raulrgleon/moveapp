@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { sendTwilioSms } from "@/lib/notifications/twilio-config";
 
 export async function sendTaskReminderSms(
   to: string,
@@ -6,30 +7,27 @@ export async function sendTaskReminderSms(
   dueDate: string,
   locale: Locale = "en"
 ) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_PHONE_NUMBER;
-
   const prefix = locale === "es" ? "MovePilotAi:" : "MovePilotAi reminder:";
   const dueLabel = locale === "es" ? "vence" : "due";
+  const body = `${prefix} "${taskTitle}" ${dueLabel} ${dueDate}`;
 
-  if (!sid || !token || !from) {
-    console.log(`[sms] Reminder to ${to}: ${taskTitle} ${dueLabel} ${dueDate}`);
-    return;
+  const result = await sendTwilioSms(to, body);
+  if (!result.ok) {
+    if (result.error === "Twilio not configured") {
+      console.log(`[sms] Reminder to ${to}: ${body}`);
+      return result;
+    }
+    console.error(`[sms] Twilio error: ${result.error}`);
+    return result;
   }
 
-  const body = new URLSearchParams({
-    To: to,
-    From: from,
-    Body: `${prefix} "${taskTitle}" ${dueLabel} ${dueDate}`,
-  });
+  return result;
+}
 
-  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body.toString(),
-  });
+export async function sendTestSms(to: string, locale: Locale = "en") {
+  const body =
+    locale === "es"
+      ? "MovePilotAi: SMS de prueba — tus recordatorios están configurados."
+      : "MovePilotAi: test SMS — your reminders are configured.";
+  return sendTwilioSms(to, body);
 }

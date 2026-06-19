@@ -81,6 +81,7 @@ export function ReminderPreferencesCard() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">{t("settings.phoneHint")}</p>
           </div>
         )}
         {saved && <p className="text-sm text-emerald-600">{t("common.saved")}</p>}
