@@ -99,6 +99,8 @@ export interface QoLComparisonMetric {
   destNum: number;
   trend: HousingTrend;
   direction: ComparisonDirection;
+  higherIsFavorable: boolean;
+  informationalOnly?: boolean;
 }
 
 function profileForLocation(location: ResolvedLocation): QoLSummary {
@@ -135,6 +137,8 @@ function metric(
     destNum,
     trend,
     direction,
+    higherIsFavorable: !lowerIsBetter,
+    informationalOnly: options?.informationalOnly,
   };
 }
 

@@ -1631,6 +1631,14 @@ export const es = {
     lowerInDest: "Más bajo en {city}",
     higherInDest: "Más alto en {city}",
     similar: "Similar",
+    trendLegend:
+      "Verde = favorable para ti · Naranja = menos favorable · Gris = comparación neutral",
+    housingRecommendationTitle: "Renta según tu hogar",
+    housingRecommendationForHousehold:
+      "Para {household}, recomendamos comparar rentas medianas de {bedrooms} habitaciones.",
+    housingRecommendationDefault:
+      "Recomendamos comparar rentas medianas de {bedrooms} habitaciones para tu mudanza.",
+    recommendedRent: "Renta mediana ({bedrooms} hab.)",
     avgRent: "Renta promedio",
     medianRent: "Renta mediana",
     rent2Bed: "Renta mediana (2 hab.)",

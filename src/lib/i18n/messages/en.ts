@@ -1628,6 +1628,13 @@ export const en = {
     lowerInDest: "Lower in {city}",
     higherInDest: "Higher in {city}",
     similar: "Similar",
+    trendLegend: "Green = favorable for you · Orange = less favorable · Gray = neutral comparison",
+    housingRecommendationTitle: "Rent sized for your household",
+    housingRecommendationForHousehold:
+      "For {household}, we recommend comparing {bedrooms}-bedroom median rents.",
+    housingRecommendationDefault:
+      "We recommend comparing {bedrooms}-bedroom median rents for your move.",
+    recommendedRent: "Median rent ({bedrooms} bed)",
     avgRent: "Average rent",
     medianRent: "Median rent",
     rent2Bed: "Median rent (2 bed)",

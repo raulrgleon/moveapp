@@ -1,5 +1,9 @@
 import type { HousingComparisonMetric, HousingMarketResponse } from "@/lib/rentcast/types";
-import { buildComparisonMetrics } from "@/lib/rentcast/rentcast";
+import {
+  applyRecommendedBedrooms,
+  buildComparisonMetrics,
+  emptyMarketSummary,
+} from "@/lib/rentcast/rentcast";
 
 /** Static ZIP-level estimates when RentCast is unavailable. */
 const FALLBACK_BY_ZIP: Record<
@@ -80,14 +84,27 @@ const DEFAULT_FALLBACK = {
   saleListings: 300,
 };
 
+function rentByBedroomsFrom2Bed(rent2Bed: number): Partial<Record<1 | 2 | 3 | 4, number>> {
+  return {
+    1: Math.round(rent2Bed * 0.72),
+    2: rent2Bed,
+    3: Math.round(rent2Bed * 1.22),
+    4: Math.round(rent2Bed * 1.42),
+  };
+}
+
 function summaryForZip(label: string, zipCode: string) {
   const data = FALLBACK_BY_ZIP[zipCode] ?? DEFAULT_FALLBACK;
+  const rentByBedrooms = rentByBedroomsFrom2Bed(data.rent2Bed);
   return {
     label,
     zipCode,
     averageRent: data.averageRent,
     medianRent: data.medianRent,
     rent2Bed: data.rent2Bed,
+    rentByBedrooms,
+    recommendedBedrooms: 2,
+    recommendedRent: data.rent2Bed,
     medianHomePrice: data.medianHomePrice,
     averageHomePrice: data.averageHomePrice,
     medianPricePerSqFt: data.medianPricePerSqFt,
@@ -103,15 +120,30 @@ export function buildFallbackHousingComparison(
   originLabel: string,
   originZip: string,
   destinationLabel: string,
-  destinationZip: string
+  destinationZip: string,
+  recommendedBedrooms = 2,
+  householdLabel = ""
 ): HousingMarketResponse {
-  const origin = summaryForZip(originLabel, originZip);
-  const destination = summaryForZip(destinationLabel, destinationZip);
-  const metrics: HousingComparisonMetric[] = buildComparisonMetrics(origin, destination);
+  const origin = applyRecommendedBedrooms(summaryForZip(originLabel, originZip), recommendedBedrooms);
+  const destination = applyRecommendedBedrooms(
+    summaryForZip(destinationLabel, destinationZip),
+    recommendedBedrooms
+  );
+  const metrics: HousingComparisonMetric[] = buildComparisonMetrics(
+    origin,
+    destination,
+    recommendedBedrooms
+  );
   return {
     origin,
     destination,
     metrics,
+    housingContext: {
+      recommendedBedrooms,
+      householdLabel,
+    },
     source: "fallback",
   };
 }
+
+export { emptyMarketSummary };

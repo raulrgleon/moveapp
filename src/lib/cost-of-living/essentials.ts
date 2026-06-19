@@ -54,6 +54,8 @@ export interface EssentialsComparisonMetric {
   destinationPrice: number;
   trend: HousingTrend;
   direction: ComparisonDirection;
+  higherIsFavorable: boolean;
+  informationalOnly?: boolean;
 }
 
 const ESSENTIALS_CATALOG: { key: EssentialsItemKey; labelKey: string; unitKey: string; baseKey?: keyof typeof NATIONAL_WALMART_BASE }[] = [
@@ -185,6 +187,7 @@ export function buildEssentialsComparisonMetrics(
       destinationPrice: d.price,
       trend,
       direction,
+      higherIsFavorable: false,
     });
   }
 
@@ -203,6 +206,7 @@ export function buildEssentialsComparisonMetrics(
     destinationPrice: destination.weeklyBasketTotal,
     trend: weeklyCompare.trend,
     direction: weeklyCompare.direction,
+    higherIsFavorable: false,
   });
 
   const monthlyCompare = compareEssentials(
@@ -220,6 +224,7 @@ export function buildEssentialsComparisonMetrics(
     destinationPrice: destination.monthlyGroceriesEstimate,
     trend: monthlyCompare.trend,
     direction: monthlyCompare.direction,
+    higherIsFavorable: false,
   });
 
   return metrics;

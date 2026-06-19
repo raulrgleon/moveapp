@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Building2, Home, Loader2, TrendingDown } from "lucide-react";
+import { ArrowRight, Building2, Home, Loader2 } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import type { HousingMarketResponse } from "@/lib/rentcast/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export function DashboardHousingCard() {
   const t = useT();
@@ -27,6 +26,7 @@ export function DashboardHousingCard() {
         const params = new URLSearchParams({
           origin: profile.origin,
           destination: profile.destination,
+          household: profile.household?.trim() ?? "",
         });
         const res = await fetch(`/api/housing-market?${params.toString()}`);
         if (!res.ok) throw new Error("housing failed");
@@ -43,7 +43,9 @@ export function DashboardHousingCard() {
     return () => {
       cancelled = true;
     };
-  }, [profile.origin, profile.destination]);
+  }, [profile.origin, profile.destination, profile.household]);
+
+  const bedrooms = data?.housingContext?.recommendedBedrooms ?? 2;
 
   return (
     <Card className="border-primary/20">
@@ -67,44 +69,38 @@ export function DashboardHousingCard() {
         ) : !data?.origin || !data?.destination ? (
           <p className="text-sm text-muted-foreground">{t("cityComparison.unavailable")}</p>
         ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">{t("cityComparison.avgRent")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("cityComparison.recommendedRent", { bedrooms })}
+              </p>
               <div className="mt-2 flex items-center justify-between gap-2 min-w-0 text-sm">
-                <span className="truncate min-w-0">{formatCurrency(data.origin.averageRent ?? 0, locale)}</span>
+                <span className="truncate min-w-0">
+                  {formatCurrency(data.origin.recommendedRent ?? 0, locale)}
+                </span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                 <span className="font-semibold truncate min-w-0 text-right">
-                  {formatCurrency(data.destination.averageRent ?? 0, locale)}
+                  {formatCurrency(data.destination.recommendedRent ?? 0, locale)}
                 </span>
               </div>
-              {data.destination.averageRent != null &&
-                data.origin.averageRent != null &&
-                data.destination.averageRent < data.origin.averageRent && (
-                  <Badge variant="success" className="mt-2 gap-1">
-                    <TrendingDown className="h-3 w-3" />
-                    {t("cityComparison.betterInDest", {
-                      city: profile.destination.split(",")[0],
-                    })}
-                  </Badge>
-                )}
+              {data.housingContext?.householdLabel && (
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  {t("cityComparison.housingRecommendationForHousehold", {
+                    household: data.housingContext.householdLabel,
+                    bedrooms,
+                  })}
+                </p>
+              )}
             </div>
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-xs text-muted-foreground">{t("cityComparison.medianHome")}</p>
               <div className="mt-2 flex items-center justify-between gap-2 min-w-0 text-sm">
-                <span className="truncate min-w-0">{formatCurrency(data.origin.medianHomePrice ?? 0, locale)}</span>
+                <span className="truncate min-w-0">
+                  {formatCurrency(data.origin.medianHomePrice ?? 0, locale)}
+                </span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                 <span className="font-semibold truncate min-w-0 text-right">
                   {formatCurrency(data.destination.medianHomePrice ?? 0, locale)}
-                </span>
-              </div>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">{t("cityComparison.rent2Bed")}</p>
-              <div className="mt-2 flex items-center justify-between gap-2 text-sm">
-                <span>{formatCurrency(data.origin.rent2Bed ?? 0, locale)}</span>
-                <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                <span className="font-semibold">
-                  {formatCurrency(data.destination.rent2Bed ?? 0, locale)}
                 </span>
               </div>
               <p className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1">

@@ -41,12 +41,14 @@ function extractZip(text: string): string | undefined {
 }
 
 function TrendBadge({
-  trend,
   direction,
+  higherIsFavorable,
+  informationalOnly,
   rightLabel,
 }: {
-  trend: HousingTrend;
   direction: ComparisonDirection;
+  higherIsFavorable: boolean;
+  informationalOnly?: boolean;
   rightLabel: string;
 }) {
   const t = useT();
@@ -62,29 +64,33 @@ function TrendBadge({
       : t("cityComparison.higherInDest", { city });
   const Icon = direction === "lower" ? TrendingDown : TrendingUp;
 
-  if (trend === "better") {
+  if (informationalOnly) {
     return (
-      <Badge variant="success" className="gap-1">
-        <Icon className="h-3 w-3" />
-        {label}
-      </Badge>
-    );
-  }
-  if (trend === "worse") {
-    return (
-      <Badge variant="warning" className="gap-1">
+      <Badge variant="secondary" className="gap-1">
         <Icon className="h-3 w-3" />
         {label}
       </Badge>
     );
   }
 
+  const favorable =
+    direction === "higher" ? higherIsFavorable : !higherIsFavorable;
+
   return (
-    <Badge variant="secondary" className="gap-1">
+    <Badge variant={favorable ? "success" : "warning"} className="gap-1">
       <Icon className="h-3 w-3" />
       {label}
     </Badge>
   );
+}
+
+function metricLabel(
+  metric: { labelKey: string; labelParams?: Record<string, string | number> },
+  t: ReturnType<typeof useT>
+): string {
+  return metric.labelParams
+    ? t(metric.labelKey, metric.labelParams)
+    : t(metric.labelKey);
 }
 
 function formatQoLDisplayValue(
@@ -163,6 +169,7 @@ export function CityComparisonPanel() {
       const params = new URLSearchParams({
         origin: leftCity.trim(),
         destination: rightCity.trim(),
+        household: profile.household?.trim() ?? "",
       });
 
       const resolvedLeftZip =
@@ -200,6 +207,7 @@ export function CityComparisonPanel() {
     profile.destination,
     destinationAddress,
     destinationPostcode,
+    profile.household,
   ]);
 
   useEffect(() => {
@@ -383,11 +391,32 @@ export function CityComparisonPanel() {
                     <p className="text-xs text-muted-foreground">{t("cityComparison.fallbackNote")}</p>
                   )}
 
+                  {data.housingContext && (
+                    <Card className="border-primary/20 bg-primary/5">
+                      <CardContent className="p-4 text-sm">
+                        <p className="font-medium">{t("cityComparison.housingRecommendationTitle")}</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {data.housingContext.householdLabel
+                            ? t("cityComparison.housingRecommendationForHousehold", {
+                                household: data.housingContext.householdLabel,
+                                bedrooms: data.housingContext.recommendedBedrooms,
+                              })
+                            : t("cityComparison.housingRecommendationDefault", {
+                                bedrooms: data.housingContext.recommendedBedrooms,
+                              })}
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t("cityComparison.trendLegend")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {data.metrics.slice(0, 4).map((metric) => (
                       <Card key={metric.key} className="overflow-hidden">
                         <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground">{t(metric.labelKey)}</p>
+                          <p className="text-xs text-muted-foreground">{metricLabel(metric, t)}</p>
                           <div className="mt-2 flex items-center justify-between gap-2 min-w-0">
                             <span className="text-sm truncate min-w-0">{metric.originValue}</span>
                             <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -397,7 +426,12 @@ export function CityComparisonPanel() {
                           </div>
                           <MetricCompareBar trend={metric.trend} />
                           <div className="mt-2">
-                            <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
+                            <TrendBadge
+                              direction={metric.direction}
+                              higherIsFavorable={metric.higherIsFavorable}
+                              informationalOnly={metric.informationalOnly}
+                              rightLabel={rightCity}
+                            />
                           </div>
                         </CardContent>
                       </Card>
@@ -422,11 +456,16 @@ export function CityComparisonPanel() {
                           <TableBody>
                             {data.metrics.map((metric) => (
                               <TableRow key={metric.key}>
-                                <TableCell className="font-medium">{t(metric.labelKey)}</TableCell>
+                                <TableCell className="font-medium">{metricLabel(metric, t)}</TableCell>
                                 <TableCell>{metric.originValue}</TableCell>
                                 <TableCell>{metric.destinationValue}</TableCell>
                                 <TableCell>
-                                  <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
+                                  <TrendBadge
+                              direction={metric.direction}
+                              higherIsFavorable={metric.higherIsFavorable}
+                              informationalOnly={metric.informationalOnly}
+                              rightLabel={rightCity}
+                            />
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -526,7 +565,12 @@ export function CityComparisonPanel() {
                               <span className="text-sm font-semibold">{metric.destinationValue}</span>
                             </div>
                             <div className="mt-2">
-                              <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
+                              <TrendBadge
+                              direction={metric.direction}
+                              higherIsFavorable={metric.higherIsFavorable}
+                              informationalOnly={metric.informationalOnly}
+                              rightLabel={rightCity}
+                            />
                             </div>
                           </CardContent>
                         </Card>
@@ -567,7 +611,12 @@ export function CityComparisonPanel() {
                                 <TableCell>{metric.originValue}</TableCell>
                                 <TableCell>{metric.destinationValue}</TableCell>
                                 <TableCell>
-                                  <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
+                                  <TrendBadge
+                              direction={metric.direction}
+                              higherIsFavorable={metric.higherIsFavorable}
+                              informationalOnly={metric.informationalOnly}
+                              rightLabel={rightCity}
+                            />
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -607,7 +656,12 @@ export function CityComparisonPanel() {
                           </div>
                           <MetricCompareBar trend={metric.trend} />
                           <div className="mt-2">
-                            <TrendBadge trend={metric.trend} direction={metric.direction} rightLabel={rightCity} />
+                            <TrendBadge
+                              direction={metric.direction}
+                              higherIsFavorable={metric.higherIsFavorable}
+                              informationalOnly={metric.informationalOnly}
+                              rightLabel={rightCity}
+                            />
                           </div>
                         </CardContent>
                       </Card>
@@ -629,9 +683,12 @@ export function CityComparisonPanel() {
                 </CardHeader>
                 <CardContent className="text-sm space-y-1 text-muted-foreground">
                   <p>
-                    {t("cityComparison.avgRent")}:{" "}
-                    {data.origin!.averageRent != null
-                      ? `${formatCurrency(data.origin!.averageRent, locale)}/mo`
+                    {t("cityComparison.recommendedRent", {
+                      bedrooms: data.housingContext?.recommendedBedrooms ?? 2,
+                    })}
+                    {": "}
+                    {data.origin!.recommendedRent != null
+                      ? `${formatCurrency(data.origin!.recommendedRent, locale)}/mo`
                       : "—"}
                   </p>
                   <p>
@@ -656,9 +713,12 @@ export function CityComparisonPanel() {
                 </CardHeader>
                 <CardContent className="text-sm space-y-1 text-muted-foreground">
                   <p>
-                    {t("cityComparison.avgRent")}:{" "}
-                    {data.destination!.averageRent != null
-                      ? `${formatCurrency(data.destination!.averageRent, locale)}/mo`
+                    {t("cityComparison.recommendedRent", {
+                      bedrooms: data.housingContext?.recommendedBedrooms ?? 2,
+                    })}
+                    {": "}
+                    {data.destination!.recommendedRent != null
+                      ? `${formatCurrency(data.destination!.recommendedRent, locale)}/mo`
                       : "—"}
                   </p>
                   <p>

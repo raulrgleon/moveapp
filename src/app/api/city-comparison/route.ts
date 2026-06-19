@@ -5,8 +5,9 @@ import {
 } from "@/lib/cost-of-living/essentials";
 import { buildQoLComparison, buildComparisonVerdict } from "@/lib/cost-of-living/qol-metrics";
 import type { CityComparisonResponse } from "@/lib/city-comparison/types";
-import { buildFallbackHousingComparison } from "@/lib/housing/fallback-market";
+import { buildFallbackHousingComparison, emptyMarketSummary } from "@/lib/housing/fallback-market";
 import { resolveLocationFromQuery } from "@/lib/geo/resolve-location";
+import { recommendBedroomsFromHousehold } from "@/lib/move/household";
 import { fetchHousingComparison } from "@/lib/rentcast/rentcast";
 import type { HousingMarketResponse } from "@/lib/rentcast/types";
 
@@ -14,16 +15,22 @@ async function loadHousing(
   origin: string,
   destination: string,
   originZip?: string | null,
-  destZip?: string | null
+  destZip?: string | null,
+  household = ""
 ): Promise<HousingMarketResponse> {
+  const recommendedBedrooms = recommendBedroomsFromHousehold(household);
   const hasRentCast = Boolean(process.env.RENTCAST_API_KEY);
   let payload: HousingMarketResponse | null = null;
 
   if (hasRentCast) {
     try {
-      const result = await fetchHousingComparison(origin, destination);
+      const result = await fetchHousingComparison(origin, destination, recommendedBedrooms);
       if (result.metrics.length > 0 && result.origin && result.destination) {
-        payload = { ...result, source: "rentcast" };
+        payload = {
+          ...result,
+          source: "rentcast",
+          housingContext: { recommendedBedrooms, householdLabel: household },
+        };
       }
     } catch (error) {
       console.error("City comparison housing error:", error);
@@ -34,50 +41,32 @@ async function loadHousing(
   const dZip = destZip ?? null;
 
   if (!payload && oZip && dZip) {
-    payload = buildFallbackHousingComparison(origin, oZip, destination, dZip);
+    payload = buildFallbackHousingComparison(
+      origin,
+      oZip,
+      destination,
+      dZip,
+      recommendedBedrooms,
+      household
+    );
   }
 
   if (!payload) {
     return {
-      origin: oZip
-        ? {
-            label: origin,
-            zipCode: oZip,
-            averageRent: null,
-            medianRent: null,
-            rent2Bed: null,
-            medianHomePrice: null,
-            averageHomePrice: null,
-            medianPricePerSqFt: null,
-            medianRentPerSqFt: null,
-            saleDaysOnMarket: null,
-            rentalListings: null,
-            saleListings: null,
-          }
-        : null,
-      destination: dZip
-        ? {
-            label: destination,
-            zipCode: dZip,
-            averageRent: null,
-            medianRent: null,
-            rent2Bed: null,
-            medianHomePrice: null,
-            averageHomePrice: null,
-            medianPricePerSqFt: null,
-            medianRentPerSqFt: null,
-            saleDaysOnMarket: null,
-            rentalListings: null,
-            saleListings: null,
-          }
-        : null,
+      origin: oZip ? emptyMarketSummary(origin, oZip) : null,
+      destination: dZip ? emptyMarketSummary(destination, dZip) : null,
       metrics: [],
+      housingContext: { recommendedBedrooms, householdLabel: household },
       rentcastMissing: !hasRentCast,
     };
   }
 
   if (!hasRentCast && payload.source !== "fallback") {
     payload.rentcastMissing = true;
+  }
+
+  if (!payload.housingContext) {
+    payload.housingContext = { recommendedBedrooms, householdLabel: household };
   }
 
   return payload;
@@ -88,6 +77,7 @@ export async function GET(req: NextRequest) {
   const destination = req.nextUrl.searchParams.get("destination")?.trim();
   const originZipParam = req.nextUrl.searchParams.get("originZip")?.trim();
   const destZipParam = req.nextUrl.searchParams.get("destZip")?.trim();
+  const household = req.nextUrl.searchParams.get("household")?.trim() ?? "";
 
   if (!origin || !destination) {
     return NextResponse.json({ error: "origin and destination required" }, { status: 400 });
@@ -102,7 +92,7 @@ export async function GET(req: NextRequest) {
   const destZip = destZipParam ?? destLoc?.zipCode ?? null;
 
   const [housing, essentialsOrigin, essentialsDest] = await Promise.all([
-    loadHousing(origin, destination, originZip, destZip),
+    loadHousing(origin, destination, originZip, destZip, household),
     originLoc ? Promise.resolve(buildEssentialsSummary(originLoc)) : Promise.resolve(null),
     destLoc ? Promise.resolve(buildEssentialsSummary(destLoc)) : Promise.resolve(null),
   ]);
