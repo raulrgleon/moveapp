@@ -13,6 +13,7 @@ import {
   buildPilotCorePersona,
   buildPilotDiscoveryBlock,
   buildPilotResponseFormatInstruction,
+  buildCustomerDataIsolationInstruction,
 } from "@/lib/ai/pilot-persona";
 import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
 import { buildPilotActionInstructions } from "@/lib/ai/pilot-actions";
@@ -42,6 +43,15 @@ export interface MoveContextInput {
   userMessage?: string;
   checklistSummary?: string;
   budgetSummary?: string;
+  documentsSummary?: string;
+  collaboratorsSummary?: string;
+  partnerQuotesSummary?: string;
+  recentActivitySummary?: string;
+  accountSummary?: string;
+  moveMetaSummary?: string;
+  accessRole?: string;
+  /** False for customer chat; true only for admin platform chat. */
+  isAdminScope?: boolean;
 }
 
 async function resolveUtilityPicks(ctx?: MoveContextInput): Promise<{
@@ -127,6 +137,8 @@ ${buildPilotResponseFormatInstruction(replyLocale)}
 
 ${buildPilotDiscoveryBlock(ctx)}
 
+${ctx?.isAdminScope ? "" : buildCustomerDataIsolationInstruction()}
+
 USER MOVE DATA:
 USER: ${userName}
 FROM: ${origin} → TO: ${destination}
@@ -146,9 +158,27 @@ ${ctx?.checklistSummary ?? "none loaded"}
 BUDGET ITEMS (id | category | estimated | actual):
 ${ctx?.budgetSummary ?? "none loaded"}
 
+ACCOUNT (server — this user only):
+${ctx?.accountSummary ?? "—"}
+
+MOVE SETTINGS:
+${ctx?.moveMetaSummary ?? "—"}
+
+DOCUMENTS (id | category | status | name):
+${ctx?.documentsSummary ?? "none"}
+
+COLLABORATORS:
+${ctx?.collaboratorsSummary ?? "none"}
+
+PARTNER QUOTES:
+${ctx?.partnerQuotesSummary ?? "none"}
+
+RECENT ACTIVITY:
+${ctx?.recentActivitySummary ?? "none"}
+
 ${buildPilotActionInstructions()}
 
-Scope: this user's move only. Use USER MOVE DATA first; ask before guessing. Estimates in data are planning figures — say when to confirm with vendors.
+Scope: ONLY this user (${userName}) and move data above. Never reference other customers.
 
 ${buildLanguageInstruction(replyLocale)}`;
 }

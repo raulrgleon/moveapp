@@ -8,11 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useInventory } from "@/contexts/inventory-context";
-import { useMove } from "@/contexts/move-context";
-import { useChecklist } from "@/contexts/checklist-context";
 import { useLocale, useT } from "@/contexts/locale-context";
-import { useRouteStats } from "@/hooks/use-route-stats";
 import { translate, type Locale } from "@/lib/i18n";
 import {
   formatActionResultMessage,
@@ -66,10 +62,6 @@ function findCannedResponse(text: string, appLocale: Locale): string | undefined
 }
 
 export function AiChatProvider({ children }: { children: React.ReactNode }) {
-  const { getMoveContextForApi } = useMove();
-  const { boxes } = useInventory();
-  const { tasks } = useChecklist();
-  const { stats } = useRouteStats();
   const { locale } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -126,37 +118,12 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const completed = tasks.filter((t) => t.status === "completed").length;
-        const taskProgress = tasks.length
-          ? Math.round((completed / tasks.length) * 100)
-          : undefined;
-
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             messages: history.map((m) => ({ role: m.role, content: m.content })),
-            moveContext: {
-              ...getMoveContextForApi(),
-              locale: replyLocale,
-              userMessage: trimmed,
-              inventorySummary:
-                boxes.length > 0
-                  ? boxes
-                      .map(
-                        (b) =>
-                          `#${b.boxNumber} ${b.room}→${b.destinationRoom ?? b.room} (${b.status}${b.fragile ? ", fragile" : ""}${b.essentials ? ", essentials" : ""}): ${b.contents}`
-                      )
-                      .join("; ")
-                  : undefined,
-              routeStats: stats
-                ? {
-                    distanceMiles: stats.distanceMiles,
-                    driveTimeLabel: stats.driveTimeLabel,
-                    taskCompletionPercent: taskProgress,
-                  }
-                : undefined,
-            },
             locale: replyLocale,
           }),
         });
@@ -251,7 +218,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [messages, isLoading, getMoveContextForApi, boxes, tasks, stats, locale]
+    [messages, isLoading, locale]
   );
 
   const value = useMemo(

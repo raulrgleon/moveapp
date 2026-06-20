@@ -1471,6 +1471,11 @@ export const es = {
     testSmsTo: "Teléfono de prueba",
     testSmsHint: "Cuentas trial solo pueden enviar a números verificados en Twilio. Formato E.164 (+1…).",
     testSmsSent: "SMS de prueba enviado",
+    pilotTitle: "Pilot Admin",
+    pilotSubtitle: "Inteligencia de mudanzas en toda la plataforma",
+    pilotWelcome:
+      "Soy MovePilot AI para administradores. Veo todas las cuentas de clientes y puedo ayudarte con soporte, riesgos y preguntas operativas.",
+    pilotPlaceholder: "Pregunta por un cliente, mudanza o la plataforma…",
     partners: "Empresas de mudanza",
     partnersDesc: "Administra el directorio que ven los usuarios en la sección de mudanzas",
     partnersHint:

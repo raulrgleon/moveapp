@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { buildMoveSystemPromptAsync } from "@/lib/ai/move-context";
+import { buildAdminSystemPromptAsync } from "@/lib/ai/admin-prompt";
 import {
   getLatestUserMessage,
   resolveReplyLocale,
   buildReplyLanguageReminder,
 } from "@/lib/ai/detect-message-locale";
-import { loadMoveContextFromDb } from "@/lib/ai/load-move-context-from-db";
+import { loadAdminPlatformContext } from "@/lib/ai/load-admin-platform-context";
 import type { Locale } from "@/lib/i18n";
+import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import { requireProSubscription } from "@/lib/billing/require-pro";
-import { requireMoveAccess } from "@/lib/api-auth";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -32,13 +31,13 @@ async function trimChatHistory(userId: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
-  const result = await requireMoveAccess(req);
-  if (result instanceof NextResponse) return result;
+  const admin = await requireAdmin(req);
+  if (!admin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const rows = await prisma.chatMessage.findMany({
-    where: { userId: result.user.id },
+    where: { userId: admin.id },
     orderBy: { createdAt: "asc" },
     take: 20,
   });
@@ -53,8 +52,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const proCheck = await requireProSubscription(req);
-  if (proCheck instanceof NextResponse) return proCheck;
+  const admin = await requireAdmin(req);
+  if (!admin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     return new Response("OpenAI API key not configured", { status: 500 });
   }
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-real-ip") ??
     "unknown";
 
-  const limit = rateLimit(`chat:${ip}`, 30, 60_000);
+  const limit = rateLimit(`admin-chat:${ip}`, 30, 60_000);
   if (!limit.ok) {
     return new Response("Too many requests. Please try again later.", {
       status: 429,
@@ -84,36 +86,22 @@ export async function POST(req: NextRequest) {
       return new Response("Messages required", { status: 400 });
     }
 
-    const accessResult = await requireMoveAccess(req);
-    if (accessResult instanceof NextResponse) return accessResult;
-
     const lastUserText = getLatestUserMessage(messages);
-    const appLocale = (locale ?? "en") as Locale;
+    const appLocale = (locale ?? (admin.locale === "es" ? "es" : "en")) as Locale;
     const replyLocale = resolveReplyLocale(lastUserText, appLocale);
-
-    const dbContext = await loadMoveContextFromDb(accessResult.access, {
-      locale: appLocale,
-      userMessage: lastUserText,
-    });
-
-    if (!dbContext) {
-      return new Response("Move not found", { status: 404 });
-    }
-
-    const systemPrompt = await buildMoveSystemPromptAsync({
-      ...dbContext,
+    const platformContext = await loadAdminPlatformContext();
+    const systemPrompt = await buildAdminSystemPromptAsync(platformContext, {
       locale: appLocale,
       userMessage: lastUserText,
     });
     const languageReminder = buildReplyLanguageReminder(replyLocale);
 
-    const userId = accessResult.user.id;
     const lastUser = messages.filter((m) => m.role === "user").pop();
     if (lastUser?.content) {
       await prisma.chatMessage.create({
-        data: { userId, role: "user", content: lastUser.content },
+        data: { userId: admin.id, role: "user", content: lastUser.content },
       });
-      await trimChatHistory(userId);
+      await trimChatHistory(admin.id);
     }
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -123,14 +111,8 @@ export async function POST(req: NextRequest) {
       temperature: 0.45,
       max_tokens: 900,
       messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "system",
-          content: languageReminder,
-        },
+        { role: "system", content: systemPrompt },
+        { role: "system", content: languageReminder },
         ...messages.slice(-6).map((m) => ({
           role: m.role,
           content: m.content,
@@ -154,11 +136,11 @@ export async function POST(req: NextRequest) {
         } catch (err) {
           controller.error(err);
         } finally {
-          if (userId && assistantFull.trim()) {
+          if (assistantFull.trim()) {
             await prisma.chatMessage.create({
-              data: { userId, role: "assistant", content: assistantFull },
+              data: { userId: admin.id, role: "assistant", content: assistantFull },
             });
-            await trimChatHistory(userId);
+            await trimChatHistory(admin.id);
           }
           controller.close();
         }
@@ -173,7 +155,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("Admin chat API error:", error);
     return new Response("Failed to generate response", { status: 500 });
   }
 }

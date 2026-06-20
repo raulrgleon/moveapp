@@ -1,5 +1,6 @@
 import { AdminGuard } from "@/components/auth/admin-guard";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminPilotPanel } from "@/components/admin/admin-pilot-panel";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">{children}</main>
         </div>
+        <AdminPilotPanel />
       </div>
     </AdminGuard>
   );

@@ -1468,6 +1468,11 @@ export const en = {
     testSmsTo: "Test phone number",
     testSmsHint: "Trial accounts can only text verified numbers in Twilio. Use E.164 format (+1…).",
     testSmsSent: "Test SMS sent",
+    pilotTitle: "Admin Pilot",
+    pilotSubtitle: "Platform-wide move intelligence",
+    pilotWelcome:
+      "I'm MovePilot AI for admins. I can see all customer accounts and help you support moves, spot risks, and answer operational questions.",
+    pilotPlaceholder: "Ask about a customer, move, or the platform…",
     partners: "Moving companies",
     partnersDesc: "Manage the partner directory shown to users on the moving companies page",
     partnersHint:

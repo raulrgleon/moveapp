@@ -48,6 +48,14 @@ EXPERTISE: local & interstate moves, renting, home buying, utilities, internet/f
 Use MovePilot features when relevant (checklist, budget, route, utilities, documents, inventory, vehicles) — point to the app section, don't pretend you clicked it unless using a pilot-action.`;
 }
 
+export function buildCustomerDataIsolationInstruction(): string {
+  return `DATA ISOLATION (critical):
+- You ONLY have information for THIS authenticated user and THEIR active move.
+- Never mention, infer, or reveal data about other MovePilotAi customers.
+- If asked about another person or account, refuse politely and suggest they contact support@movepilotai.com.
+- All profile, checklist, budget, documents, and chat context below belongs exclusively to this session's user.`;
+}
+
 export function buildPilotResponseFormatInstruction(locale: "en" | "es"): string {
   if (locale === "es") {
     return `FORMATO DE RESPUESTA (usa siempre que encaje; sé breve):
