@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Car, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { VehicleSelector } from "@/components/vehicles/vehicle-selector";
 import { useLocale, useT } from "@/contexts/locale-context";
@@ -37,9 +37,27 @@ export function VehicleListEditor({
 }: VehicleListEditorProps) {
   const t = useT();
   const { locale } = useLocale();
-  const [expandedId, setExpandedId] = useState<string | null>(
-    variant === "fleet" ? vehicles[0]?.id ?? null : null
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
+    variant === "fleet" ? new Set(vehicles.map((v) => v.id)) : new Set()
   );
+
+  // Expand all fleet vehicles once data loads (e.g. after hydration).
+  useEffect(() => {
+    if (variant !== "fleet" || vehicles.length === 0) return;
+    setExpandedIds((prev) => {
+      if (prev.size > 0) return prev;
+      return new Set(vehicles.map((v) => v.id));
+    });
+  }, [variant, vehicles]);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const updateAt = (index: number, vehicle: VehicleInfo) => {
     const next = [...vehicles];
@@ -51,16 +69,20 @@ export function VehicleListEditor({
     if (vehicles.length <= 1 && !allowEmpty) return;
     const removed = vehicles[index];
     onChange(vehicles.filter((_, i) => i !== index));
-    if (expandedId === removed.id) {
-      setExpandedId(vehicles[0]?.id ?? null);
-    }
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(removed.id);
+      return next;
+    });
   };
 
   const addVehicle = () => {
     if (vehicles.length >= MAX_VEHICLES) return;
     const next = createEmptyVehicle();
     onChange([...vehicles, next]);
-    if (variant === "fleet") setExpandedId(next.id);
+    if (variant === "fleet") {
+      setExpandedIds((prev) => new Set(prev).add(next.id));
+    }
   };
 
   if (variant === "stacked") {
@@ -148,7 +170,7 @@ export function VehicleListEditor({
   return (
     <div className="space-y-2">
       {vehicles.map((vehicle, index) => {
-        const isExpanded = expandedId === vehicle.id;
+        const isExpanded = expandedIds.has(vehicle.id);
         const summary = getVehicleSummaryLine(vehicle, locale);
 
         return (
@@ -162,7 +184,7 @@ export function VehicleListEditor({
             <button
               type="button"
               className="flex w-full items-center gap-3 p-4 text-left"
-              onClick={() => setExpandedId(isExpanded ? null : vehicle.id)}
+              onClick={() => toggleExpanded(vehicle.id)}
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Car className="h-5 w-5 text-primary" />
@@ -241,7 +263,7 @@ export function VehicleListEditor({
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() => setExpandedId(null)}
+                    onClick={() => toggleExpanded(vehicle.id)}
                   >
                     {t("vehicles.collapseVehicle")}
                   </Button>
