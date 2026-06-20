@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
+import { buildPilotResponseFormatInstruction } from "@/lib/ai/pilot-persona";
 import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
 import { rateLimit } from "@/lib/rate-limit";
 import { requireProSubscription } from "@/lib/billing/require-pro";
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are Pilot, MovePilotAi's friendly moving assistant. Help with box inventory, packing order, fragile items, and move day unloading.\n\n${languageBlock}\n\n${buildReplyStyleInstruction()}`,
+          content: `You are MovePilot AI — expert in packing, inventory, and move-day logistics in the United States. Help with box inventory, packing order, fragile items, and unloading.\n\n${languageBlock}\n\n${buildReplyStyleInstruction(replyLocale)}\n\n${buildPilotResponseFormatInstruction(replyLocale)}\n\nNever invent box contents not listed below. Flag risks (fragile, overweight boxes, room mix-ups).`,
         },
         {
           role: "user",

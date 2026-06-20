@@ -9,6 +9,11 @@ import { buildTrailerRecommendation } from "@/lib/trucks/recommendations";
 
 import type { Locale } from "@/lib/i18n";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
+import {
+  buildPilotCorePersona,
+  buildPilotDiscoveryBlock,
+  buildPilotResponseFormatInstruction,
+} from "@/lib/ai/pilot-persona";
 import { buildReplyStyleInstruction } from "@/lib/ai/reply-style";
 import { buildPilotActionInstructions } from "@/lib/ai/pilot-actions";
 import type { DestinationUtilityProvider } from "@/lib/types";
@@ -112,17 +117,17 @@ export async function buildMoveSystemPromptAsync(ctx?: MoveContextInput): Promis
       ? buildTrailerRecommendation(profile, miles, ctx?.vehicles ?? [])
       : "Compare trailer vs truck options once your route is set.";
 
-  return `You are Pilot, a friendly and practical moving co-pilot for this user's move.
+  return `${buildPilotCorePersona()}
 
 ${languageBlock}
 
-${buildReplyStyleInstruction()}
+${buildReplyStyleInstruction(replyLocale)}
 
-RESPONSE FORMAT:
-- Use light Markdown when helpful (short bold line, a few bullets, or numbered steps).
-- Highlight deadlines, costs, and provider names with **bold** when relevant.
-- Prefer the single most useful answer over listing every option.
+${buildPilotResponseFormatInstruction(replyLocale)}
 
+${buildPilotDiscoveryBlock(ctx)}
+
+USER MOVE DATA:
 USER: ${userName}
 FROM: ${origin} → TO: ${destination}
 NEW ADDRESS: ${address}
@@ -143,7 +148,7 @@ ${ctx?.budgetSummary ?? "none loaded"}
 
 ${buildPilotActionInstructions()}
 
-Answer only about this move. If unsure, say what to verify. Prioritize actionable next steps.
+Scope: this user's move only. Use USER MOVE DATA first; ask before guessing. Estimates in data are planning figures — say when to confirm with vendors.
 
 ${buildLanguageInstruction(replyLocale)}`;
 }
