@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Car, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { VehicleSelector } from "@/components/vehicles/vehicle-selector";
 import { useLocale, useT } from "@/contexts/locale-context";
@@ -37,18 +37,7 @@ export function VehicleListEditor({
 }: VehicleListEditorProps) {
   const t = useT();
   const { locale } = useLocale();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
-    variant === "fleet" ? new Set(vehicles.map((v) => v.id)) : new Set()
-  );
-
-  // Expand all fleet vehicles once data loads (e.g. after hydration).
-  useEffect(() => {
-    if (variant !== "fleet" || vehicles.length === 0) return;
-    setExpandedIds((prev) => {
-      if (prev.size > 0) return prev;
-      return new Set(vehicles.map((v) => v.id));
-    });
-  }, [variant, vehicles]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -80,9 +69,6 @@ export function VehicleListEditor({
     if (vehicles.length >= MAX_VEHICLES) return;
     const next = createEmptyVehicle();
     onChange([...vehicles, next]);
-    if (variant === "fleet") {
-      setExpandedIds((prev) => new Set(prev).add(next.id));
-    }
   };
 
   if (variant === "stacked") {
