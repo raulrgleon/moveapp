@@ -25,6 +25,9 @@ function parseApiError(
   if (json.errorKey === "verificationResendCooldown" && json.waitSec) {
     return t("auth.verifyEmailResendWait", { seconds: json.waitSec });
   }
+  if (json.errorKey === "verificationRateLimit") {
+    return t("apiErrors.verificationRateLimit");
+  }
   const keyMap: Record<string, string> = {
     userExists: "apiErrors.userExists",
     verificationCodeInvalid: "apiErrors.verificationCodeInvalid",

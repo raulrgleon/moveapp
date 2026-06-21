@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { resolveTrialEndsAt } from "@/lib/billing/plan";
-import { buildDefaultMoveData } from "@/lib/db/move-service";
 import { sendWelcomeEmail } from "@/lib/notifications/email";
 import type { User } from "@prisma/client";
 
@@ -53,7 +52,6 @@ export async function findOrCreateOAuthUser(input: {
       role: "user",
       planTier: "trial",
       trialEndsAt,
-      moves: { create: await buildDefaultMoveData() },
     },
   });
 

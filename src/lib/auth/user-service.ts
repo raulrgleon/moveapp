@@ -1,7 +1,9 @@
 import { resolveTrialEndsAt } from "@/lib/billing/plan";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { resolveSessionMoveId } from "@/lib/db/move-access";
 import { buildMoveDataFromProfile, buildDefaultMoveData } from "@/lib/db/move-service";
+import { validatePhoneForSave } from "@/lib/phone/normalize";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 
@@ -65,21 +67,8 @@ export async function authenticateUser(
     return { user: sessionUser, moveId: null };
   }
 
-  let move = await prisma.move.findFirst({
-    where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
-  });
-
-  if (!move) {
-    move = await prisma.move.create({
-      data: {
-        userId: user.id,
-        ...(await buildDefaultMoveData()),
-      },
-    });
-  }
-
-  return { user: sessionUser, moveId: move.id };
+  const moveId = await resolveSessionMoveId(user.id);
+  return { user: sessionUser, moveId };
 }
 
 export async function registerUserWithPassword(
@@ -90,7 +79,8 @@ export async function registerUserWithPassword(
   username?: string | null,
   profile?: MoveProfile,
   vehicles: VehicleInfo[] = [],
-  locale: "en" | "es" = "en"
+  locale: "en" | "es" = "en",
+  phone?: string | null
 ): Promise<AuthSessionUser> {
   const normalizedEmail = normalizeIdentifier(email);
   if (!normalizedEmail.includes("@")) {
@@ -118,6 +108,7 @@ export async function registerUserWithPassword(
       passwordHash,
       role,
       locale,
+      phone: phone?.trim() || null,
       planTier: "trial",
       trialEndsAt,
       moves:
@@ -145,7 +136,8 @@ export async function registerUserWithoutMove(
   email: string,
   name: string,
   password: string,
-  locale: "en" | "es" = "en"
+  locale: "en" | "es" = "en",
+  phone?: string | null
 ): Promise<AuthSessionUser> {
   const normalizedEmail = normalizeIdentifier(email);
   if (!normalizedEmail.includes("@")) {
@@ -165,6 +157,7 @@ export async function registerUserWithoutMove(
       passwordHash,
       role: "user",
       locale,
+      phone: phone?.trim() || null,
       planTier: "trial",
       trialEndsAt,
     },
@@ -182,15 +175,7 @@ export async function registerUserWithoutMove(
 export async function listAllUsers() {
   return prisma.user.findMany({
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      name: true,
-      role: true,
-      createdAt: true,
-      _count: { select: { moves: true } },
-    },
+    select: userSelect,
   });
 }
 
@@ -211,6 +196,7 @@ export interface AdminUserUpdate {
   role?: UserRole;
   password?: string;
   suspended?: boolean;
+  phone?: string | null;
 }
 
 const userSelect = {
@@ -219,6 +205,7 @@ const userSelect = {
   username: true,
   name: true,
   role: true,
+  phone: true,
   suspendedAt: true,
   createdAt: true,
   _count: { select: { moves: true, sessions: true } },
@@ -264,6 +251,7 @@ export async function updateUserByAdmin(
     role?: string;
     passwordHash?: string;
     suspendedAt?: Date | null;
+    phone?: string | null;
   } = {};
 
   if (data.name !== undefined) updateData.name = data.name.trim() || target.name;
@@ -277,6 +265,22 @@ export async function updateUserByAdmin(
   }
   if (data.suspended !== undefined) {
     updateData.suspendedAt = data.suspended ? new Date() : null;
+  }
+  if (data.phone !== undefined) {
+    const raw = (data.phone ?? "").trim();
+    if (!raw) {
+      updateData.phone = null;
+    } else {
+      const validated = validatePhoneForSave(raw);
+      if (!validated.ok) {
+        throw new Error(
+          validated.reason === "invalid"
+            ? "Invalid phone number. Use international format, e.g. +15551234567"
+            : "Phone number required"
+        );
+      }
+      updateData.phone = validated.phone;
+    }
   }
 
   return prisma.user.update({

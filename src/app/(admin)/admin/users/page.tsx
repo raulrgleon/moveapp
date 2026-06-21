@@ -51,6 +51,8 @@ import {
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
 import { invalidateUserData } from "@/lib/data-cache";
+import { PhoneInputField } from "@/components/auth/phone-input-field";
+import { validatePhoneForSave } from "@/lib/phone/normalize";
 
 interface AdminUserRow {
   id: string;
@@ -58,6 +60,7 @@ interface AdminUserRow {
   username: string | null;
   name: string;
   role: string;
+  phone: string | null;
   createdAt: string;
   suspendedAt: string | null;
   _count: { moves: number; sessions: number };
@@ -82,6 +85,7 @@ function AdminUsersPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editUsername, setEditUsername] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState<"user" | "admin">("user");
 
   const [resetUser, setResetUser] = useState<AdminUserRow | null>(null);
@@ -137,6 +141,7 @@ function AdminUsersPage() {
     setEditName(user.name);
     setEditEmail(user.email);
     setEditUsername(user.username ?? "");
+    setEditPhone(user.phone ?? "");
     setEditRole(user.role === "admin" ? "admin" : "user");
     setError("");
   }
@@ -145,6 +150,14 @@ function AdminUsersPage() {
     if (!editUser) return;
     setSaving(true);
     setError("");
+    if (editPhone.trim()) {
+      const validated = validatePhoneForSave(editPhone);
+      if (!validated.ok) {
+        setError(t("auth.phoneInvalid"));
+        setSaving(false);
+        return;
+      }
+    }
     try {
       await apiFetch(`/api/admin/users/${editUser.id}`, {
         method: "PATCH",
@@ -153,6 +166,7 @@ function AdminUsersPage() {
           email: editEmail,
           username: editUsername || null,
           role: editRole,
+          phone: editPhone.trim() || null,
         }),
       });
       setEditUser(null);
@@ -506,6 +520,12 @@ function AdminUsersPage() {
                 placeholder={t("admin.usernameOptional")}
               />
             </div>
+            <PhoneInputField
+              id="edit-user-phone"
+              value={editPhone}
+              onChange={setEditPhone}
+              required={false}
+            />
             <div className="space-y-2">
               <Label>{t("admin.role")}</Label>
               <Select

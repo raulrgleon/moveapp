@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       planTier: true,
       trialEndsAt: true,
       planPaidAt: true,
+      stripeCustomerId: true,
       passwordHash: true,
     },
   });
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
       locale: publicUser.locale ?? "en",
       trialEndsAt: trialEndsAt?.toISOString() ?? null,
       planPaidAt: publicUser.planPaidAt?.toISOString() ?? null,
+      stripeCustomerId: publicUser.stripeCustomerId ?? null,
       createdAt: publicUser.createdAt.toISOString(),
     },
     impersonatedBy: session.impersonatedBy ?? null,

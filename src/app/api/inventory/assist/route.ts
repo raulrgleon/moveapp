@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OpenAI not configured" }, { status: 500 });
   }
 
-  const limit = rateLimit(`inventory-assist:${result.user.id}`, 30, 3_600_000);
+  const limit = await rateLimit(`inventory-assist:${result.user.id}`, 30, 3_600_000);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },

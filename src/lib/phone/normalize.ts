@@ -20,3 +20,15 @@ export function normalizePhoneInput(input: string): string | null {
 export function isValidE164Phone(phone: string): boolean {
   return /^\+[1-9]\d{7,14}$/.test(phone);
 }
+
+export function validatePhoneForSave(
+  raw: string
+): { ok: true; phone: string } | { ok: false; reason: "empty" | "invalid" } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: false, reason: "empty" };
+  const normalized = normalizePhoneInput(trimmed);
+  if (!normalized || !isValidE164Phone(normalized)) {
+    return { ok: false, reason: "invalid" };
+  }
+  return { ok: true, phone: normalized };
+}

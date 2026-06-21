@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, Crown, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 import { useT } from "@/contexts/locale-context";
 import { usePlan } from "@/hooks/use-plan";
 import { PRO_PRICE_USD } from "@/lib/billing/plan";
@@ -23,6 +24,7 @@ const PRO_PERKS = [
 export function PlanSettingsCard() {
   const t = useT();
   const plan = usePlan();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,18 +114,20 @@ export function PlanSettingsCard() {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{t("upgrade.proActiveDesc")}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void handlePortal()}
-              disabled={portalLoading}
-            >
-              {portalLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                t("upgrade.manageBilling")
-              )}
-            </Button>
+            {user?.stripeCustomerId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handlePortal()}
+                disabled={portalLoading}
+              >
+                {portalLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t("upgrade.viewReceipts")
+                )}
+              </Button>
+            ) : null}
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
         )}

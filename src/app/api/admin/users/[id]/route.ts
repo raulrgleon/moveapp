@@ -21,6 +21,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       role?: UserRole;
       password?: string;
       suspended?: boolean;
+      phone?: string | null;
     };
 
     const user = await updateUserByAdmin(params.id, body, admin.id);
@@ -34,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
         role: body.role,
         suspended: body.suspended,
         email: body.email,
+        phone: body.phone !== undefined,
       },
       ipAddress: getClientIp(req),
     });

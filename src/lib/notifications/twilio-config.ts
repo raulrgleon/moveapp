@@ -147,3 +147,41 @@ export async function verifyTwilioConnection(): Promise<TwilioSendResult> {
 
   return { ok: true };
 }
+
+export async function getTwilioAccountMeta(): Promise<{
+  ok: boolean;
+  accountType?: string;
+  status?: string;
+  error?: string;
+}> {
+  const creds = getTwilioCredentials();
+  if (!creds) {
+    return { ok: false, error: "Twilio not configured" };
+  }
+
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}.json`,
+    {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${creds.username}:${creds.password}`).toString("base64")}`,
+      },
+      next: { revalidate: 300 },
+    }
+  );
+
+  const text = await res.text();
+  if (!res.ok) {
+    return { ok: false, error: text };
+  }
+
+  try {
+    const parsed = JSON.parse(text) as { type?: string; status?: string };
+    return { ok: true, accountType: parsed.type, status: parsed.status };
+  } catch {
+    return { ok: true };
+  }
+}
+
+export function isTwilioTrialAccount(accountType?: string | null): boolean {
+  return accountType?.toLowerCase() === "trial";
+}

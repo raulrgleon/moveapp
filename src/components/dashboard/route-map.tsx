@@ -281,8 +281,7 @@ export function RouteMap({
     destination.lat,
     destination.lon,
     showNewHome,
-    homePoint?.lat,
-    homePoint?.lon,
+    homePoint,
     prefersTouch,
   ]);
 
@@ -298,7 +297,7 @@ export function RouteMap({
         `<strong>${escapeHtml(t("routePage.newHome"))}</strong><br>${escapeHtml(homePoint.label)}`
       );
     }
-  }, [mapReady, origin.label, destination.label, homePoint?.label, t]);
+  }, [mapReady, origin.label, destination.label, homePoint, t]);
 
   // Resize and refit when container or cinematic mode changes
   useEffect(() => {

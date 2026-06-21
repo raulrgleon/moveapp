@@ -294,27 +294,17 @@ export function useRouteStats() {
     return () => {
       cancelled = true;
     };
-  }, [
-    isHydrated,
-    routeQueryKey,
-    profile.origin,
-    profile.destination,
-    profile.originLat,
-    profile.originLon,
-    profile.pets,
-    profile.rentalPreference,
-    destLat,
-    destLon,
-    vehicleFingerprint,
-    profileVersion,
-  ]);
+  }, [isHydrated, routeQueryKey, destLat, destLon, profileVersion, profile]);
 
   const selectedAlternative = useMemo(
     () => pickAlternative(baseStats?.alternatives ?? [], routeIndex),
     [baseStats?.alternatives, routeIndex]
   );
 
-  const stops = stopsByIndex[routeIndex] ?? stopsByIndex[0] ?? [];
+  const stops = useMemo(
+    () => stopsByIndex[routeIndex] ?? stopsByIndex[0] ?? [],
+    [stopsByIndex, routeIndex]
+  );
 
   const stats: RouteStatsResponse | null = useMemo(() => {
     if (!baseStats || !selectedAlternative) return null;

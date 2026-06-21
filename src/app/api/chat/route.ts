@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-real-ip") ??
     "unknown";
 
-  const limit = rateLimit(`chat:${ip}`, 30, 60_000);
+  const limit = await rateLimit(`chat:${ip}`, 30, 60_000);
   if (!limit.ok) {
     return new Response("Too many requests. Please try again later.", {
       status: 429,

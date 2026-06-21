@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveMoveAccess } from "@/lib/db/move-access";
 import { sendTaskReminderEmail } from "@/lib/notifications/email";
 import { sendTaskReminderSms } from "@/lib/notifications/sms";
 import { isValidE164Phone, normalizePhoneInput } from "@/lib/phone/normalize";
@@ -10,29 +11,40 @@ export async function processDueReminders() {
 
   const users = await prisma.user.findMany({
     where: {
+      suspendedAt: null,
       OR: [{ emailReminders: true }, { smsReminders: true }],
       role: { not: "admin" },
     },
-    include: {
-      moves: {
-        take: 1,
-        orderBy: { updatedAt: "desc" },
-        include: {
-          checklistTasks: {
-            where: {
-              status: { not: "completed" },
-              dueDate: { gte: now, lte: inThreeDays },
-            },
-          },
-        },
-      },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      phone: true,
+      locale: true,
+      emailReminders: true,
+      smsReminders: true,
     },
   });
 
   let sent = 0;
 
   for (const user of users) {
-    const tasks = user.moves[0]?.checklistTasks ?? [];
+    const access = await resolveMoveAccess(user.id);
+    if (!access) continue;
+
+    const move = await prisma.move.findUnique({
+      where: { id: access.moveId },
+      include: {
+        checklistTasks: {
+          where: {
+            status: { not: "completed" },
+            dueDate: { gte: now, lte: inThreeDays },
+          },
+        },
+      },
+    });
+
+    const tasks = move?.checklistTasks ?? [];
     if (tasks.length === 0) continue;
 
     const taskPayload = tasks.map((t) => ({

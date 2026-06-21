@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
+import { AppGuideDocumentationCard } from "@/components/admin/app-guide-documentation-card";
 
 type NotificationStatus = {
   ready: boolean;
@@ -76,7 +77,9 @@ export default function AdminMaintenancePage() {
         title={t("adminConsole.maintenance")}
         description={t("adminConsole.maintenanceDesc")}
       />
-      <AdminPageContainer className="max-w-2xl space-y-6">
+      <AdminPageContainer className="max-w-3xl space-y-6">
+        <AppGuideDocumentationCard />
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("adminConsole.maintenance")}</CardTitle>

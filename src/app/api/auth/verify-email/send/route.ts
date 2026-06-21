@@ -5,12 +5,26 @@ import {
   isValidSignupEmail,
   normalizeSignupEmail,
 } from "@/lib/auth/email-verification";
+import { getClientIp } from "@/lib/admin/audit-log";
 import { jsonError, resolveRequestLocale } from "@/lib/api-errors";
+import { rateLimit } from "@/lib/rate-limit";
 import { sendEmailVerificationCode } from "@/lib/notifications/email";
 
 export async function POST(req: NextRequest) {
   const locale = resolveRequestLocale(req);
   try {
+    const ip = getClientIp(req) ?? "unknown";
+    const ipLimit = await rateLimit(`verify-email:ip:${ip}`, 10, 60 * 60 * 1000);
+    if (!ipLimit.ok) {
+      return NextResponse.json(
+        {
+          errorKey: "verificationRateLimit",
+          retryAfterSec: ipLimit.retryAfterSec ?? 3600,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = (await req.json()) as { email?: string; locale?: "en" | "es" };
     const email = body.email?.trim();
     if (!email) {

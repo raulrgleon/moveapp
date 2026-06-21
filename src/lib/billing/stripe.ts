@@ -44,3 +44,36 @@ export async function activateProForUser(
     },
   });
 }
+
+export async function deactivateProForUser(userId: string): Promise<void> {
+  const { prisma } = await import("@/lib/prisma");
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { createdAt: true, trialEndsAt: true },
+  });
+  if (!user) return;
+
+  const { resolveTrialEndsAt } = await import("@/lib/billing/plan");
+  const trialEndsAt = resolveTrialEndsAt({
+    createdAt: user.createdAt,
+    trialEndsAt: user.trialEndsAt,
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      planTier: "trial",
+      planPaidAt: null,
+      trialEndsAt,
+    },
+  });
+}
+
+export async function findUserIdByStripeCustomer(customerId: string): Promise<string | null> {
+  const { prisma } = await import("@/lib/prisma");
+  const user = await prisma.user.findFirst({
+    where: { stripeCustomerId: customerId },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}

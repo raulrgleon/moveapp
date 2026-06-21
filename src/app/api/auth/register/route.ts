@@ -11,6 +11,7 @@ import {
 import { jsonError, resolveRequestLocale } from "@/lib/api-errors";
 import { sendWelcomeEmail } from "@/lib/notifications/email";
 import { consumeRegisterToken, emailAlreadyRegistered, normalizeSignupEmail } from "@/lib/auth/email-verification";
+import { validatePhoneForSave } from "@/lib/phone/normalize";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import type { Locale } from "@/lib/i18n";
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       isAddressConfirmed?: boolean;
       inviteToken?: string;
       registerToken?: string;
+      phone?: string;
     };
 
     const email = body.email?.trim();
@@ -45,6 +47,15 @@ export async function POST(req: NextRequest) {
 
     if (!email || !password || password.length < 6) {
       return jsonError("passwordTooShort", 400, userLocale);
+    }
+
+    const phoneValidation = validatePhoneForSave(body.phone ?? "");
+    if (!phoneValidation.ok) {
+      return jsonError(
+        phoneValidation.reason === "empty" ? "phoneRequired" : "phoneInvalid",
+        400,
+        userLocale
+      );
     }
 
     const normalizedEmail = normalizeSignupEmail(email);
@@ -63,7 +74,13 @@ export async function POST(req: NextRequest) {
     }
 
     const user = inviteToken
-      ? await registerUserWithoutMove(normalizedEmail, name, password, userLocale)
+      ? await registerUserWithoutMove(
+          normalizedEmail,
+          name,
+          password,
+          userLocale,
+          phoneValidation.phone
+        )
       : await registerUserWithPassword(
           normalizedEmail,
           name,
@@ -72,7 +89,8 @@ export async function POST(req: NextRequest) {
           null,
           body.profile,
           completeVehicles(body.vehicles),
-          userLocale
+          userLocale,
+          phoneValidation.phone
         );
 
     if (!inviteToken && (body.destinationAddress || body.isAddressConfirmed)) {

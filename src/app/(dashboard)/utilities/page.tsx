@@ -348,10 +348,8 @@ export default function UtilitiesPage() {
                   onContract={
                     canEdit
                       ? async (p) => {
-                          await fetch("/api/utilities/contract", {
+                          await apiFetch("/api/utilities/contract", {
                             method: "POST",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                               providerName: p.name,
                               category: p.categoryLabel,

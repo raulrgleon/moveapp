@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { activateProForUser, getStripe, getStripeWebhookSecret } from "@/lib/billing/stripe";
+import {
+  activateProForUser,
+  deactivateProForUser,
+  findUserIdByStripeCustomer,
+  getStripe,
+  getStripeWebhookSecret,
+} from "@/lib/billing/stripe";
 
 export const runtime = "nodejs";
 
@@ -18,6 +24,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       ? session.customer
       : session.customer?.id ?? null;
   await activateProForUser(userId, customerId);
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  if (!charge.refunded) return;
+
+  const customerId =
+    typeof charge.customer === "string" ? charge.customer : charge.customer?.id ?? null;
+  if (!customerId) return;
+
+  const userId = await findUserIdByStripeCustomer(customerId);
+  if (!userId) return;
+
+  await deactivateProForUser(userId);
 }
 
 export async function POST(req: NextRequest) {
@@ -50,6 +69,9 @@ export async function POST(req: NextRequest) {
         break;
       case "checkout.session.async_payment_succeeded":
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+      case "charge.refunded":
+        await handleChargeRefunded(event.data.object as Stripe.Charge);
         break;
       default:
         break;

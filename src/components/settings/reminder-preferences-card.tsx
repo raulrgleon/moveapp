@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
+import { validatePhoneForSave } from "@/lib/phone/normalize";
+import { PhoneInputField } from "@/components/auth/phone-input-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export function ReminderPreferencesCard() {
   const [smsReminders, setSmsReminders] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -29,6 +31,17 @@ export function ReminderPreferencesCard() {
 
   const save = async () => {
     setSaving(true);
+    setError("");
+    if (smsReminders) {
+      const validated = validatePhoneForSave(phone);
+      if (!validated.ok) {
+        setError(
+          validated.reason === "empty" ? t("auth.phoneRequired") : t("auth.phoneInvalid")
+        );
+        setSaving(false);
+        return;
+      }
+    }
     try {
       await apiFetch("/api/user/preferences", {
         method: "PATCH",
@@ -49,6 +62,7 @@ export function ReminderPreferencesCard() {
         <CardDescription>{t("settings.notificationsDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <PhoneInputField id="settings-phone" value={phone} onChange={setPhone} required={false} />
         <div className="flex items-center space-x-2">
           <Checkbox
             id="emailReminders"
@@ -71,19 +85,7 @@ export function ReminderPreferencesCard() {
             <p className="text-xs text-muted-foreground">{t("settings.smsRemindersDesc")}</p>
           </div>
         </div>
-        {smsReminders && (
-          <div className="space-y-2">
-            <Label htmlFor="phone">{t("settings.phone")}</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="+1 555 123 4567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">{t("settings.phoneHint")}</p>
-          </div>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {saved && <p className="text-sm text-emerald-600">{t("common.saved")}</p>}
         <Button onClick={save} disabled={saving}>
           {saving ? t("common.saving") : t("settings.saveNotifications")}

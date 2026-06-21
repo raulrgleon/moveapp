@@ -6,6 +6,7 @@ import { MoveSetupGuard } from "@/components/auth/move-setup-guard";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { SystemAnnouncementBanner } from "@/components/layout/system-announcement-banner";
 import { FirstRunWelcome } from "@/components/dashboard/first-run-welcome";
+import { PhoneCapturePrompt } from "@/components/auth/phone-capture-prompt";
 
 export default function DashboardLayout({
   children,
@@ -31,6 +32,7 @@ export default function DashboardLayout({
           </div>
         </div>
         <FirstRunWelcome />
+        <PhoneCapturePrompt />
       </div>
       </MoveSetupGuard>
     </DashboardAuthGuard>

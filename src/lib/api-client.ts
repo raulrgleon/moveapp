@@ -18,6 +18,31 @@ function parseApiError(text: string, status: number): Error {
 
 export { redirectToUpgrade };
 
+export async function showPaywallFromResponse(res: Response): Promise<boolean> {
+  if (!isUpgradeRequiredResponse(res)) return false;
+  let trialExpired = false;
+  let trialDaysLeft = 0;
+  try {
+    const json = (await res.clone().json()) as {
+      trialExpired?: boolean;
+      trialDaysLeft?: number;
+    };
+    trialExpired = Boolean(json.trialExpired);
+    trialDaysLeft = json.trialDaysLeft ?? 0;
+  } catch {
+    /* body may be empty */
+  }
+  showPaywallModal({
+    trialExpired,
+    trialDaysLeft,
+    returnTo:
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : undefined,
+  });
+  return true;
+}
+
 export function isUpgradeRequiredResponse(res: Response): boolean {
   return res.status === 402;
 }

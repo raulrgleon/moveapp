@@ -27,6 +27,7 @@ export interface AuthUser {
   planTier?: string;
   trialEndsAt?: string | null;
   planPaidAt?: string | null;
+  stripeCustomerId?: string | null;
   hasPassword?: boolean;
 }
 
@@ -50,6 +51,7 @@ interface AuthContextValue {
     isAddressConfirmed?: boolean;
     inviteToken?: string;
     registerToken?: string;
+    phone?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -126,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAddressConfirmed?: boolean;
       inviteToken?: string;
       registerToken?: string;
+      phone?: string;
     }) => {
       const res = await fetch("/api/auth/register", {
         method: "POST",

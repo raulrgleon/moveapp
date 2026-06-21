@@ -34,6 +34,39 @@ async function sendHtmlEmail(to: string, subject: string, html: string) {
   return { ok: res.ok };
 }
 
+export async function sendAdminCampaignEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log(`[email] ${subject} → ${to}`);
+    return { ok: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromAddress(),
+      to: [to],
+      subject,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    return { ok: false, error: text || `HTTP ${res.status}` };
+  }
+
+  return { ok: true };
+}
+
 export async function sendWelcomeEmail(
   to: string,
   name: string,

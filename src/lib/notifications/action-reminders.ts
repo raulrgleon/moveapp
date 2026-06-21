@@ -1,21 +1,20 @@
 import { prisma } from "@/lib/prisma";
+import { resolveMoveAccess } from "@/lib/db/move-access";
 import { sendActionReminderEmail } from "@/lib/notifications/email";
 
 export async function processActionReminders() {
   const now = new Date();
   const users = await prisma.user.findMany({
-    where: { emailReminders: true, role: { not: "admin" } },
-    include: {
-      moves: {
-        take: 1,
-        orderBy: { updatedAt: "desc" },
-        include: {
-          checklistTasks: {
-            where: { status: { not: "completed" }, priority: "high" },
-            take: 5,
-          },
-        },
-      },
+    where: {
+      suspendedAt: null,
+      emailReminders: true,
+      role: { not: "admin" },
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      locale: true,
     },
   });
 
@@ -23,7 +22,18 @@ export async function processActionReminders() {
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   for (const user of users) {
-    const move = user.moves[0];
+    const access = await resolveMoveAccess(user.id);
+    if (!access) continue;
+
+    const move = await prisma.move.findUnique({
+      where: { id: access.moveId },
+      include: {
+        checklistTasks: {
+          where: { status: { not: "completed" }, priority: "high" },
+          take: 5,
+        },
+      },
+    });
     if (!move) continue;
 
     const locale = user.locale === "es" ? "es" : "en";

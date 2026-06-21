@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildDefaultMoveData } from "@/lib/db/move-service";
 
 export type MoveAccessRole = "owner" | "editor" | "viewer";
 
@@ -29,6 +30,89 @@ async function loadMoveWithRelations(moveId: string) {
   });
 }
 
+/** Empty default move created at signup before onboarding completes. */
+export function isShellMove(move: {
+  origin?: string | null;
+  destination?: string | null;
+  destinationAddress?: string | null;
+}): boolean {
+  const hasOrigin = Boolean(move.origin?.trim());
+  const hasDestination = Boolean(
+    move.destination?.trim() || move.destinationAddress?.trim()
+  );
+  return !hasOrigin && !hasDestination;
+}
+
+async function latestCollaboration(userId: string) {
+  return prisma.moveCollaborator.findFirst({
+    where: { userId, acceptedAt: { not: null } },
+    orderBy: { acceptedAt: "desc" },
+    include: { move: { include: { user: { select: { name: true } } } } },
+  });
+}
+
+async function latestOwnedMove(userId: string) {
+  return prisma.move.findFirst({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    include: { user: { select: { name: true } } },
+  });
+}
+
+function collabToAccess(collab: NonNullable<Awaited<ReturnType<typeof latestCollaboration>>>): MoveAccess {
+  return {
+    moveId: collab.moveId,
+    role: (collab.role === "viewer" ? "viewer" : "editor") as MoveAccessRole,
+    ownerUserId: collab.move.userId,
+    ownerName: collab.move.user.name,
+  };
+}
+
+async function persistActiveMove(userId: string, moveId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeMoveId: moveId },
+  });
+}
+
+/**
+ * Resolves the move id for login/session bootstrap.
+ * Collaborators with only a shell owned move use the shared move instead.
+ */
+export async function resolveSessionMoveId(userId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+
+  if (user.activeMoveId) {
+    const access = await accessForMoveId(userId, user.activeMoveId);
+    if (access) return access.moveId;
+  }
+
+  const owned = await latestOwnedMove(userId);
+  const collab = await latestCollaboration(userId);
+
+  if (collab && (!owned || isShellMove(owned))) {
+    await persistActiveMove(userId, collab.moveId);
+    return collab.moveId;
+  }
+
+  if (owned) return owned.id;
+
+  if (collab) {
+    await persistActiveMove(userId, collab.moveId);
+    return collab.moveId;
+  }
+
+  const newMove = await prisma.move.create({
+    data: {
+      userId,
+      ...(await buildDefaultMoveData()),
+    },
+  });
+  await persistActiveMove(userId, newMove.id);
+  return newMove.id;
+}
+
 export async function resolveMoveAccess(userId: string): Promise<MoveAccess | null> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;
@@ -38,12 +122,10 @@ export async function resolveMoveAccess(userId: string): Promise<MoveAccess | nu
     if (access) return access;
   }
 
-  const owned = await prisma.move.findFirst({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    include: { user: { select: { name: true } } },
-  });
-  if (owned) {
+  const owned = await latestOwnedMove(userId);
+  const collab = await latestCollaboration(userId);
+
+  if (owned && !(collab && isShellMove(owned))) {
     return {
       moveId: owned.id,
       role: "owner",
@@ -52,17 +134,17 @@ export async function resolveMoveAccess(userId: string): Promise<MoveAccess | nu
     };
   }
 
-  const collab = await prisma.moveCollaborator.findFirst({
-    where: { userId, acceptedAt: { not: null } },
-    orderBy: { acceptedAt: "desc" },
-    include: { move: { include: { user: { select: { name: true } } } } },
-  });
   if (collab) {
+    await persistActiveMove(userId, collab.moveId);
+    return collabToAccess(collab);
+  }
+
+  if (owned) {
     return {
-      moveId: collab.moveId,
-      role: (collab.role === "viewer" ? "viewer" : "editor") as MoveAccessRole,
-      ownerUserId: collab.move.userId,
-      ownerName: collab.move.user.name,
+      moveId: owned.id,
+      role: "owner",
+      ownerUserId: userId,
+      ownerName: owned.user.name,
     };
   }
 
@@ -88,12 +170,7 @@ async function accessForMoveId(userId: string, moveId: string): Promise<MoveAcce
     include: { move: { include: { user: { select: { name: true } } } } },
   });
   if (collab) {
-    return {
-      moveId: collab.moveId,
-      role: (collab.role === "viewer" ? "viewer" : "editor") as MoveAccessRole,
-      ownerUserId: collab.move.userId,
-      ownerName: collab.move.user.name,
-    };
+    return collabToAccess(collab);
   }
 
   return null;
@@ -102,10 +179,7 @@ async function accessForMoveId(userId: string, moveId: string): Promise<MoveAcce
 export async function setActiveMove(userId: string, moveId: string) {
   const access = await accessForMoveId(userId, moveId);
   if (!access) throw new Error("No access to move");
-  await prisma.user.update({
-    where: { id: userId },
-    data: { activeMoveId: moveId },
-  });
+  await persistActiveMove(userId, moveId);
   return access;
 }
 

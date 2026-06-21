@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EmailVerificationFields } from "@/components/auth/email-verification-fields";
+import { PhoneInputField } from "@/components/auth/phone-input-field";
+import { validatePhoneForSave } from "@/lib/phone/normalize";
 import { AuthBrandPanel } from "@/components/brand/auth-brand-panel";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/layout/logo";
@@ -30,6 +32,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,6 +68,13 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       setError(t("auth.verifyEmailRequired"));
       return;
     }
+    const phoneValidation = validatePhoneForSave(phone);
+    if (!phoneValidation.ok) {
+      setError(
+        phoneValidation.reason === "empty" ? t("auth.phoneRequired") : t("auth.phoneInvalid")
+      );
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -74,6 +84,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
         name: name.trim() || info.email.split("@")[0],
         inviteToken: params.token,
         registerToken,
+        phone: phoneValidation.phone,
       });
       router.push("/dashboard");
     } catch (err) {
@@ -145,6 +156,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
                         required
                       />
                     </div>
+                    <PhoneInputField id="join-phone" value={phone} onChange={setPhone} />
                     {error && <p className="text-sm text-destructive">{error}</p>}
                     <Button className="w-full h-11" type="submit" disabled={submitting}>
                       {submitting ? t("auth.signingIn") : t("collaboration.joinCta")}

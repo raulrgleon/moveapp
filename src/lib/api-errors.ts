@@ -27,7 +27,10 @@ export type ApiErrorKey =
   | "ownerOnly"
   | "taskNotFound"
   | "idRequired"
-  | "emailConfirmMismatch";
+  | "emailConfirmMismatch"
+  | "phoneRequired"
+  | "phoneInvalid"
+  | "verificationRateLimit";
 
 const ERROR_KEYS: Record<ApiErrorKey, string> = {
   unauthorized: "apiErrors.unauthorized",
@@ -56,6 +59,9 @@ const ERROR_KEYS: Record<ApiErrorKey, string> = {
   taskNotFound: "apiErrors.taskNotFound",
   idRequired: "apiErrors.idRequired",
   emailConfirmMismatch: "apiErrors.emailConfirmMismatch",
+  phoneRequired: "apiErrors.phoneRequired",
+  phoneInvalid: "apiErrors.phoneInvalid",
+  verificationRateLimit: "apiErrors.verificationRateLimit",
 };
 
 export function apiErrorMessage(key: ApiErrorKey, locale: Locale = "en"): string {

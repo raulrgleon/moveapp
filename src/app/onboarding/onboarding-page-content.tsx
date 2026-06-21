@@ -36,6 +36,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { EmailVerificationFields } from "@/components/auth/email-verification-fields";
+import { PhoneInputField } from "@/components/auth/phone-input-field";
+import { validatePhoneForSave } from "@/lib/phone/normalize";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -86,6 +88,7 @@ export function OnboardingPageContent() {
   const [accountName, setAccountName] = useState(profile.name);
   const [accountEmail, setAccountEmail] = useState(profile.email);
   const [accountPassword, setAccountPassword] = useState("");
+  const [accountPhone, setAccountPhone] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [emailRegisterToken, setEmailRegisterToken] = useState<string | null>(null);
@@ -231,6 +234,13 @@ export function OnboardingPageContent() {
       setAccountError(t("legal.acceptTermsRequired"));
       return;
     }
+    const phoneValidation = validatePhoneForSave(accountPhone);
+    if (!phoneValidation.ok) {
+      setAccountError(
+        phoneValidation.reason === "empty" ? t("auth.phoneRequired") : t("auth.phoneInvalid")
+      );
+      return;
+    }
     setSubmitting(true);
     setAccountError("");
     try {
@@ -255,6 +265,7 @@ export function OnboardingPageContent() {
         destinationLon: profile.destinationLon,
         isAddressConfirmed,
         registerToken: emailRegisterToken,
+        phone: phoneValidation.phone,
       });
       sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
@@ -266,10 +277,23 @@ export function OnboardingPageContent() {
   };
 
   const handleFinishSetup = async () => {
+    const phoneValidation = validatePhoneForSave(accountPhone);
+    if (!phoneValidation.ok) {
+      setAccountError(
+        phoneValidation.reason === "empty" ? t("auth.phoneRequired") : t("auth.phoneInvalid")
+      );
+      return;
+    }
     setSubmitting(true);
     setAccountError("");
     try {
       await saveStepData(true);
+      await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: phoneValidation.phone }),
+      });
       setVehicles(onboardingVehicles.filter((v) => v.make?.trim() && v.model?.trim()));
       sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
@@ -603,6 +627,13 @@ export function OnboardingPageContent() {
                     <p className="text-muted-foreground">{t("onboarding.needTransport")}</p>
                   )}
                 </div>
+                {completeMode && (
+                  <PhoneInputField
+                    id="oauthAccountPhone"
+                    value={accountPhone}
+                    onChange={setAccountPhone}
+                  />
+                )}
               </div>
             )}
 
@@ -637,6 +668,11 @@ export function OnboardingPageContent() {
                     required
                   />
                 </div>
+                <PhoneInputField
+                  id="accountPhone"
+                  value={accountPhone}
+                  onChange={setAccountPhone}
+                />
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="acceptTerms"
