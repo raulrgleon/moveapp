@@ -495,7 +495,7 @@ export function OnboardingPageContent() {
                   description={t("onboarding.adultsHint")}
                   value={adults}
                   onChange={setAdults}
-                  min={0}
+                  min={1}
                   max={20}
                 />
                 <NumberStepper

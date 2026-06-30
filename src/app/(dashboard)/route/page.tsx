@@ -75,20 +75,56 @@ function buildGoogleMapsUrl(
   originLat?: number,
   originLon?: number,
   destLat?: number,
-  destLon?: number
+  destLon?: number,
+  waypoints: Array<[number, number]> = []
 ): string | null {
   if (originLat == null || originLon == null || destLat == null || destLon == null) return null;
-  return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLon}&destination=${destLat},${destLon}`;
+  const params = new URLSearchParams({
+    api: "1",
+    origin: `${originLat},${originLon}`,
+    destination: `${destLat},${destLon}`,
+    travelmode: "driving",
+  });
+  if (waypoints.length) {
+    params.set(
+      "waypoints",
+      waypoints.map(([lat, lon]) => `${lat},${lon}`).join("|")
+    );
+  }
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
 function buildAppleMapsUrl(
   originLat?: number,
   originLon?: number,
   destLat?: number,
-  destLon?: number
+  destLon?: number,
+  waypoints: Array<[number, number]> = []
 ): string | null {
   if (originLat == null || originLon == null || destLat == null || destLon == null) return null;
-  return `https://maps.apple.com/?saddr=${originLat},${originLon}&daddr=${destLat},${destLon}`;
+  const destinationPath = [
+    ...waypoints.map(([lat, lon]) => `${lat},${lon}`),
+    `${destLat},${destLon}`,
+  ].join(" to:");
+  return `https://maps.apple.com/?saddr=${originLat},${originLon}&daddr=${encodeURIComponent(destinationPath)}&dirflg=d`;
+}
+
+function sampledRouteWaypoints(
+  coordinates: [number, number][] | undefined,
+  maxWaypoints = 8
+): Array<[number, number]> {
+  if (!coordinates || coordinates.length < 3) return [];
+  const interior = coordinates.slice(1, -1);
+  if (!interior.length) return [];
+  const count = Math.min(maxWaypoints, interior.length);
+  const step = (interior.length - 1) / count;
+  const points: Array<[number, number]> = [];
+  for (let i = 1; i <= count; i += 1) {
+    const idx = Math.max(0, Math.min(interior.length - 1, Math.round(i * step)));
+    const [lon, lat] = interior[idx];
+    points.push([lat, lon]);
+  }
+  return points;
 }
 
 export default function RoutePage() {
@@ -154,17 +190,31 @@ export default function RoutePage() {
       ? "…"
       : "—";
 
+  const selectedAlternative = useMemo(
+    () =>
+      stats?.alternatives?.find((alt) => alt.index === routeIndex) ??
+      stats?.alternatives?.[routeIndex] ??
+      stats?.alternatives?.[0],
+    [stats?.alternatives, routeIndex]
+  );
+  const externalWaypoints = useMemo(
+    () => sampledRouteWaypoints(selectedAlternative?.coordinates, 8),
+    [selectedAlternative?.coordinates]
+  );
+
   const googleUrl = buildGoogleMapsUrl(
     profile.originLat,
     profile.originLon,
     profile.destinationLat,
-    profile.destinationLon
+    profile.destinationLon,
+    externalWaypoints
   );
   const appleUrl = buildAppleMapsUrl(
     profile.originLat,
     profile.originLon,
     profile.destinationLat,
-    profile.destinationLon
+    profile.destinationLon,
+    externalWaypoints
   );
 
   return (

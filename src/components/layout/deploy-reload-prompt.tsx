@@ -6,7 +6,7 @@ import { CLIENT_BUILD_ID_KEY } from "@/lib/app-version-client";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 
-const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const CHECK_INTERVAL_MS = 60 * 1000;
 
 async function fetchBuildId(): Promise<string | null> {
   try {
@@ -38,6 +38,12 @@ export function DeployReloadPrompt() {
     if (stored !== remote) {
       setServerBuildId(remote);
       setShow(true);
+      // Refresh in background after short delay to recover stale clients,
+      // while still giving users a visible prompt first.
+      window.setTimeout(() => {
+        localStorage.setItem(CLIENT_BUILD_ID_KEY, remote);
+        window.location.reload();
+      }, 12_000);
     }
   }, []);
 

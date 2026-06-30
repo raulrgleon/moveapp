@@ -12,6 +12,7 @@ import { MovingPlanProvider } from "@/contexts/moving-plan-context";
 import { CookieConsent } from "@/components/marketing/cookie-consent";
 import { FloatingPilotLauncher } from "@/components/marketing/floating-pilot-launcher";
 import { DeployReloadPrompt } from "@/components/layout/deploy-reload-prompt";
+import { ClientVersionGuard } from "@/components/layout/client-version-guard";
 import { PaywallProvider } from "@/components/billing/paywall-provider";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                   <AiChatProvider>
                     {children}
                     <FloatingPilotLauncher />
+                    <ClientVersionGuard />
                     <DeployReloadPrompt />
                     <CookieConsent />
                   </AiChatProvider>

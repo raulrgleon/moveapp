@@ -50,8 +50,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setResolved(mq.matches ? "dark" : "light");
       document.documentElement.classList.toggle("dark", mq.matches);
     };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+    mq.addListener(handler);
+    return () => mq.removeListener(handler);
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {

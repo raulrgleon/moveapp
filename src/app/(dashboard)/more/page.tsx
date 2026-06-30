@@ -38,8 +38,12 @@ export default function MorePage() {
       if (mq.matches) router.replace("/dashboard");
     };
     sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
   }, [router]);
 
   const items = NAV_ITEMS.filter((item) => MOBILE_MORE_HREFS.has(item.href));
