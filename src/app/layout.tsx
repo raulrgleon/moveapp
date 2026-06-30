@@ -16,9 +16,9 @@ const display = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "MovePilotAi — Your AI co-pilot for moving anywhere",
+  title: "MovePilotAI — Your AI Co-Pilot For Moving Anywhere",
   description:
-    "Plan, budget, and execute your move with MovePilotAi. Smart checklists, route planning, inventory, documents, and your AI co-pilot Pilot.",
+    "Moving is stressful. Planning it shouldn't be. MovePilotAI helps families plan, organize, and execute their entire U.S. move — one dashboard, total control.",
   applicationName: "MovePilotAi",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "MovePilotAi" },

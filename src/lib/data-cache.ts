@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/api-client";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import type { InventoryBox } from "@/lib/inventory/types";
-import type { ChecklistTask, DocumentItem } from "@/lib/types";
+import type { ChecklistTask, DocumentItem, RouteStop } from "@/lib/types";
 
 export interface UserDataPayload {
   user: { id: string; email: string; name: string };
@@ -26,6 +26,18 @@ export interface UserDataPayload {
   ownerName?: string;
   canEdit?: boolean;
   canEditProfile?: boolean;
+  storedRoutes?: {
+    alternatives: Array<{
+      index: number;
+      distanceMiles: number;
+      durationHours: number;
+      driveTimeLabel: string;
+      coordinates: [number, number][];
+    }>;
+    stopsByIndex: Record<number, RouteStop[]>;
+    selectedRouteIndex: number;
+    computedAt: string;
+  } | null;
 }
 
 let cached: UserDataPayload | null = null;

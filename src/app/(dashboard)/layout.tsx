@@ -7,6 +7,7 @@ import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { SystemAnnouncementBanner } from "@/components/layout/system-announcement-banner";
 import { FirstRunWelcome } from "@/components/dashboard/first-run-welcome";
 import { PhoneCapturePrompt } from "@/components/auth/phone-capture-prompt";
+import { RouteStatsPrefetch } from "@/components/dashboard/route-stats-prefetch";
 
 export default function DashboardLayout({
   children,
@@ -33,6 +34,7 @@ export default function DashboardLayout({
         </div>
         <FirstRunWelcome />
         <PhoneCapturePrompt />
+        <RouteStatsPrefetch />
       </div>
       </MoveSetupGuard>
     </DashboardAuthGuard>

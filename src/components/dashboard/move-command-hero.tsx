@@ -20,6 +20,7 @@ interface MoveCommandHeroProps {
   daysLeft: number;
   distanceMiles?: number;
   driveTimeLabel?: string;
+  travelDays?: number;
   gamification: MoveScoreResult;
   className?: string;
 }
@@ -31,6 +32,7 @@ export function MoveCommandHero({
   daysLeft,
   distanceMiles,
   driveTimeLabel,
+  travelDays,
   gamification,
   className,
 }: MoveCommandHeroProps) {
@@ -84,6 +86,13 @@ export function MoveCommandHero({
             {driveTimeLabel && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 border px-3 py-1 font-medium">
                 {driveTimeLabel}
+              </span>
+            )}
+            {travelDays != null && travelDays > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 border px-3 py-1 font-medium">
+                {travelDays === 1
+                  ? t("routePage.travelDayOne")
+                  : t("routePage.travelDays", { days: travelDays })}
               </span>
             )}
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 border px-3 py-1 font-medium">

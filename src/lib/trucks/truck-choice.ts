@@ -43,3 +43,21 @@ export function mergeRentalPreference(current: string, truckChoice: string): str
   }
   return rentalPreferenceFromKey(nextKey);
 }
+
+/**
+ * Trailer rental is opt-in: only counts in budget/fuel when the user picks a truck or
+ * trailer on the Trucks page. Preference alone (trailer/combo) does not add cost.
+ */
+export function effectiveRentalKeyForBudget(
+  rentalPreference: string,
+  truckChoice?: string | null
+): RentalPreferenceKey {
+  const pref = parseRentalPreferenceKey(rentalPreference);
+  // If user explicitly says "own vehicle" or "movers", ignore stale truckChoice.
+  if (pref === "own" || pref === "movers") return pref;
+  if (truckChoice?.trim()) {
+    return inferRentalKeyFromTruckChoice(truckChoice);
+  }
+  if (pref === "trailer" || pref === "combo") return "own";
+  return pref;
+}

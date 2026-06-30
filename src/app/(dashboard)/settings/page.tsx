@@ -71,6 +71,14 @@ export default function SettingsPage() {
   const [email, setEmail] = useState(profile.email);
   const [origin, setOrigin] = useState(profile.origin);
   const [destCity, setDestCity] = useState(profile.destination);
+  const [originCoords, setOriginCoords] = useState({
+    lat: profile.originLat,
+    lon: profile.originLon,
+  });
+  const [destCoords, setDestCoords] = useState({
+    lat: profile.destinationLat,
+    lon: profile.destinationLon,
+  });
   const [moveDate, setMoveDate] = useState(profile.moveDate);
   const [adults, setAdults] = useState(initialCounts.adults);
   const [children, setChildren] = useState(initialCounts.children);
@@ -98,29 +106,36 @@ export default function SettingsPage() {
     return {
       city: parsed.city,
       state: parsed.state,
-      lat: profile.destinationLat,
-      lon: profile.destinationLon,
+      lat: destCoords.lat,
+      lon: destCoords.lon,
     };
-  }, [destCity, profile.destinationLat, profile.destinationLon]);
+  }, [destCity, destCoords.lat, destCoords.lon]);
 
   const saveProfile = async () => {
     if (!canEditProfile) return;
     setSaving(true);
     try {
-      await updateProfile({
-        name,
-        email,
-        origin,
-        destination: destCity,
-        moveDate,
-        household,
-        pets,
-        petDetails,
-        budget: parseBudgetInput(budget),
-        rentalPreference: rentalPreferenceFromKey(rentalKey),
-        needsHousingHelp,
-        needsVehicleTransport,
-      });
+      await updateProfile(
+        {
+          name,
+          email,
+          origin,
+          destination: destCity,
+          originLat: originCoords.lat,
+          originLon: originCoords.lon,
+          destinationLat: destCoords.lat,
+          destinationLon: destCoords.lon,
+          moveDate,
+          household,
+          pets,
+          petDetails,
+          budget: parseBudgetInput(budget),
+          rentalPreference: rentalPreferenceFromKey(rentalKey),
+          needsHousingHelp,
+          needsVehicleTransport,
+        },
+        false
+      );
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } finally {
@@ -174,7 +189,10 @@ export default function SettingsPage() {
                 label={t("settings.movingFrom")}
                 value={origin}
                 onChange={setOrigin}
-                onSelect={(city) => setOrigin(city.label)}
+                onSelect={(city) => {
+                  setOrigin(city.label);
+                  setOriginCoords({ lat: city.lat, lon: city.lon });
+                }}
                 placeholder={t("onboarding.cityPlaceholder")}
               />
               <CityAutocomplete
@@ -182,7 +200,10 @@ export default function SettingsPage() {
                 label={t("settings.movingTo")}
                 value={destCity}
                 onChange={setDestCity}
-                onSelect={(city) => setDestCity(city.label)}
+                onSelect={(city) => {
+                  setDestCity(city.label);
+                  setDestCoords({ lat: city.lat, lon: city.lon });
+                }}
                 placeholder={t("onboarding.cityPlaceholder")}
               />
               <div className="space-y-2 sm:col-span-2">

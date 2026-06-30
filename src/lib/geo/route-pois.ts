@@ -107,6 +107,13 @@ async function queryOverpass(ql: string): Promise<OverpassElement[]> {
   return [];
 }
 
+export function distanceMilesBetween(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number }
+): number {
+  return haversineMiles(a, b);
+}
+
 async function reverseGeocodeLabel(lat: number, lon: number): Promise<string> {
   try {
     const url = new URL("https://nominatim.openstreetmap.org/reverse");
@@ -269,4 +276,153 @@ out center tags 10;`;
     estimatedPrice: estimateHotelNightlyRate(picked.tags, location, petFriendly && isPet),
     tags: picked.tags,
   };
+}
+
+function restAreaScore(tags: Record<string, string>): number {
+  if (tags.highway === "rest_area") return 0;
+  if (tags.highway === "services") return 1;
+  if (tags.amenity === "fuel") return 2;
+  return 99;
+}
+
+export type RestBreakPoiKind = "rest_area" | "services" | "gas_station";
+
+export interface RestBreakPoi {
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  osmId: string;
+  kind: RestBreakPoiKind;
+}
+
+function classifyRestBreakKind(tags: Record<string, string>): RestBreakPoiKind | null {
+  if (tags.highway === "rest_area") return "rest_area";
+  if (tags.highway === "services") return "services";
+  if (tags.amenity === "fuel") return "gas_station";
+  return null;
+}
+
+function formatRestBreakTitle(
+  tags: Record<string, string>,
+  kind: RestBreakPoiKind,
+  locale: "en" | "es"
+): string {
+  const place = formatOsmName(tags, "");
+  const brand = tags.brand?.trim() || tags.operator?.trim() || place;
+  if (locale === "es") {
+    switch (kind) {
+      case "rest_area":
+        return brand ? `Área de descanso — ${brand}` : "Área de descanso en carretera";
+      case "services":
+        return brand ? `Área de servicio — ${brand}` : "Área de servicio en carretera";
+      case "gas_station":
+        return brand ? `Gasolinera — ${brand}` : "Gasolinera con baños";
+    }
+  }
+  switch (kind) {
+    case "rest_area":
+      return brand ? `Rest area — ${brand}` : "Highway rest area";
+    case "services":
+      return brand ? `Service area — ${brand}` : "Highway service area";
+    case "gas_station":
+      return brand ? `Gas station — ${brand}` : "Gas station with restrooms";
+  }
+}
+
+async function queryRestBreakCandidates(
+  lat: number,
+  lon: number,
+  radiusMeters: number,
+  usedRestOsmIds: Set<string>,
+  locale: "en" | "es"
+): Promise<RestBreakPoi | null> {
+  const ql = `[out:json][timeout:18];
+(
+  nwr["highway"="rest_area"](around:${radiusMeters},${lat},${lon});
+  nwr["highway"="services"](around:${radiusMeters},${lat},${lon});
+  nwr["amenity"="fuel"](around:${Math.min(radiusMeters, 20000)},${lat},${lon});
+);
+out center tags 12;`;
+
+  const elements = await queryOverpass(ql);
+  const origin = { lat, lon };
+
+  const candidates = elements
+    .map((el) => {
+      const coords = elementCoords(el);
+      if (!coords || !el.tags) return null;
+      const kind = classifyRestBreakKind(el.tags);
+      if (!kind) return null;
+      const osmId = `${el.type}/${el.id}`;
+      if (usedRestOsmIds.has(osmId)) return null;
+      const dist = haversineMiles(origin, coords);
+      return { el, coords, tags: el.tags, kind, osmId, dist };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort(
+      (a, b) =>
+        restAreaScore(a.tags) - restAreaScore(b.tags) || a.dist - b.dist
+    );
+
+  const picked = candidates[0];
+  if (!picked) return null;
+
+  usedRestOsmIds.add(picked.osmId);
+  const location = await resolveLocation(picked.tags, picked.coords.lat, picked.coords.lon);
+
+  return {
+    name: formatRestBreakTitle(picked.tags, picked.kind, locale),
+    location,
+    lat: picked.coords.lat,
+    lon: picked.coords.lon,
+    osmId: picked.osmId,
+    kind: picked.kind,
+  };
+}
+
+/** Search along the route for a real rest area or gas station (expanding radius & mile offsets). */
+export async function fetchRestBreakForRouteMile(
+  coordinates: [number, number][],
+  targetMile: number,
+  usedRestOsmIds: Set<string>,
+  locale: "en" | "es" = "en"
+): Promise<RestBreakPoi | null> {
+  const mileOffsets = [0, -4, 4, -8, 8, -14, 14, -22, 22];
+  const radiiMeters = [10_000, 18_000, 28_000, 40_000];
+
+  for (const offset of mileOffsets) {
+    const mile = Math.max(1, targetMile + offset);
+    const point = pointAlongRouteByMiles(coordinates, mile);
+    if (!point) continue;
+
+    for (const radius of radiiMeters) {
+      const poi = await queryRestBreakCandidates(
+        point.lat,
+        point.lon,
+        radius,
+        usedRestOsmIds,
+        locale
+      );
+      if (poi) return poi;
+    }
+  }
+
+  return null;
+}
+
+/** @deprecated Use fetchRestBreakForRouteMile */
+export async function fetchNearbyRestArea(
+  lat: number,
+  lon: number,
+  usedIds: Set<string>
+): Promise<{
+  name: string;
+  location: string;
+  lat: number;
+  lon: number;
+  osmId: string;
+} | null> {
+  const poi = await queryRestBreakCandidates(lat, lon, 18_000, usedIds, "en");
+  return poi;
 }

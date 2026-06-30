@@ -7,16 +7,24 @@ import {
   getMoveForUser,
   resolveMoveAccess,
 } from "@/lib/db/move-access";
-import { DEFAULT_PROFILE, type MoveProfile } from "@/lib/move-profile";
+import { DEFAULT_PROFILE, parseRentalPreferenceKey, type MoveProfile } from "@/lib/move-profile";
 import {
   generateChecklistFromProfile,
   generateStarterDocuments,
 } from "@/lib/move/generate-checklist";
 import { estimateBudget } from "@/lib/budget/estimator";
 import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
+import {
+  ensureFastStopsForMove,
+  loadStoredMoveRoutes,
+  routesNeedStops,
+  syncMoveRoutesGeometry,
+  type StoredMoveRoutesPayload,
+} from "@/lib/geo/move-routes-sync";
 import { enrichVehicleMpg } from "@/lib/vehicles/fuel-economy";
 import { mergeRentalPreference } from "@/lib/trucks/truck-choice";
 import type { VehicleInfo } from "@/lib/vehicles/types";
+import { isCompleteVehicle, vehicleDbId } from "@/lib/vehicles/types";
 import type { InventoryBox } from "@/lib/inventory/types";
 import type { ChecklistTask, DocumentItem } from "@/lib/types";
 
@@ -281,6 +289,25 @@ function profileChangeRequiresRecalc(p: Partial<MoveProfile>): boolean {
   );
 }
 
+function profileChangeRequiresRouteSync(
+  p: Partial<MoveProfile>,
+  data: {
+    destinationLat?: number;
+    destinationLon?: number;
+  }
+): boolean {
+  return (
+    p.origin !== undefined ||
+    p.destination !== undefined ||
+    p.originLat !== undefined ||
+    p.originLon !== undefined ||
+    p.destinationLat !== undefined ||
+    p.destinationLon !== undefined ||
+    data.destinationLat !== undefined ||
+    data.destinationLon !== undefined
+  );
+}
+
 function profileChangeRequiresChecklistSync(p: Partial<MoveProfile>): boolean {
   return (
     p.origin !== undefined ||
@@ -364,6 +391,13 @@ export async function getUserDataByUserId(userId: string) {
 
   const { access, move } = result;
   const profileName = access.role === "owner" ? user.name : move.user.name;
+  const locale = userLocale(user.locale);
+  const lang = locale === "es" ? "es" : "en";
+
+  let storedRoutes: StoredMoveRoutesPayload | null = await loadStoredMoveRoutes(move.id);
+  if (storedRoutes && routesNeedStops(storedRoutes)) {
+    storedRoutes = await ensureFastStopsForMove(move.id, lang);
+  }
 
   return {
     user: { id: user.id, email: user.email, name: user.name },
@@ -391,6 +425,7 @@ export async function getUserDataByUserId(userId: string) {
       documents: move.documents.length,
       vehicles: move.vehicles.length,
     },
+    storedRoutes,
   };
 }
 
@@ -626,6 +661,11 @@ export async function updateMoveForUserId(
       rentalPreferencePatch = mergeRentalPreference(current.rentalPreference, data.truckChoice);
     }
   }
+  const shouldClearTruckChoice =
+    data.truckChoice === undefined &&
+    p?.rentalPreference !== undefined &&
+    (parseRentalPreferenceKey(p.rentalPreference) === "own" ||
+      parseRentalPreferenceKey(p.rentalPreference) === "movers");
 
   await prisma.move.update({
     where: { id: moveId },
@@ -655,6 +695,7 @@ export async function updateMoveForUserId(
       ...(data.destinationLon !== undefined && { destinationLon: data.destinationLon }),
       ...(data.destinationLabel !== undefined && { destination: data.destinationLabel }),
       ...(data.truckChoice !== undefined && { truckChoice: data.truckChoice }),
+      ...(shouldClearTruckChoice && { truckChoice: null }),
       ...(data.vehicleTransportChoice !== undefined && {
         vehicleTransportChoice: data.vehicleTransportChoice,
       }),
@@ -689,37 +730,49 @@ export async function updateMoveForUserId(
   }
 
   if (data.vehicles) {
-    const complete = await Promise.all(
-      data.vehicles
-        .filter((v) => v.make?.trim() && v.model?.trim())
-        .map((v) => enrichVehicleMpg(v))
+    const normalized = await Promise.all(
+      data.vehicles.map(async (v) => {
+        if (isCompleteVehicle(v)) return enrichVehicleMpg(v);
+        return v;
+      })
     );
     await prisma.vehicle.deleteMany({ where: { moveId } });
-    if (complete.length > 0) {
+    if (normalized.length > 0) {
       await prisma.vehicle.createMany({
-        data: complete.map((v) => ({
-          moveId,
-          year: v.year,
-          makeId: v.makeId,
-          make: v.make,
-          modelId: v.modelId,
-          model: v.model,
+        data: normalized.map((v) => {
+          const id = vehicleDbId(v);
+          return {
+            ...(id ? { id } : {}),
+            moveId,
+          year: v.year ?? "",
+          makeId: v.makeId || null,
+          make: v.make ?? "",
+          modelId: v.modelId || null,
+          model: v.model ?? "",
           trim: v.trim ?? null,
-          displayLabel: v.displayLabel,
+          displayLabel: v.displayLabel ?? "",
           needsTransport: v.needsTransport ?? false,
           combMpg: v.combMpg ?? null,
           cityMpg: v.cityMpg ?? null,
           highwayMpg: v.highwayMpg ?? null,
           fuelType: v.fuelType ?? null,
-        })),
+          };
+        }),
       });
     }
+    const completeCount = normalized.filter(isCompleteVehicle).length;
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const move = await prisma.move.findUniqueOrThrow({ where: { id: moveId } });
     const merged = mergeProfileForSync(user, move);
     const locale = await getUserLocale(userId);
     const routeIndex = await getMoveRouteIndex(moveId);
-    await syncBudgetEstimate(moveId, merged, routeIndex, Math.max(1, complete.length), locale);
+    await syncBudgetEstimate(
+      moveId,
+      merged,
+      routeIndex,
+      Math.max(1, completeCount),
+      locale
+    );
   }
 
   if (p && profileChangeRequiresRecalc(p)) {
@@ -778,6 +831,16 @@ export async function updateMoveForUserId(
       Math.max(1, vehicles.length),
       locale
     );
+  }
+
+  if (
+    (p && profileChangeRequiresRouteSync(p, data)) ||
+    data.destinationLat !== undefined ||
+    data.destinationLon !== undefined
+  ) {
+    const locale = await getUserLocale(userId);
+    const lang = locale === "es" ? "es" : "en";
+    await syncMoveRoutesGeometry(moveId, lang);
   }
 }
 

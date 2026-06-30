@@ -27,6 +27,8 @@ function mapAlternativesForClient(alternatives: RouteAlternative[]) {
     durationHours: alt.durationHours,
     driveTimeLabel: formatDriveTime(alt.durationHours),
     coordinates: simplifyRouteCoordinates(alt.coordinates, 200),
+    usesInterstate: alt.usesInterstate,
+    interstateRefs: alt.interstateRefs,
   }));
 }
 

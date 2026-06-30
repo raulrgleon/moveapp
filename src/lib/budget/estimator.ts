@@ -9,7 +9,10 @@ import {
   isShipTransportChoice,
 } from "@/lib/budget/pricing";
 import { hotelEstimatesFromStops, regionalHotelNightlyRate, totalHotelCost } from "@/lib/budget/hotel-cost";
-import { rentalPreferenceForTruckChoice, resolveTruckChoiceOption } from "@/lib/trucks/truck-choice";
+import {
+  effectiveRentalKeyForBudget,
+  resolveTruckChoiceOption,
+} from "@/lib/trucks/truck-choice";
 import type { Locale } from "@/lib/i18n";
 import type { RouteStop } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
@@ -60,14 +63,16 @@ function householdMultiplierLocal(household: string): number {
 function rentalLineItem(
   rentalKey: ReturnType<typeof parseRentalPreferenceKey>,
   miles: number,
-  mult: number,
   truckChoice?: string | null,
   profile?: MoveProfile,
   vehicles: VehicleInfo[] = [],
   locale: Locale = "en"
 ): BudgetEstimateLine | null {
+  const hasSavedTruckChoice = Boolean(truckChoice?.trim());
+  const allowsSavedTruck =
+    rentalKey !== "own" && rentalKey !== "movers";
   const saved =
-    profile && truckChoice
+    profile && hasSavedTruckChoice && allowsSavedTruck
       ? resolveTruckChoiceOption(profile, truckChoice, miles, locale, vehicles)
       : null;
 
@@ -78,6 +83,13 @@ function rentalLineItem(
       cheapestOption: truckOptionLabel(saved),
       sortOrder: 1,
     };
+  }
+
+  // Rental line must reflect explicit user choice:
+  // - Trucks/Trailers only appear when user saved a specific option.
+  // - Movers can still be estimated from preference.
+  if (!hasSavedTruckChoice && rentalKey !== "movers") {
+    return null;
   }
 
   const fallback = computeRentalByPreferenceKey(rentalKey, miles, profile?.household ?? "");
@@ -104,13 +116,13 @@ export async function estimateBudget(
   const locale = context.locale ?? "en";
   const miles = context.distanceMiles ?? estimateDistanceMiles(profile.origin, profile.destination);
   const mult = householdMultiplierLocal(profile.household);
-  let rentalKey = parseRentalPreferenceKey(profile.rentalPreference);
+  const rentalKey = effectiveRentalKeyForBudget(
+    profile.rentalPreference,
+    context.truckChoice
+  );
   const vehicleCount = context.vehicleCount ?? 1;
   const vehicles = context.vehicles ?? [];
-
-  if (context.truckChoice) {
-    rentalKey = parseRentalPreferenceKey(rentalPreferenceForTruckChoice(context.truckChoice));
-  }
+  const prefKey = parseRentalPreferenceKey(profile.rentalPreference);
 
   const items: BudgetEstimateLine[] = [];
   let sortOrder = 1;
@@ -118,7 +130,6 @@ export async function estimateBudget(
   const rental = rentalLineItem(
     rentalKey,
     miles,
-    mult,
     context.truckChoice,
     profile,
     vehicles,
@@ -216,6 +227,9 @@ export async function estimateBudget(
     fuelNote: fuel.note,
     routeStops,
     truckChoice: context.truckChoice,
+    trailerOptInPending:
+      !context.truckChoice?.trim() &&
+      (prefKey === "trailer" || prefKey === "combo"),
   });
 
   return { items, totalEstimated, distanceMiles: miles, notes };

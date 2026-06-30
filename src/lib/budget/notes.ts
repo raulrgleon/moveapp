@@ -18,6 +18,7 @@ export function buildBudgetNotes(
     fuelNote: string;
     routeStops?: RouteStop[];
     truckChoice?: string | null;
+    trailerOptInPending?: boolean;
   }
 ): string[] {
   const t = (key: string, p?: Record<string, string | number>) =>
@@ -42,6 +43,8 @@ export function buildBudgetNotes(
 
   if (params.truckChoice) {
     notes.push(t("budgetNotes.truckChoiceApplied", { choice: params.truckChoice }));
+  } else if (params.trailerOptInPending) {
+    notes.push(t("budgetNotes.trailerNotIncluded"));
   }
 
   notes.push(params.fuelNote);

@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMove } from "@/contexts/move-context";
+import { useAuth } from "@/contexts/auth-context";
 import type { RouteStop } from "@/lib/types";
+import { computeTravelDays } from "@/lib/geo/route-service";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
+import { apiFetch } from "@/lib/api-client";
 
 export interface RouteBudgetDelta {
   previousEstimated: number;
@@ -17,16 +20,64 @@ export interface RouteAlternativeSummary {
   durationHours: number;
   driveTimeLabel: string;
   coordinates: [number, number][];
+  usesInterstate?: boolean;
+  interstateRefs?: string[];
 }
 
 export interface RouteStatsResponse {
   distanceMiles: number;
   durationHours: number;
   driveTimeLabel: string;
+  travelDays: number;
   stopCount: number;
   stops: RouteStop[];
   alternatives: RouteAlternativeSummary[];
   selectedRouteIndex: number;
+}
+
+interface MoveRoutesApiResponse {
+  alternatives: RouteAlternativeSummary[];
+  stopsByIndex: Record<number, RouteStop[]>;
+  selectedRouteIndex: number;
+  distanceMiles: number;
+  durationHours: number;
+  driveTimeLabel: string;
+  stopCount: number;
+  stopsPending?: boolean;
+}
+
+function normalizeAlternative(
+  alt: Partial<RouteAlternativeSummary> | null | undefined,
+  fallbackIndex: number
+): RouteAlternativeSummary {
+  const index = typeof alt?.index === "number" ? alt.index : fallbackIndex;
+  const distanceMiles = Number.isFinite(alt?.distanceMiles) ? Number(alt?.distanceMiles) : 0;
+  const durationHours = Number.isFinite(alt?.durationHours) ? Number(alt?.durationHours) : 0;
+  const driveTimeLabel =
+    typeof alt?.driveTimeLabel === "string" && alt.driveTimeLabel.trim().length > 0
+      ? alt.driveTimeLabel
+      : `${durationHours.toFixed(1)}h`;
+  const coordinates = Array.isArray(alt?.coordinates)
+    ? alt.coordinates.filter(
+        (coord): coord is [number, number] =>
+          Array.isArray(coord) &&
+          coord.length === 2 &&
+          Number.isFinite(coord[0]) &&
+          Number.isFinite(coord[1])
+      )
+    : [];
+
+  return {
+    index,
+    distanceMiles,
+    durationHours,
+    driveTimeLabel,
+    coordinates,
+    usesInterstate: Boolean(alt?.usesInterstate),
+    interstateRefs: Array.isArray(alt?.interstateRefs)
+      ? alt.interstateRefs.filter((ref): ref is string => typeof ref === "string")
+      : [],
+  };
 }
 
 const CLIENT_ROUTE_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -49,7 +100,26 @@ const routeStopsAllInflight = new Map<string, Promise<Record<number, RouteStop[]
 export function invalidateRouteStatsCache() {
   routeStatsCache.clear();
   routeStopsAllCache.clear();
+  lastPrefetchKey = null;
 }
+
+export interface PrefetchRouteInput {
+  profile: {
+    origin: string;
+    destination: string;
+    originLat?: number | null;
+    originLon?: number | null;
+    pets: boolean;
+    rentalPreference?: string;
+  };
+  destLat: number;
+  destLon: number;
+  selectedRouteIndex?: number;
+  useStoredRoutes?: boolean;
+}
+
+let lastPrefetchKey: string | null = null;
+let prefetchInflight: Promise<void> | null = null;
 
 function buildRouteParams(
   profile: {
@@ -75,10 +145,55 @@ function buildRouteParams(
   });
 }
 
+function apiResponseToStats(json: MoveRoutesApiResponse): RouteStatsResponse {
+  const alternatives = Array.isArray(json.alternatives)
+    ? json.alternatives.map((alt, idx) => normalizeAlternative(alt, idx))
+    : [];
+  const stopsByIndex = json.stopsByIndex ?? {};
+  const selected =
+    alternatives.find((alt) => alt.index === json.selectedRouteIndex) ??
+    alternatives[json.selectedRouteIndex] ??
+    alternatives[0];
+
+  return {
+    alternatives,
+    stops: stopsByIndex[json.selectedRouteIndex] ?? stopsByIndex[0] ?? [],
+    selectedRouteIndex: json.selectedRouteIndex,
+    distanceMiles: selected?.distanceMiles ?? json.distanceMiles,
+    durationHours: selected?.durationHours ?? json.durationHours,
+    driveTimeLabel: selected?.driveTimeLabel ?? json.driveTimeLabel,
+    travelDays: computeTravelDays(selected?.durationHours ?? json.durationHours),
+    stopCount: json.stopCount,
+  };
+}
+
+async function fetchStoredMoveRoutes(): Promise<{
+  stats: RouteStatsResponse;
+  stopsByIndex: Record<number, RouteStop[]>;
+}> {
+  const res = await apiFetch("/api/move/routes");
+  const json = (await res.json()) as MoveRoutesApiResponse;
+  const stats = apiResponseToStats(json);
+  return {
+    stats,
+    stopsByIndex: json.stopsByIndex ?? {},
+  };
+}
+
+export function seedRouteStatsCache(payload: MoveRoutesApiResponse) {
+  const stats = apiResponseToStats(payload);
+  routeStatsCache.set("stored", { at: Date.now(), data: stats });
+  routeStopsAllCache.set("stored-stops", {
+    at: Date.now(),
+    stopsByIndex: payload.stopsByIndex ?? {},
+  });
+}
+
 async function fetchRouteStatsCached(
-  params: URLSearchParams
+  params: URLSearchParams,
+  useStoredRoutes: boolean
 ): Promise<RouteStatsResponse> {
-  const key = params.toString();
+  const key = useStoredRoutes ? "stored" : params.toString();
   const cached = routeStatsCache.get(key);
   if (cached && Date.now() - cached.at < CLIENT_ROUTE_CACHE_TTL_MS) {
     return cached.data;
@@ -87,11 +202,13 @@ async function fetchRouteStatsCached(
   const inflight = routeStatsInflight.get(key);
   if (inflight) return inflight;
 
-  const promise = fetch(`/api/route?${key}`)
-    .then(async (res) => {
-      if (!res.ok) throw new Error("route failed");
-      return (await res.json()) as RouteStatsResponse;
-    })
+  const promise = (useStoredRoutes
+    ? fetchStoredMoveRoutes().then(({ stats }) => stats)
+    : fetch(`/api/route?${params.toString()}`).then(async (res) => {
+        if (!res.ok) throw new Error("route failed");
+        return (await res.json()) as RouteStatsResponse;
+      })
+  )
     .then((data) => {
       routeStatsCache.set(key, { at: Date.now(), data });
       return data;
@@ -105,9 +222,10 @@ async function fetchRouteStatsCached(
 }
 
 async function fetchAllRouteStopsCached(
-  params: URLSearchParams
+  params: URLSearchParams,
+  useStoredRoutes: boolean
 ): Promise<Record<number, RouteStop[]>> {
-  const key = params.toString();
+  const key = useStoredRoutes ? "stored-stops" : params.toString();
   const cached = routeStopsAllCache.get(key);
   if (cached && Date.now() - cached.at < CLIENT_ROUTE_CACHE_TTL_MS) {
     return cached.stopsByIndex;
@@ -116,12 +234,14 @@ async function fetchAllRouteStopsCached(
   const inflight = routeStopsAllInflight.get(key);
   if (inflight) return inflight;
 
-  const promise = fetch(`/api/route?${key}`)
-    .then(async (res) => {
-      if (!res.ok) throw new Error("stops failed");
-      const json = (await res.json()) as { stopsByIndex?: Record<number, RouteStop[]> };
-      return json.stopsByIndex ?? {};
-    })
+  const promise = (useStoredRoutes
+    ? fetchStoredMoveRoutes().then(({ stopsByIndex }) => stopsByIndex)
+    : fetch(`/api/route?${params.toString()}`).then(async (res) => {
+        if (!res.ok) throw new Error("stops failed");
+        const json = (await res.json()) as { stopsByIndex?: Record<number, RouteStop[]> };
+        return json.stopsByIndex ?? {};
+      })
+  )
     .then((stopsByIndex) => {
       routeStopsAllCache.set(key, { at: Date.now(), stopsByIndex });
       return stopsByIndex;
@@ -132,6 +252,60 @@ async function fetchAllRouteStopsCached(
 
   routeStopsAllInflight.set(key, promise);
   return promise;
+}
+
+/** Preload all 3 route geometries + stops when the dashboard session starts. */
+export function prefetchRouteSession(input: PrefetchRouteInput): Promise<void> {
+  const useStoredRoutes = input.useStoredRoutes ?? true;
+  const key = [
+    useStoredRoutes ? "stored" : "live",
+    input.profile.origin,
+    input.profile.destination,
+    input.profile.originLat,
+    input.profile.originLon,
+    input.destLat,
+    input.destLon,
+    input.profile.pets,
+    input.profile.rentalPreference ?? "",
+  ].join("|");
+
+  if (lastPrefetchKey === key) {
+    if (prefetchInflight) return prefetchInflight;
+    const cacheKey = useStoredRoutes ? "stored" : buildRouteParams(input.profile, input.destLat, input.destLon, { geometryOnly: "1" }).toString();
+    if (routeStatsCache.has(cacheKey)) return Promise.resolve();
+  }
+
+  const hasCoords =
+    input.profile.originLat != null &&
+    input.profile.originLon != null &&
+    input.destLat != null &&
+    input.destLon != null;
+
+  if (!hasCoords && !useStoredRoutes) {
+    return Promise.resolve();
+  }
+
+  lastPrefetchKey = key;
+
+  prefetchInflight = (async () => {
+    const geometryParams = buildRouteParams(input.profile, input.destLat, input.destLon, {
+      geometryOnly: "1",
+    });
+    const stopsParams = buildRouteParams(input.profile, input.destLat, input.destLon, {
+      stopsAll: "1",
+      routeIndex: "0",
+    });
+
+    await Promise.all([
+      fetchRouteStatsCached(geometryParams, useStoredRoutes),
+      fetchAllRouteStopsCached(stopsParams, useStoredRoutes),
+    ]);
+
+  })().finally(() => {
+    if (lastPrefetchKey === key) prefetchInflight = null;
+  });
+
+  return prefetchInflight;
 }
 
 export function getStoredRouteIndex(): number {
@@ -166,9 +340,12 @@ export function useRouteStats() {
     selectedRouteIndex: routeIndex,
     setSelectedRouteIndex,
   } = useMove();
+  const { isAuthenticated, user, isHydrated: authHydrated } = useAuth();
+  const useStoredRoutes = authHydrated && isAuthenticated && user?.role !== "admin";
+
   const [baseStats, setBaseStats] = useState<Omit<
     RouteStatsResponse,
-    "distanceMiles" | "durationHours" | "driveTimeLabel" | "stops" | "selectedRouteIndex"
+    "distanceMiles" | "durationHours" | "driveTimeLabel" | "travelDays" | "stops" | "selectedRouteIndex"
   > | null>(null);
   const [stopsByIndex, setStopsByIndex] = useState<Record<number, RouteStop[]>>({});
   const [loading, setLoading] = useState(true);
@@ -199,6 +376,7 @@ export function useRouteStats() {
   const routeQueryKey = useMemo(
     () =>
       [
+        useStoredRoutes ? "stored" : "live",
         profile.origin,
         profile.destination,
         profile.originLat,
@@ -208,8 +386,10 @@ export function useRouteStats() {
         profile.pets,
         profile.rentalPreference,
         vehicleFingerprint,
+        profileVersion,
       ].join("|"),
     [
+      useStoredRoutes,
       profile.origin,
       profile.destination,
       profile.originLat,
@@ -219,6 +399,7 @@ export function useRouteStats() {
       profile.pets,
       profile.rentalPreference,
       vehicleFingerprint,
+      profileVersion,
     ]
   );
 
@@ -233,7 +414,7 @@ export function useRouteStats() {
   }, [vehicleFingerprint, profileVersion]);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !authHydrated) return;
 
     const hasCoords =
       profile.originLat != null &&
@@ -241,7 +422,7 @@ export function useRouteStats() {
       destLat != null &&
       destLon != null;
 
-    if (!hasCoords) {
+    if (!hasCoords && !useStoredRoutes) {
       setBaseStats(null);
       setStopsByIndex({});
       setLoading(false);
@@ -258,10 +439,23 @@ export function useRouteStats() {
       setStopsByIndex({});
 
       try {
+        if (useStoredRoutes) {
+          const { stats, stopsByIndex: allStops } = await fetchStoredMoveRoutes();
+          if (cancelled) return;
+          setBaseStats({
+            stopCount: stats.stopCount,
+            alternatives: stats.alternatives,
+          });
+          setStopsByIndex(allStops);
+          setLoading(false);
+          setStopsLoading(false);
+          return;
+        }
+
         const geometryParams = buildRouteParams(profile, destLat!, destLon!, {
           geometryOnly: "1",
         });
-        const res = await fetchRouteStatsCached(geometryParams);
+        const res = await fetchRouteStatsCached(geometryParams, false);
         if (cancelled) return;
 
         setBaseStats({
@@ -274,7 +468,7 @@ export function useRouteStats() {
           stopsAll: "1",
           routeIndex: "0",
         });
-        const allStops = await fetchAllRouteStopsCached(stopsParams);
+        const allStops = await fetchAllRouteStopsCached(stopsParams, false);
         if (!cancelled) setStopsByIndex(allStops);
       } catch {
         if (!cancelled) {
@@ -294,7 +488,7 @@ export function useRouteStats() {
     return () => {
       cancelled = true;
     };
-  }, [isHydrated, routeQueryKey, destLat, destLon, profileVersion, profile]);
+  }, [isHydrated, authHydrated, routeQueryKey, destLat, destLon, profileVersion, profile, useStoredRoutes]);
 
   const selectedAlternative = useMemo(
     () => pickAlternative(baseStats?.alternatives ?? [], routeIndex),
@@ -316,6 +510,7 @@ export function useRouteStats() {
       distanceMiles: selectedAlternative.distanceMiles,
       durationHours: selectedAlternative.durationHours,
       driveTimeLabel: selectedAlternative.driveTimeLabel,
+      travelDays: computeTravelDays(selectedAlternative.durationHours),
     };
   }, [baseStats, selectedAlternative, routeIndex, stops]);
 

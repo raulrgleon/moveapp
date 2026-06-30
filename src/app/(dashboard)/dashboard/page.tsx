@@ -191,6 +191,7 @@ export default function DashboardPage() {
               daysLeft={daysLeft}
               distanceMiles={routeStats?.distanceMiles}
               driveTimeLabel={routeStats?.driveTimeLabel}
+              travelDays={routeStats?.travelDays}
               gamification={gamification}
             />
             <NextActionCard />
@@ -217,6 +218,7 @@ export default function DashboardPage() {
           daysLeft={daysLeft}
           distanceMiles={routeStats?.distanceMiles}
           driveTimeLabel={routeStats?.driveTimeLabel}
+          travelDays={routeStats?.travelDays}
           gamification={gamification}
         />
 

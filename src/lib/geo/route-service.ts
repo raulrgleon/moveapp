@@ -6,6 +6,7 @@ import {
   type RouteAlternative,
   type RouteGeometry,
 } from "@/lib/geo/coordinates";
+import { estimateRestBreakCount } from "@/lib/geo/rest-break-planner";
 
 export interface RouteStats {
   distanceMiles: number;
@@ -27,6 +28,12 @@ export function formatDriveTime(hours: number): string {
   return `${h}h ${m}m`;
 }
 
+/** Full driving days at ~8h/day (matches meals + hotel estimates). */
+export function computeTravelDays(durationHours: number): number {
+  if (!Number.isFinite(durationHours) || durationHours <= 0) return 1;
+  return Math.max(1, Math.ceil(durationHours / 8));
+}
+
 export function estimateStopCount(
   distanceMiles: number,
   durationHours: number,
@@ -39,7 +46,8 @@ export function estimateStopCount(
       : Math.max(1, Math.floor(distanceMiles / 350));
   const overnight = durationHours > 10 ? Math.ceil(durationHours / 10) - 1 : 0;
   const petStops = hasPets && durationHours > 6 ? 1 : 0;
-  return gasStops + overnight + petStops;
+  const restBreaks = estimateRestBreakCount(durationHours);
+  return gasStops + overnight + petStops + restBreaks;
 }
 
 export function resolveRoutePoints(

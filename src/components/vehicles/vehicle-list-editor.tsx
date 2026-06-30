@@ -69,6 +69,9 @@ export function VehicleListEditor({
     if (vehicles.length >= MAX_VEHICLES) return;
     const next = createEmptyVehicle();
     onChange([...vehicles, next]);
+    if (variant === "fleet") {
+      setExpandedIds((prev) => new Set(prev).add(next.id));
+    }
   };
 
   if (variant === "stacked") {

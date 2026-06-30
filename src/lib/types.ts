@@ -93,6 +93,8 @@ export interface RouteStop {
   notes?: string;
   lat?: number;
   lon?: number;
+  /** Sort key: distance from origin along the route (miles). */
+  routeMile?: number;
   estimatedPrice?: number;
   gasPricePerGallon?: number;
   /** True for EV charging stops along the route. */
@@ -101,6 +103,8 @@ export interface RouteStop {
   vehicleFills?: VehicleFuelFill[];
   /** Total gallons for all gas vehicles at this stop. */
   totalGallonsAtStop?: number;
+  /** Rest break facility type (rest areas & gas stations with restrooms). */
+  restStopKind?: "rest_area" | "services" | "gas_station";
 }
 
 export interface VehicleFuelFill {

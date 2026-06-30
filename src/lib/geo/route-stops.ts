@@ -1,9 +1,17 @@
-import type { RouteStats } from "@/lib/geo/route-service";
-import { fetchNearbyGasStation, fetchNearbyHotel, pointAlongRouteByMiles } from "@/lib/geo/route-pois";
+import { formatDriveTime, type RouteStats } from "@/lib/geo/route-service";
+import {
+  distanceMilesBetween,
+  fetchNearbyGasStation,
+  fetchNearbyHotel,
+  fetchRestBreakForRouteMile,
+  pointAlongRouteByMiles,
+  type RestBreakPoiKind,
+} from "@/lib/geo/route-pois";
 import {
   computeFuelStopMarkers,
   formatFuelStopNote,
 } from "@/lib/geo/fuel-stop-planner";
+import { computeRestBreakMarkers } from "@/lib/geo/rest-break-planner";
 import { fetchLiveRegularGasPrice } from "@/lib/budget/gas-prices";
 import type { MoveProfile } from "@/lib/move-profile";
 import type { RouteStop } from "@/lib/types";
@@ -41,6 +49,105 @@ function fuelFieldsFromMarker(marker: ReturnType<typeof computeFuelStopMarkers>[
   };
 }
 
+const MAX_ROUTE_STOPS = 30;
+
+function sortStopsByMile(stops: RouteStop[]): RouteStop[] {
+  return [...stops].sort((a, b) => (a.routeMile ?? 0) - (b.routeMile ?? 0));
+}
+
+function restBreakNote(
+  hour: number,
+  kind: RestBreakPoiKind,
+  locale: "en" | "es"
+): string {
+  const label = formatDriveTime(hour);
+  if (locale === "es") {
+    const facility =
+      kind === "gas_station"
+        ? "Gasolinera con baños y tienda"
+        : kind === "services"
+          ? "Área de servicio en carretera"
+          : "Área de descanso en carretera";
+    return `Pausa a ~${label} de manejo · ${facility} · Estira las piernas y descansa.`;
+  }
+  const facility =
+    kind === "gas_station"
+      ? "Gas station with restrooms & convenience store"
+      : kind === "services"
+        ? "Highway service area"
+        : "Highway rest area";
+  return `Break at ~${label} of driving · ${facility} · Stretch and take a rest.`;
+}
+
+const NEAR_STOP_MILES = 0.45;
+
+function findNearbyStop(
+  stops: RouteStop[],
+  lat: number,
+  lon: number,
+  types: RouteStop["type"][]
+): RouteStop | null {
+  for (const stop of stops) {
+    if (stop.lat == null || stop.lon == null) continue;
+    if (!types.includes(stop.type)) continue;
+    if (distanceMilesBetween({ lat, lon }, { lat: stop.lat, lon: stop.lon }) <= NEAR_STOP_MILES) {
+      return stop;
+    }
+  }
+  return null;
+}
+
+function mergeRestBreakIntoStop(
+  stop: RouteStop,
+  hour: number,
+  kind: RestBreakPoiKind,
+  locale: "en" | "es"
+): void {
+  const note = restBreakNote(hour, kind, locale);
+  stop.notes = stop.notes ? `${stop.notes} · ${note}` : note;
+  stop.restStopKind = kind;
+}
+
+async function appendRestBreakStops(
+  stops: RouteStop[],
+  stats: RouteStats,
+  coordinates: [number, number][] | undefined,
+  usedRestOsmIds: Set<string>,
+  locale: "en" | "es"
+): Promise<void> {
+  if (!coordinates?.length) return;
+
+  const markers = computeRestBreakMarkers(stats.durationHours, stats.distanceMiles);
+
+  for (const marker of markers) {
+    const poi = await fetchRestBreakForRouteMile(
+      coordinates,
+      marker.mile,
+      usedRestOsmIds,
+      locale
+    );
+    if (!poi) continue;
+
+    const nearby = findNearbyStop(stops, poi.lat, poi.lon, ["gas", "rest"]);
+    if (nearby) {
+      mergeRestBreakIntoStop(nearby, marker.hour, poi.kind, locale);
+      continue;
+    }
+
+    stops.push({
+      id: `rest-${poi.osmId}`,
+      type: "rest",
+      name: poi.name,
+      location: poi.location,
+      lat: poi.lat,
+      lon: poi.lon,
+      routeMile: marker.mile,
+      restStopKind: poi.kind,
+      notes: restBreakNote(marker.hour, poi.kind, locale),
+    });
+  }
+}
+
 function generateFallbackStops(
   stats: RouteStats,
   profile: MoveProfile,
@@ -70,6 +177,7 @@ function generateFallbackStops(
       location: `~${mile} mi from ${originLabel}`,
       lat: point?.lat,
       lon: point?.lon,
+      routeMile: mile,
       notes: formatFuelStopNote(marker, mile, originLabel, locale),
       ...fuelFieldsFromMarker(marker),
     });
@@ -86,6 +194,7 @@ function generateFallbackStops(
         location: `Night ${day} — ~${Math.round(mile)} mi`,
         lat: point?.lat,
         lon: point?.lon,
+        routeMile: Math.round(mile),
         notes: profile.pets
           ? "Book a pet-friendly hotel along your route."
           : "Recommended break for a multi-day drive.",
@@ -93,25 +202,7 @@ function generateFallbackStops(
     }
   }
 
-  if (stops.length === 0 && miles >= 80) {
-    const marker = fuelMarkersForRoute(stats, profile, context)[0];
-    const mile = marker?.mile ?? miles / 2;
-    const point = coordinates?.length ? pointAlongRouteByMiles(coordinates, mile) : null;
-    stops.push({
-      id: "rest-mid",
-      type: "rest",
-      name: "Mid-route rest stop",
-      location: `~${Math.round(mile)} mi`,
-      lat: point?.lat,
-      lon: point?.lon,
-      notes: marker
-        ? formatFuelStopNote(marker, Math.round(mile), originLabel, locale)
-        : "Short break halfway through your drive.",
-      ...(marker ? fuelFieldsFromMarker(marker) : {}),
-    });
-  }
-
-  return stops.slice(0, 10);
+  return sortStopsByMile(stops).slice(0, MAX_ROUTE_STOPS);
 }
 
 /** Resolve gas/charging and hotels along the OSRM route geometry. */
@@ -159,6 +250,7 @@ export async function fetchRouteStops(
         location: poi.location,
         lat: poi.lat,
         lon: poi.lon,
+        routeMile: mile,
         gasPricePerGallon: poi.gasPricePerGallon,
         notes: `${note} · $${poi.gasPricePerGallon.toFixed(2)}/gal`,
         ...fuelFieldsFromMarker(marker),
@@ -177,6 +269,7 @@ export async function fetchRouteStops(
         location: `~${mile} mi from ${originLabel}`,
         lat: point.lat,
         lon: point.lon,
+        routeMile: mile,
         gasPricePerGallon: marker.isElectric ? undefined : liveGas,
         notes: note,
         ...fuelFieldsFromMarker(marker),
@@ -207,6 +300,7 @@ export async function fetchRouteStops(
           location: poi.location,
           lat: poi.lat,
           lon: poi.lon,
+          routeMile: Math.round(mile),
           estimatedPrice: poi.estimatedPrice,
           notes:
             profile.pets && !poi.petFriendly
@@ -221,6 +315,7 @@ export async function fetchRouteStops(
           location: `Night ${day} — ~${Math.round(mile)} mi`,
           lat: point.lat,
           lon: point.lon,
+          routeMile: Math.round(mile),
           notes: profile.pets
             ? "Book a pet-friendly hotel near this point on your route."
             : `Night ${day} · Recommended stop ~${Math.round(mile)} mi`,
@@ -229,11 +324,13 @@ export async function fetchRouteStops(
     }
   }
 
+  await appendRestBreakStops(stops, stats, coords, new Set<string>(), locale);
+
   if (stops.length === 0) {
     return generateFallbackStops(stats, profile, coords, context);
   }
 
-  return stops.slice(0, 10);
+  return sortStopsByMile(stops).slice(0, MAX_ROUTE_STOPS);
 }
 
 /** @deprecated Use fetchRouteStops for real POI data. Kept for sync callers. */

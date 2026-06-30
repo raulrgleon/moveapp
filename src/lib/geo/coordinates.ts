@@ -37,6 +37,8 @@ export interface RouteGeometry {
 
 export interface RouteAlternative extends RouteGeometry {
   index: number;
+  usesInterstate: boolean;
+  interstateRefs: string[];
 }
 
 const ROUTE_COUNT = 3;
@@ -85,14 +87,47 @@ function parseOsrmRoutes(
     geometry: { coordinates: [number, number][] };
     distance: number;
     duration: number;
+    legs?: Array<{
+      steps?: Array<{
+        ref?: string;
+        name?: string;
+        destinations?: string;
+      }>;
+    }>;
   }>
 ): RouteAlternative[] {
-  return routes.map((route, index) => ({
-    index,
-    coordinates: route.geometry.coordinates,
-    distanceMiles: route.distance / 1609.34,
-    durationHours: route.duration / 3600,
-  }));
+  const extractInterstates = (input: string): string[] => {
+    const refs = new Set<string>();
+    const re = /\b(?:I[-\s]?(\d{1,3}[A-Z]?)|Interstate\s+(\d{1,3}[A-Z]?))\b/gi;
+    let match: RegExpExecArray | null = re.exec(input);
+    while (match) {
+      const raw = (match[1] ?? match[2] ?? "").toUpperCase();
+      if (raw) refs.add(`I-${raw}`);
+      match = re.exec(input);
+    }
+    return Array.from(refs);
+  };
+
+  return routes.map((route, index) => {
+    const interstateSet = new Set<string>();
+    for (const leg of route.legs ?? []) {
+      for (const step of leg.steps ?? []) {
+        const refs = extractInterstates(
+          [step.ref, step.name, step.destinations].filter(Boolean).join(" ")
+        );
+        for (const ref of refs) interstateSet.add(ref);
+      }
+    }
+    const interstateRefs = Array.from(interstateSet);
+    return {
+      index,
+      coordinates: route.geometry.coordinates,
+      distanceMiles: route.distance / 1609.34,
+      durationHours: route.duration / 3600,
+      usesInterstate: interstateRefs.length > 0,
+      interstateRefs,
+    };
+  });
 }
 
 function routesShareGeometry(a: RouteAlternative, b: RouteAlternative): boolean {
@@ -124,11 +159,13 @@ function straightLineFallback(from: GeoPoint, to: GeoPoint): RouteAlternative {
     ],
     distanceMiles: straightMiles,
     durationHours: straightMiles / 55,
+    usesInterstate: false,
+    interstateRefs: [],
   };
 }
 
 async function queryOsrm(coordPath: string): Promise<RouteAlternative[]> {
-  const url = `https://router.project-osrm.org/route/v1/driving/${coordPath}?overview=full&geometries=geojson&alternatives=${ROUTE_COUNT}`;
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordPath}?overview=full&geometries=geojson&steps=true&alternatives=${ROUTE_COUNT}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OSRM_TIMEOUT_MS);
   try {

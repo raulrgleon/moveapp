@@ -14,6 +14,7 @@ import { loadUserData, type UserDataPayload } from "@/lib/data-cache";
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { formatDestinationLabel } from "@/lib/geo/nominatim";
 import { refreshMoveData, subscribeProfileUpdated } from "@/lib/move/refresh-data";
+import { seedRouteStatsCache } from "@/hooks/use-route-stats";
 import { dispatchProfileUpdated } from "@/lib/move/profile-events";
 import {
   clearGuestProfileStorage,
@@ -25,7 +26,12 @@ import {
   type MoveProfile,
 } from "@/lib/move-profile";
 import type { VehicleInfo } from "@/lib/vehicles/types";
-import { createEmptyVehicle, createVehicleId, ensureVehicleId } from "@/lib/vehicles/types";
+import {
+  createEmptyVehicle,
+  createVehicleId,
+  ensureVehicleId,
+  isCompleteVehicle,
+} from "@/lib/vehicles/types";
 
 export interface ConfirmedAddress {
   displayName: string;
@@ -127,12 +133,32 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
     setOwnerName(data.ownerName ?? "");
     setCanEdit(data.canEdit ?? true);
     setCanEditProfile(data.canEditProfile ?? true);
-    setVehiclesState(data.vehicles.length ? data.vehicles : []);
+    setVehiclesState((prev) => {
+      const fromServer = data.vehicles.length ? data.vehicles : [];
+      const serverIds = new Set(fromServer.map((v) => v.id));
+      const localDrafts = prev.filter(
+        (v) => !isCompleteVehicle(v) && !serverIds.has(v.id)
+      );
+      return localDrafts.length ? [...fromServer, ...localDrafts] : fromServer;
+    });
     setTruckChoiceState(data.truckChoice ?? null);
     setVehicleTransportChoiceState(data.vehicleTransportChoice ?? null);
     setSelectedRouteIndexState(
       typeof data.selectedRouteIndex === "number" ? data.selectedRouteIndex : 0
     );
+    if (data.storedRoutes?.alternatives?.length) {
+      seedRouteStatsCache({
+        alternatives: data.storedRoutes.alternatives,
+        stopsByIndex: data.storedRoutes.stopsByIndex,
+        selectedRouteIndex: data.storedRoutes.selectedRouteIndex,
+        distanceMiles: data.storedRoutes.alternatives[data.storedRoutes.selectedRouteIndex]?.distanceMiles ?? 0,
+        durationHours: data.storedRoutes.alternatives[data.storedRoutes.selectedRouteIndex]?.durationHours ?? 0,
+        driveTimeLabel:
+          data.storedRoutes.alternatives[data.storedRoutes.selectedRouteIndex]?.driveTimeLabel ?? "",
+        stopCount: 0,
+        stopsPending: false,
+      });
+    }
     if (data.isAddressConfirmed && data.destinationAddress) {
       setConfirmed({
         displayName: data.destinationAddress,
@@ -332,6 +358,10 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(
     async (patch: Partial<MoveProfile>, geocode = true, _sync = true) => {
+      const destinationChanged =
+        patch.destination !== undefined &&
+        patch.destination.trim() !== profile.destination.trim();
+
       const next = { ...profile, ...patch };
       if (geocode) {
         if (patch.origin !== undefined) {
@@ -349,6 +379,11 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
+
+      if (destinationChanged) {
+        setConfirmed(null);
+      }
+
       setProfile(next);
 
       const isGuest = !isAuthenticated || user?.role === "admin";
@@ -358,7 +393,11 @@ export function MoveProvider({ children }: { children: React.ReactNode }) {
       }
       if (!canEditProfile) return;
 
-      await syncToDb({ profile: next, vehicles });
+      await syncToDb({
+        profile: next,
+        vehicles,
+        ...(destinationChanged ? { destinationAddress: null } : {}),
+      });
     },
     [profile, isAuthenticated, user?.role, canEditProfile, syncToDb, vehicles]
   );

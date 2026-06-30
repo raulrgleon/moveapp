@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, CircleMarker, DivIcon, LayerGroup, Marker, Polyline } from "leaflet";
 import { MOVE_ROUTE_POINTS, type GeoPoint } from "@/lib/geo/coordinates";
+import { computeTravelDays } from "@/lib/geo/route-service";
 import { encodeRouteCoords, escapeHtml } from "@/lib/geo/escape-html";
 import type { RouteAlternativeSummary } from "@/hooks/use-route-stats";
 import type { RouteStop } from "@/lib/types";
@@ -49,13 +50,17 @@ function createWeatherDivIcon(
   });
 }
 
-function stopEmoji(type: RouteStop["type"], isElectric?: boolean): string {
+function stopEmoji(type: RouteStop["type"], isElectric?: boolean, restStopKind?: RouteStop["restStopKind"]): string {
   if (type === "gas") return isElectric ? "⚡" : "⛽";
   switch (type) {
     case "hotel":
       return "🏨";
     case "pet_hotel":
       return "🐾";
+    case "rest":
+      if (restStopKind === "gas_station") return "⛽";
+      if (restStopKind === "services" || restStopKind === "rest_area") return "🛣️";
+      return "🚻";
     default:
       return "📍";
   }
@@ -79,8 +84,13 @@ function usePrefersTouch() {
     const mq = window.matchMedia("(pointer: coarse), (max-width: 768px)");
     const update = () => setTouch(mq.matches);
     update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }
+    // Safari/iOS older versions use addListener/removeListener.
+    mq.addListener(update);
+    return () => mq.removeListener(update);
   }, []);
   return touch;
 }
@@ -109,6 +119,7 @@ export function RouteMap({
   const destMarkerRef = useRef<Marker | null>(null);
   const homeMarkerRef = useRef<CircleMarker | null>(null);
   const lastFitRouteRef = useRef<number | null>(null);
+  const lastExpandedRef = useRef(expanded);
   const weatherRequestRef = useRef(0);
 
   const [mapReady, setMapReady] = useState(false);
@@ -302,16 +313,18 @@ export function RouteMap({
   // Resize and refit when container or cinematic mode changes
   useEffect(() => {
     if (!mapReady || !containerRef.current) return;
+    lastFitRouteRef.current = null;
     invalidateMapSize(true);
-    const t1 = window.setTimeout(() => invalidateMapSize(true), 120);
-    const t2 = window.setTimeout(() => invalidateMapSize(true), 350);
+    const timers = [80, 200, 450, 900].map((ms) =>
+      window.setTimeout(() => invalidateMapSize(true), ms)
+    );
     const node = containerRef.current;
-    const ro = new ResizeObserver(() => invalidateMapSize(false));
-    ro.observe(node);
+    const hasResizeObserver = typeof window.ResizeObserver !== "undefined";
+    const ro = hasResizeObserver ? new window.ResizeObserver(() => invalidateMapSize(true)) : null;
+    ro?.observe(node);
     return () => {
-      ro.disconnect();
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      ro?.disconnect();
+      timers.forEach((id) => window.clearTimeout(id));
     };
   }, [mapReady, expanded, invalidateMapSize]);
 
@@ -331,7 +344,9 @@ export function RouteMap({
     const requestId = ++weatherRequestRef.current;
 
     if (!selectedRoute?.coordinates?.length) {
-      if (lastFitRouteRef.current !== selectedRouteIndex) {
+      const expandedChanged = lastExpandedRef.current !== expanded;
+      lastExpandedRef.current = expanded;
+      if (lastFitRouteRef.current !== selectedRouteIndex || expandedChanged) {
         map.fitBounds(
           Lmod.latLngBounds([
             [origin.lat, origin.lon],
@@ -378,7 +393,7 @@ export function RouteMap({
       Lmod.marker([stop.lat, stop.lon], {
         icon: Lmod.divIcon({
           className: "route-stop-marker-wrap",
-          html: `<div class="route-stop-marker">${stopEmoji(stop.type, stop.isElectric)}</div>`,
+          html: `<div class="route-stop-marker">${stopEmoji(stop.type, stop.isElectric, stop.restStopKind)}</div>`,
           iconSize: [28, 28],
           iconAnchor: [14, 14],
         }),
@@ -390,7 +405,10 @@ export function RouteMap({
         );
     }
 
-    if (lastFitRouteRef.current !== selectedRouteIndex) {
+    const expandedChanged = lastExpandedRef.current !== expanded;
+    lastExpandedRef.current = expanded;
+
+    if (lastFitRouteRef.current !== selectedRouteIndex || expandedChanged) {
       fitMapToRoute();
       lastFitRouteRef.current = selectedRouteIndex;
     }
@@ -444,6 +462,7 @@ export function RouteMap({
     destination.lon,
     prefersTouch,
     fitMapToRoute,
+    expanded,
   ]);
 
   const handleSelectRoute = useCallback(
@@ -456,11 +475,19 @@ export function RouteMap({
   const driveHoursLabel = selectedRoute
     ? t("routePage.driveHours", { hours: selectedRoute.durationHours.toFixed(1) })
     : null;
+  const travelDaysLabel = selectedRoute
+    ? (() => {
+        const days = computeTravelDays(selectedRoute.durationHours);
+        return days === 1
+          ? t("routePage.travelDayOne")
+          : t("routePage.travelDays", { days });
+      })()
+    : null;
 
   return (
     <div
       className={`relative overflow-hidden rounded-xl border ${
-        expanded ? "flex h-full min-h-0 flex-col" : ""
+        expanded ? "flex h-full min-h-0 flex-1 flex-col" : ""
       } ${className ?? ""}`}
     >
       <style>{`
@@ -501,7 +528,7 @@ export function RouteMap({
         ref={containerRef}
         className={`route-map-container z-0 w-full ${
           expanded
-            ? "min-h-0 flex-1"
+            ? "h-full min-h-[320px]"
             : "min-h-[min(52dvh,28rem)] sm:min-h-[360px] lg:min-h-[400px]"
         }`}
       />
@@ -519,6 +546,12 @@ export function RouteMap({
               </span>
               <span className="text-muted-foreground hidden sm:inline">·</span>
               <span className="text-muted-foreground">{driveHoursLabel}</span>
+              {travelDaysLabel && (
+                <>
+                  <span className="text-muted-foreground hidden sm:inline">·</span>
+                  <span className="font-medium">{travelDaysLabel}</span>
+                </>
+              )}
             </div>
           ) : (
             <p className="text-muted-foreground">{t("routePage.pickRouteHint")}</p>

@@ -31,7 +31,7 @@ import {
 import { apiFetch } from "@/lib/api-client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { budgetCategoryLabel } from "@/lib/budget/category-labels";
-import { AlertTriangle, DollarSign, Handshake, PiggyBank, RefreshCw, TrendingDown } from "lucide-react";
+import { AlertTriangle, DollarSign, Handshake, PiggyBank, TrendingDown } from "lucide-react";
 
 interface BudgetItemRow {
   id: string;
@@ -85,10 +85,9 @@ function BudgetDifference({
 export default function BudgetPage() {
   const t = useT();
   const { locale } = useLocale();
-  const { truckChoice, profile, selectedRouteIndex } = useMove();
+  const { truckChoice, profile } = useMove();
   const [data, setData] = useState<BudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [recalculating, setRecalculating] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [draftActuals, setDraftActuals] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -142,26 +141,6 @@ export default function BudgetPage() {
     return subscribeProfileUpdated(() => void load());
   }, []);
 
-  const recalculate = async () => {
-    setRecalculating(true);
-    setError(null);
-    try {
-      const res = await apiFetch("/api/budget", {
-        method: "PATCH",
-        body: JSON.stringify({ recalculate: true, routeIndex: selectedRouteIndex }),
-      });
-      if (!res.ok) {
-        setError(t("budget.recalculateFailed"));
-        return;
-      }
-      setData((await res.json()) as BudgetResponse);
-    } catch {
-      setError(t("budget.recalculateFailed"));
-    } finally {
-      setRecalculating(false);
-    }
-  };
-
   const saveActual = async (item: BudgetItemRow) => {
     const raw = draftActuals[item.id] ?? "";
     const actual = raw === "" ? 0 : Number(raw);
@@ -200,12 +179,7 @@ export default function BudgetPage() {
       <DashboardHeader title={t("budget.title")} description={t("budget.subtitle")} />
       <PageContainer>
         <PageHeader
-          action={
-            <Button variant="outline" size="sm" onClick={recalculate} disabled={recalculating}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${recalculating ? "animate-spin" : ""}`} />
-              {t("budget.recalculate")}
-            </Button>
-          }
+          action={undefined}
         />
 
         <Card className="border-dashed bg-muted/30">

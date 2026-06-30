@@ -48,6 +48,18 @@ export function ensureVehicleId(vehicle: VehicleInfo): VehicleInfo {
   return vehicle.id ? vehicle : { ...vehicle, id: createVehicleId() };
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isCompleteVehicle(vehicle: VehicleInfo | null | undefined): boolean {
+  return Boolean(vehicle?.year && vehicle?.make?.trim() && vehicle?.model?.trim());
+}
+
+/** Client ids are preserved in DB when they are valid UUIDs (stable React keys). */
+export function vehicleDbId(vehicle: VehicleInfo): string | undefined {
+  return vehicle.id && UUID_RE.test(vehicle.id) ? vehicle.id : undefined;
+}
+
 export interface VehicleTip {
   id: string;
   type: "info" | "success" | "warning";

@@ -1,10 +1,12 @@
 import type { MoveProfile } from "@/lib/move-profile";
-import { parseRentalPreferenceKey } from "@/lib/move-profile";
 import type { BudgetEstimateContext } from "@/lib/budget/estimator";
 import { estimateFuelCostSync } from "@/lib/budget/fuel-cost";
 import { computeTruckOptionPrice, householdMultiplier, normalizedMoveMiles } from "@/lib/budget/pricing";
-import { resolveTruckChoiceOption } from "@/lib/trucks/truck-choice";
-import { truckOptionLabel } from "@/lib/trucks/truck-choice";
+import {
+  effectiveRentalKeyForBudget,
+  resolveTruckChoiceOption,
+  truckOptionLabel,
+} from "@/lib/trucks/truck-choice";
 import type { Locale } from "@/lib/i18n";
 import { translate } from "@/lib/i18n";
 
@@ -33,7 +35,10 @@ export function buildBudgetBreakdowns(
         distanceMiles: miles,
         vehicles,
         vehicleCount: Math.max(1, vehicles.length),
-        rentalKey: parseRentalPreferenceKey(profile.rentalPreference),
+        rentalKey: effectiveRentalKeyForBudget(
+          profile.rentalPreference,
+          context.truckChoice
+        ),
         origin: profile.origin,
         destination: profile.destination,
         locale,

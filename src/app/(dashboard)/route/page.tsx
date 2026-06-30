@@ -1,8 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { useEffect, useMemo, useState } from "react";
 import type { RouteBudgetDelta } from "@/hooks/use-route-stats";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -14,7 +13,6 @@ import {
   Maximize2,
   Minimize2,
   PawPrint,
-  RefreshCw,
   Route as RouteIcon,
 } from "lucide-react";
 import { RouteWeatherPanel } from "@/components/dashboard/route-weather-panel";
@@ -55,7 +53,14 @@ function buildStopMapsUrl(stop: { name: string; location: string; lat?: number; 
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${stop.name}, ${stop.location}`)}`;
 }
 
-function stopTypeLabel(t: (key: string) => string, type: keyof typeof stopIcons): string {
+function stopTypeLabel(
+  t: (key: string) => string,
+  type: keyof typeof stopIcons,
+  restStopKind?: "rest_area" | "services" | "gas_station"
+): string {
+  if (type === "rest" && restStopKind) {
+    return t(`routePage.restStopKind.${restStopKind}`);
+  }
   return t(`routePage.stopType.${type}`);
 }
 
@@ -64,7 +69,7 @@ const stopIcons = {
   hotel: Hotel,
   rest: MapPin,
   pet_hotel: PawPrint,
-};
+} as const;
 
 function buildGoogleMapsUrl(
   originLat?: number,
@@ -91,17 +96,22 @@ export default function RoutePage() {
   const { profile } = useMove();
   const { stats, loading, stopsLoading, error, routeIndex, setRouteIndex } = useRouteStats();
   const [cinematic, setCinematic] = useState(false);
-  const [budgetUpdating, setBudgetUpdating] = useState(false);
+  const [interstateOnly, setInterstateOnly] = useState(false);
   const [budgetSyncNote, setBudgetSyncNote] = useState<string | null>(null);
 
+  const filteredAlternatives = useMemo(() => {
+    if (!stats?.alternatives?.length) return [];
+    if (!interstateOnly) return stats.alternatives;
+    return stats.alternatives.filter((alt) => alt.usesInterstate);
+  }, [stats?.alternatives, interstateOnly]);
+
   useEffect(() => {
-    if (!cinematic) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [cinematic]);
+    if (!interstateOnly || !filteredAlternatives.length) return;
+    const selectedVisible = filteredAlternatives.some((alt) => alt.index === routeIndex);
+    if (!selectedVisible) {
+      setRouteIndex(filteredAlternatives[0].index);
+    }
+  }, [interstateOnly, filteredAlternatives, routeIndex, setRouteIndex]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -129,18 +139,6 @@ export default function RoutePage() {
     };
   }, [t]);
 
-  const updateBudgetForRoute = async () => {
-    setBudgetUpdating(true);
-    try {
-      await apiFetch("/api/budget", {
-        method: "PATCH",
-        body: JSON.stringify({ recalculate: true, routeIndex }),
-      });
-    } finally {
-      setBudgetUpdating(false);
-    }
-  };
-
   const distanceLabel = stats
     ? `${stats.distanceMiles.toLocaleString()} ${t("routePage.miles")}`
     : loading
@@ -148,10 +146,13 @@ export default function RoutePage() {
       : "—";
   const driveTimeLabel = stats?.driveTimeLabel ?? (loading ? "…" : "—");
   const stopCount = stats?.stops.length ?? stats?.stopCount ?? 0;
-  const driveDays =
-    stats && stats.durationHours > 10
-      ? t("routePage.multiDayRoute")
-      : t("routePage.twoDayRoute");
+  const travelDaysLabel = stats
+    ? stats.travelDays === 1
+      ? t("routePage.travelDayOne")
+      : t("routePage.travelDays", { days: stats.travelDays })
+    : loading
+      ? "…"
+      : "—";
 
   const googleUrl = buildGoogleMapsUrl(
     profile.originLat,
@@ -175,7 +176,35 @@ export default function RoutePage() {
           destination: profile.destination,
         })}
       />
-      <PageContainer>
+      <PageContainer withMobileNavPad={!cinematic} className={cinematic ? "space-y-0 !pb-3 sm:!pb-4 lg:!pb-6" : undefined}>
+        {cinematic ? (
+          <div className="flex h-[calc(100dvh-7rem)] flex-col overflow-hidden rounded-xl border-2 border-border/80 bg-card shadow-xl ring-1 ring-primary/10 lg:h-[calc(100dvh-5.5rem)]">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2.5 sm:px-4">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm">{t("routePage.cinematicMode")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t("routePage.cinematicInAppHint")} · {profile.origin} → {profile.destination}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => setCinematic(false)}>
+                <Minimize2 className="mr-2 h-4 w-4" />
+                {t("routePage.exitCinematic")}
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1">
+              <RouteMap
+                className="h-full min-h-[320px] w-full"
+                expanded
+                showNewHome
+                alternatives={filteredAlternatives}
+                selectedRouteIndex={routeIndex}
+                onSelectRoute={setRouteIndex}
+                stops={stats?.stops}
+              />
+            </div>
+          </div>
+        ) : (
+          <>
         <PageHeader
           action={
             googleUrl || appleUrl ? (
@@ -232,7 +261,7 @@ export default function RoutePage() {
           <StatCard
             label={t("routePage.estDriveTime")}
             value={driveTimeLabel}
-            subtext={driveDays}
+            subtext={travelDaysLabel}
             icon={RouteIcon}
           />
           <StatCard
@@ -244,43 +273,42 @@ export default function RoutePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <div
-            className={
-              cinematic
-                ? "fixed inset-0 z-50 flex flex-col bg-background p-3 sm:p-4 safe-top safe-bottom"
-                : "relative min-h-[min(52dvh,28rem)] sm:min-h-[360px]"
-            }
-          >
-            {cinematic && (
-              <div className="flex justify-between items-center mb-3 shrink-0 gap-2">
-                <p className="font-semibold text-sm sm:text-base">{t("routePage.cinematicMode")}</p>
-                <Button variant="outline" size="sm" onClick={() => setCinematic(false)}>
-                  <Minimize2 className="mr-2 h-4 w-4" />
-                  {t("routePage.exitCinematic")}
-                </Button>
-              </div>
-            )}
+          <div className="relative min-h-[min(52dvh,28rem)] sm:min-h-[360px]">
+            <div className="absolute top-3 left-3 z-[500] inline-flex rounded-md border bg-background/95 p-0.5 shadow-lg backdrop-blur lg:hidden">
+              <Button
+                size="sm"
+                variant={interstateOnly ? "ghost" : "secondary"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setInterstateOnly(false)}
+              >
+                {t("routePage.allRoutes")}
+              </Button>
+              <Button
+                size="sm"
+                variant={interstateOnly ? "secondary" : "ghost"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setInterstateOnly(true)}
+              >
+                {t("routePage.interstateOnly")}
+              </Button>
+            </div>
             <RouteMap
-              className={cinematic ? "flex-1 min-h-0 rounded-xl" : undefined}
-              expanded={cinematic}
               showNewHome
-              alternatives={stats?.alternatives}
+              alternatives={filteredAlternatives}
               selectedRouteIndex={routeIndex}
               onSelectRoute={setRouteIndex}
               stops={stats?.stops}
             />
-            {!cinematic && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="absolute top-3 right-3 z-[500] shadow-lg h-9 sm:h-10"
-                onClick={() => setCinematic(true)}
-              >
-                <Maximize2 className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{t("routePage.cinematicMode")}</span>
-                <span className="sm:hidden sr-only">{t("routePage.cinematicMode")}</span>
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute top-3 right-3 z-[500] shadow-lg h-9 sm:h-10"
+              onClick={() => setCinematic(true)}
+            >
+              <Maximize2 className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t("routePage.cinematicMode")}</span>
+              <span className="sm:hidden sr-only">{t("routePage.cinematicMode")}</span>
+            </Button>
           </div>
 
           <div className="space-y-4">
@@ -299,6 +327,12 @@ export default function RoutePage() {
                   <span className="text-muted-foreground shrink-0">{t("routePage.destination")}</span>
                   <span className="font-medium sm:text-right break-words min-w-0">{profile.destination}</span>
                 </div>
+                {stats && (
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-start pt-2 border-t">
+                    <span className="text-muted-foreground shrink-0">{t("routePage.travelDaysLabel")}</span>
+                    <span className="font-medium sm:text-right">{travelDaysLabel}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -307,14 +341,37 @@ export default function RoutePage() {
         {stats && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t("routePage.alternativeRoutes")}</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base">{t("routePage.alternativeRoutes")}</CardTitle>
+                <div className="inline-flex rounded-md border p-0.5">
+                  <Button
+                    size="sm"
+                    variant={interstateOnly ? "ghost" : "secondary"}
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setInterstateOnly(false)}
+                  >
+                    {t("routePage.allRoutes")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={interstateOnly ? "secondary" : "ghost"}
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setInterstateOnly(true)}
+                  >
+                    {t("routePage.interstateOnly")}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground lg:hidden">
                 {t("routePage.alternativeRoutesDesc")}
               </p>
+              {interstateOnly && filteredAlternatives.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t("routePage.noInterstateRoutes")}</p>
+              )}
               <div className="grid gap-2 sm:grid-cols-3 lg:hidden">
-                {stats.alternatives.slice(0, 3).map((alt) => (
+                {filteredAlternatives.slice(0, 3).map((alt) => (
                   <button
                     key={alt.index}
                     type="button"
@@ -329,6 +386,11 @@ export default function RoutePage() {
                     <p className="text-muted-foreground mt-1">
                       {alt.distanceMiles.toLocaleString()} {t("routePage.miles")} · {alt.driveTimeLabel}
                     </p>
+                    {alt.usesInterstate && alt.interstateRefs?.length ? (
+                      <p className="text-[11px] mt-1 text-primary">
+                        {t("routePage.interstates")}: {alt.interstateRefs.slice(0, 3).join(", ")}
+                      </p>
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -336,7 +398,7 @@ export default function RoutePage() {
                 {t("routePage.alternativeRoutesDesc")}
               </p>
               <div className="hidden lg:grid gap-2 sm:grid-cols-3">
-                {stats.alternatives.slice(0, 3).map((alt) => (
+                {filteredAlternatives.slice(0, 3).map((alt) => (
                   <button
                     key={alt.index}
                     type="button"
@@ -351,18 +413,14 @@ export default function RoutePage() {
                     <p className="text-muted-foreground mt-1">
                       {alt.distanceMiles.toLocaleString()} {t("routePage.miles")} · {alt.driveTimeLabel}
                     </p>
+                    {alt.usesInterstate && alt.interstateRefs?.length ? (
+                      <p className="text-[11px] mt-1 text-primary">
+                        {t("routePage.interstates")}: {alt.interstateRefs.slice(0, 3).join(", ")}
+                      </p>
+                    ) : null}
                   </button>
                 ))}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={budgetUpdating}
-                onClick={() => void updateBudgetForRoute()}
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${budgetUpdating ? "animate-spin" : ""}`} />
-                {t("routePage.updateBudgetForRoute")}
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -391,7 +449,7 @@ export default function RoutePage() {
                         <div className="flex flex-wrap items-start gap-2">
                           <p className="font-medium text-sm leading-snug">{stop.name}</p>
                           <Badge variant="outline" className="text-xs shrink-0">
-                            {stopTypeLabel(t, stop.type)}
+                            {stopTypeLabel(t, stop.type, stop.restStopKind)}
                           </Badge>
                         </div>
                         {stop.location && (
@@ -449,11 +507,20 @@ export default function RoutePage() {
                   );
                 })}
               </div>
+            ) : stopsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("routePage.stopsLoading")}
+              </div>
+            ) : error === "missing_coords" || !profile.originLat || !profile.destinationLat ? (
+              <p className="text-sm text-muted-foreground">{t("routePage.pilotSetCoords")}</p>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("weather.configureRouteHint")}</p>
+              <p className="text-sm text-muted-foreground">{t("routePage.noStopsYet")}</p>
             )}
           </CardContent>
         </Card>
+          </>
+        )}
       </PageContainer>
     </>
   );

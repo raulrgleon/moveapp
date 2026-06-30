@@ -1,5 +1,6 @@
 import { estimateBudget } from "@/lib/budget/estimator";
 import { fetchRouteStops } from "@/lib/geo/route-stops";
+import { loadStoredMoveRoutes } from "@/lib/geo/move-routes-sync";
 import {
   computeRouteStatsWithAlternatives,
   resolveRoutePoints,
@@ -85,26 +86,58 @@ export async function resolveBudgetRouteContext(
   let routeStops: RouteStop[] = [];
 
   if (points) {
-    const stats = await computeRouteStatsWithAlternatives(points.from, points.to, profile.pets);
-    const route = stats?.alternatives[routeIndex] ?? stats?.alternatives[0];
-    if (route && stats) {
-      distanceMiles = Math.round(route.distanceMiles);
-      durationHours = route.durationHours;
-      routeStops = await fetchRouteStops(
-        {
-          distanceMiles,
-          durationHours,
-          driveTimeLabel: stats.driveTimeLabel,
-          stopCount: stats.stopCount,
-          geometry: route,
-        },
-        profile,
-        {
-          vehicles,
-          rentalPreference: profile.rentalPreference,
-          vehicleCount: Math.max(1, vehicles.length),
-        }
-      );
+    const stored = await loadStoredMoveRoutes(moveId);
+    const storedAlt = stored?.alternatives[routeIndex] ?? stored?.alternatives[0];
+
+    if (storedAlt) {
+      distanceMiles = storedAlt.distanceMiles;
+      durationHours = storedAlt.durationHours;
+      const storedStops = stored?.stopsByIndex[routeIndex] ?? stored?.stopsByIndex[0];
+      if (storedStops?.length) {
+        routeStops = storedStops;
+      } else {
+        routeStops = await fetchRouteStops(
+          {
+            distanceMiles,
+            durationHours,
+            driveTimeLabel: storedAlt.driveTimeLabel,
+            stopCount: 0,
+            geometry: {
+              coordinates: storedAlt.coordinates,
+              distanceMiles: storedAlt.distanceMiles,
+              durationHours: storedAlt.durationHours,
+            },
+          },
+          profile,
+          {
+            vehicles,
+            rentalPreference: profile.rentalPreference,
+            vehicleCount: Math.max(1, vehicles.length),
+          }
+        );
+      }
+    } else {
+      const stats = await computeRouteStatsWithAlternatives(points.from, points.to, profile.pets);
+      const route = stats?.alternatives[routeIndex] ?? stats?.alternatives[0];
+      if (route && stats) {
+        distanceMiles = Math.round(route.distanceMiles);
+        durationHours = route.durationHours;
+        routeStops = await fetchRouteStops(
+          {
+            distanceMiles,
+            durationHours,
+            driveTimeLabel: stats.driveTimeLabel,
+            stopCount: stats.stopCount,
+            geometry: route,
+          },
+          profile,
+          {
+            vehicles,
+            rentalPreference: profile.rentalPreference,
+            vehicleCount: Math.max(1, vehicles.length),
+          }
+        );
+      }
     }
   }
 

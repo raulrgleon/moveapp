@@ -39,9 +39,5 @@ export function mergeLiveBudgetItems(
     }
   }
 
-  for (const orphan of Array.from(byCategory.values())) {
-    merged.push(orphan);
-  }
-
   return merged.sort((a, b) => a.sortOrder - b.sortOrder);
 }

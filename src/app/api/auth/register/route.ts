@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { registerUserWithPassword, registerUserWithoutMove } from "@/lib/auth/user-service";
 import { acceptMoveInviteByToken } from "@/lib/move/accept-invite";
+import { syncMoveRoutesGeometry } from "@/lib/geo/move-routes-sync";
 import {
   COOKIE_NAME,
   createSession,
@@ -107,6 +108,16 @@ export async function POST(req: NextRequest) {
             destinationLon: body.destinationLon ?? null,
           },
         });
+      }
+    }
+
+    if (!inviteToken && user.role !== "admin") {
+      const move = await prisma.move.findFirst({
+        where: { userId: user.id },
+        orderBy: { updatedAt: "desc" },
+      });
+      if (move) {
+        await syncMoveRoutesGeometry(move.id, userLocale);
       }
     }
 
