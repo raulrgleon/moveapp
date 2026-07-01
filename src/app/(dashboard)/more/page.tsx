@@ -19,6 +19,7 @@ const MOBILE_MORE_HREFS = new Set([
   "/utilities",
   "/city-comparison",
   "/inventory",
+  "/shopping-list",
   "/documents",
   "/collaboration",
   "/partner",

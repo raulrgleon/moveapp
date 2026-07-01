@@ -25,6 +25,7 @@ export const es = {
     cityComparison: "Comparar ciudades",
     checklist: "Lista de tareas",
     inventory: "Inventario",
+    shoppingList: "Lista de compras",
     documents: "Documentos",
     marketplace: "Marketplace",
     assistant: "Pilot",
@@ -1523,6 +1524,13 @@ export const es = {
       "Actualizar regenera el archivo desde el código desplegado y stats de la base de datos. Descargar guarda app-guide.generated.md.",
     appGuideLoadError: "No se pudo cargar la documentación.",
     appGuideUpdateError: "No se pudo regenerar la documentación.",
+    amazonAffiliateSettings: "Configuración afiliados de Amazon",
+    amazonAffiliateSettingsDesc:
+      "Actualiza el Associate Tag y el dominio marketplace usados para enlaces de carrito de compras.",
+    amazonAssociateTag: "Associate Tag",
+    amazonMarketplaceDomain: "Dominio marketplace",
+    saveAmazonSettings: "Guardar configuración Amazon",
+    amazonSettingsSaved: "Configuración de afiliados Amazon actualizada",
     pilotTitle: "Pilot Admin",
     pilotSubtitle: "Inteligencia de mudanzas en toda la plataforma",
     pilotWelcome:

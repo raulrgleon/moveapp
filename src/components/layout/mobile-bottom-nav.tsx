@@ -14,6 +14,7 @@ const MORE_SECTION_PATHS = [
   "/utilities",
   "/city-comparison",
   "/inventory",
+  "/shopping-list",
   "/documents",
   "/collaboration",
   "/partner",

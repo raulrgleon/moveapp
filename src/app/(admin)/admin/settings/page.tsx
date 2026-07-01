@@ -7,6 +7,7 @@ import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -28,6 +29,11 @@ interface AnnouncementRow {
   endsAt: string | null;
 }
 
+interface AmazonSettings {
+  associateTag: string;
+  marketplaceDomain: string;
+}
+
 export default function AdminSettingsPage() {
   const t = useT();
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
@@ -37,6 +43,11 @@ export default function AdminSettingsPage() {
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
   const [success, setSuccess] = useState("");
+  const [amazonSaving, setAmazonSaving] = useState(false);
+  const [amazonSettings, setAmazonSettings] = useState<AmazonSettings>({
+    associateTag: "",
+    marketplaceDomain: "www.amazon.com",
+  });
 
   async function load() {
     setLoading(true);
@@ -48,6 +59,12 @@ export default function AdminSettingsPage() {
       setHealth((await healthRes.json()) as Record<string, unknown>);
       const annData = (await annRes.json()) as { announcements: AnnouncementRow[] };
       setAnnouncements(annData.announcements);
+      const amazonRes = await apiFetch("/api/admin/amazon-settings");
+      const amazonData = (await amazonRes.json()) as AmazonSettings;
+      setAmazonSettings({
+        associateTag: amazonData.associateTag ?? "",
+        marketplaceDomain: amazonData.marketplaceDomain ?? "www.amazon.com",
+      });
     } finally {
       setLoading(false);
     }
@@ -78,6 +95,25 @@ export default function AdminSettingsPage() {
   const integrations = (health?.integrations ?? {}) as Record<string, boolean>;
   const env = (health?.env ?? {}) as Record<string, { configured: boolean; preview: string | null }>;
 
+  async function saveAmazonSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setAmazonSaving(true);
+    setSuccess("");
+    try {
+      await apiFetch("/api/admin/amazon-settings", {
+        method: "PATCH",
+        body: JSON.stringify({
+          associateTag: amazonSettings.associateTag,
+          marketplaceDomain: amazonSettings.marketplaceDomain,
+        }),
+      });
+      setSuccess(t("adminConsole.amazonSettingsSaved"));
+      await load();
+    } finally {
+      setAmazonSaving(false);
+    }
+  }
+
   return (
     <>
       <AdminHeader title={t("adminConsole.settings")} />
@@ -87,6 +123,47 @@ export default function AdminSettingsPage() {
             {success}
           </p>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("adminConsole.amazonAffiliateSettings")}</CardTitle>
+            <CardDescription>{t("adminConsole.amazonAffiliateSettingsDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={saveAmazonSettings}>
+              <div className="space-y-2">
+                <Label htmlFor="amazon-associate-tag">{t("adminConsole.amazonAssociateTag")}</Label>
+                <Input
+                  id="amazon-associate-tag"
+                  value={amazonSettings.associateTag}
+                  onChange={(e) =>
+                    setAmazonSettings((prev) => ({ ...prev, associateTag: e.target.value.trim() }))
+                  }
+                  placeholder="MY_ASSOCIATE_TAG"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amazon-marketplace-domain">{t("adminConsole.amazonMarketplaceDomain")}</Label>
+                <Input
+                  id="amazon-marketplace-domain"
+                  value={amazonSettings.marketplaceDomain}
+                  onChange={(e) =>
+                    setAmazonSettings((prev) => ({
+                      ...prev,
+                      marketplaceDomain: e.target.value.trim() || "www.amazon.com",
+                    }))
+                  }
+                  placeholder="www.amazon.com"
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={amazonSaving}>
+                {amazonSaving ? t("common.saving") : t("adminConsole.saveAmazonSettings")}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

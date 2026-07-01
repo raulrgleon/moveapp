@@ -25,6 +25,7 @@ export const en = {
     cityComparison: "City Comparison",
     checklist: "Checklist",
     inventory: "Inventory",
+    shoppingList: "Shopping List",
     documents: "Documents",
     marketplace: "Marketplace",
     assistant: "Pilot",
@@ -1520,6 +1521,13 @@ export const en = {
       "Update regenerates the file from the current codebase and live database stats. Download saves app-guide.generated.md.",
     appGuideLoadError: "Could not load documentation.",
     appGuideUpdateError: "Could not regenerate documentation.",
+    amazonAffiliateSettings: "Amazon Affiliate Settings",
+    amazonAffiliateSettingsDesc:
+      "Update your Associate Tag and marketplace domain used for moving-shopping cart links.",
+    amazonAssociateTag: "Associate Tag",
+    amazonMarketplaceDomain: "Marketplace domain",
+    saveAmazonSettings: "Save Amazon settings",
+    amazonSettingsSaved: "Amazon affiliate settings updated",
     pilotTitle: "Admin Pilot",
     pilotSubtitle: "Platform-wide move intelligence",
     pilotWelcome:
