@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   applicationName: "MovePilotAi",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "MovePilotAi" },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
