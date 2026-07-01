@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { CLIENT_BUILD_ID_KEY } from "@/lib/app-version-client";
 
 const VERSION_ERROR_RE =
-  /Failed to find Server Action|older or newer deployment|Cannot read properties of undefined \(reading 'workers'\)/i;
+  /Failed to find Server Action|older or newer deployment|Cannot read properties of undefined \(reading 'workers'\)|ChunkLoadError|Loading chunk [\d]+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i;
+const VERSION_RECOVERED_KEY = "movepilot_version_guard_recovered";
 
 async function fetchBuildId(): Promise<string | null> {
   try {
@@ -27,7 +28,9 @@ export function ClientVersionGuard() {
   useEffect(() => {
     const recover = async () => {
       if (reloadingRef.current) return;
+      if (sessionStorage.getItem(VERSION_RECOVERED_KEY)) return;
       reloadingRef.current = true;
+      sessionStorage.setItem(VERSION_RECOVERED_KEY, "1");
       const latest = await fetchBuildId();
       if (latest) localStorage.setItem(CLIENT_BUILD_ID_KEY, latest);
       window.location.reload();
