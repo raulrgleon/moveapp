@@ -136,8 +136,6 @@ export default function ShoppingListPage() {
 
   const canOpenCart = Boolean(
     settings &&
-      settings.hasAssociateTag &&
-      settings.associateTag.trim().length > 0 &&
       settings.marketplaceDomain.trim().length > 0 &&
       cartUrl
   );
@@ -283,12 +281,6 @@ export default function ShoppingListPage() {
               <p className="text-sm text-muted-foreground">Total estimated cost</p>
               <p className="text-2xl font-semibold">${totalEstimate.toFixed(2)}</p>
             </div>
-
-            {!settings?.hasAssociateTag && (
-              <p className="text-sm text-amber-700">
-                Associate Tag is missing. Ask an admin to configure Amazon Affiliate Settings.
-              </p>
-            )}
 
             {warning && (
               <p className="text-sm text-amber-700 flex items-center gap-2">
