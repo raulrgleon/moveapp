@@ -68,7 +68,7 @@ export function OnboardingPageContent() {
   } = useMove();
   const completeMode =
     authHydrated && searchParams.get("complete") === "1" && isAuthenticated;
-  const fastMode = searchParams.get("fast") === "1";
+  const fastMode = searchParams.get("fast") !== "0";
   const [step, setStep] = useState(1);
   const [onboardingVehicles, setOnboardingVehicles] = useState<VehicleInfo[]>([]);
 
@@ -226,20 +226,19 @@ export function OnboardingPageContent() {
       setAccountError(t("auth.passwordMin"));
       return;
     }
-    if (!emailRegisterToken) {
-      setAccountError(t("auth.verifyEmailRequired"));
-      return;
-    }
     if (!termsAccepted) {
       setAccountError(t("legal.acceptTermsRequired"));
       return;
     }
-    const phoneValidation = validatePhoneForSave(accountPhone);
-    if (!phoneValidation.ok) {
-      setAccountError(
-        phoneValidation.reason === "empty" ? t("auth.phoneRequired") : t("auth.phoneInvalid")
-      );
-      return;
+    const phoneInput = accountPhone.trim();
+    let normalizedPhone: string | undefined;
+    if (phoneInput.length > 0) {
+      const phoneValidation = validatePhoneForSave(phoneInput);
+      if (!phoneValidation.ok) {
+        setAccountError(t("auth.phoneInvalid"));
+        return;
+      }
+      normalizedPhone = phoneValidation.phone;
     }
     setSubmitting(true);
     setAccountError("");
@@ -264,8 +263,8 @@ export function OnboardingPageContent() {
         destinationLat: profile.destinationLat,
         destinationLon: profile.destinationLon,
         isAddressConfirmed,
-        registerToken: emailRegisterToken,
-        phone: phoneValidation.phone,
+        registerToken: emailRegisterToken ?? undefined,
+        phone: normalizedPhone,
       });
       sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
@@ -277,23 +276,28 @@ export function OnboardingPageContent() {
   };
 
   const handleFinishSetup = async () => {
-    const phoneValidation = validatePhoneForSave(accountPhone);
-    if (!phoneValidation.ok) {
-      setAccountError(
-        phoneValidation.reason === "empty" ? t("auth.phoneRequired") : t("auth.phoneInvalid")
-      );
-      return;
+    const phoneInput = accountPhone.trim();
+    let normalizedPhone: string | undefined;
+    if (phoneInput.length > 0) {
+      const phoneValidation = validatePhoneForSave(phoneInput);
+      if (!phoneValidation.ok) {
+        setAccountError(t("auth.phoneInvalid"));
+        return;
+      }
+      normalizedPhone = phoneValidation.phone;
     }
     setSubmitting(true);
     setAccountError("");
     try {
       await saveStepData(true);
-      await fetch("/api/user/preferences", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ phone: phoneValidation.phone }),
-      });
+      if (normalizedPhone) {
+        await fetch("/api/user/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ phone: normalizedPhone }),
+        });
+      }
       setVehicles(onboardingVehicles.filter((v) => v.make?.trim() && v.model?.trim()));
       sessionStorage.setItem("movepilot_celebrate", "1");
       router.push("/dashboard");
@@ -320,6 +324,15 @@ export function OnboardingPageContent() {
 
   const setupBlocked =
     completeMode && authHydrated && moveHydrated && isAuthenticated && !canEditProfile;
+
+  const nextButtonLabel =
+    step === 1
+      ? t("onboarding.nextFromMove")
+      : step === 2
+        ? t("onboarding.nextFromHousehold")
+        : step === 3
+          ? t("onboarding.nextFromVehicles")
+          : t("onboarding.nextFromBudget");
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
@@ -656,6 +669,9 @@ export function OnboardingPageContent() {
                   onVerified={setEmailRegisterToken}
                   onClearVerification={() => setEmailRegisterToken(null)}
                 />
+                <p className="text-xs text-muted-foreground -mt-2">
+                  {t("onboarding.verifyEmailOptional")}
+                </p>
                 <div className="space-y-2">
                   <Label htmlFor="accountPassword">{t("login.password")}</Label>
                   <Input
@@ -736,7 +752,7 @@ export function OnboardingPageContent() {
                   disabled={stepLoading || !authHydrated}
                   className="w-full sm:w-auto"
                 >
-                  {stepLoading ? t("common.saving") : t("common.continue")}
+                  {stepLoading ? t("common.saving") : nextButtonLabel}
                   {!stepLoading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               ) : (

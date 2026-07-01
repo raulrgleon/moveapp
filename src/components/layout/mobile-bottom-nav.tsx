@@ -42,7 +42,7 @@ export function MobileBottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex flex-1 flex-col items-center gap-0.5 py-2 px-1 min-w-0 rounded-lg transition-all duration-300",
+                "relative flex flex-1 flex-col items-center gap-0.5 py-2.5 px-1 min-w-0 rounded-lg transition-all duration-300",
                 isActive
                   ? "text-primary scale-105"
                   : "text-muted-foreground hover:text-foreground"
@@ -53,13 +53,13 @@ export function MobileBottomNav() {
               )}
               <span
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300",
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300",
                   isActive && "bg-primary/15 shadow-md shadow-primary/20"
                 )}
               >
                 <Icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
               </span>
-              <span className="text-[10px] font-medium truncate max-w-full">
+              <span className="text-[11px] font-medium truncate max-w-full">
                 {t(item.labelKey)}
               </span>
             </Link>

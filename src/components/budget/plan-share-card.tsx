@@ -47,8 +47,12 @@ export function PlanShareCard() {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
-    } catch {
-      setError(t("budget.sharePlanFailed"));
+    } catch (err) {
+      if (err instanceof Error && err.message.toLowerCase().includes("pro subscription required")) {
+        setError(t("budget.sharePlanProRequired"));
+      } else {
+        setError(t("budget.sharePlanFailed"));
+      }
     } finally {
       setSharing(false);
     }

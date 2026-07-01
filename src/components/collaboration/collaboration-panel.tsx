@@ -32,6 +32,17 @@ export function CollaborationPanel({ variant = "full", onChanged }: Collaboratio
   const [resentId, setResentId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const humanizeError = (err: unknown): string => {
+    const raw = err instanceof Error ? err.message.trim().toLowerCase() : "";
+    if (raw.includes("valid email required")) return t("apiErrors.validEmailRequired");
+    if (raw.includes("already invited")) return t("apiErrors.alreadyInvited");
+    if (raw.includes("cannot invite yourself")) return t("apiErrors.inviteSelf");
+    if (raw.includes("only the move owner")) return t("apiErrors.ownerOnly");
+    if (raw.includes("forbidden")) return t("apiErrors.forbidden");
+    if (raw.includes("pro subscription required")) return t("budget.sharePlanProRequired");
+    return err instanceof Error ? err.message : t("settings.inviteError");
+  };
+
   const notifyChange = async () => {
     await refresh();
     onChanged?.();
@@ -48,29 +59,44 @@ export function CollaborationPanel({ variant = "full", onChanged }: Collaboratio
       setInviteEmail("");
       await notifyChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("settings.inviteError"));
+      setError(humanizeError(err));
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async (id: string) => {
-    await apiFetch(`/api/move/collaborators?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-    await notifyChange();
+    setError("");
+    try {
+      await apiFetch(`/api/move/collaborators?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await notifyChange();
+    } catch (err) {
+      setError(humanizeError(err));
+    }
   };
 
   const updateRole = async (id: string, role: "editor" | "viewer") => {
-    await apiFetch("/api/move/collaborators", {
-      method: "PATCH",
-      body: JSON.stringify({ id, role }),
-    });
-    await notifyChange();
+    setError("");
+    try {
+      await apiFetch("/api/move/collaborators", {
+        method: "PATCH",
+        body: JSON.stringify({ id, role }),
+      });
+      await notifyChange();
+    } catch (err) {
+      setError(humanizeError(err));
+    }
   };
 
   const resend = async (id: string) => {
-    await apiFetch(`/api/move/collaborators/${id}/resend`, { method: "POST" });
-    setResentId(id);
-    setTimeout(() => setResentId(null), 2500);
+    setError("");
+    try {
+      await apiFetch(`/api/move/collaborators/${id}/resend`, { method: "POST" });
+      setResentId(id);
+      setTimeout(() => setResentId(null), 2500);
+    } catch (err) {
+      setError(humanizeError(err));
+    }
   };
 
   const roleLabel = (role: string) => {

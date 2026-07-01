@@ -50,24 +50,21 @@ export async function POST(req: NextRequest) {
       return jsonError("passwordTooShort", 400, userLocale);
     }
 
-    const phoneValidation = validatePhoneForSave(body.phone ?? "");
+    const hasPhone = Boolean(body.phone?.trim());
+    const phoneValidation = hasPhone
+      ? validatePhoneForSave(body.phone ?? "")
+      : { ok: true as const, phone: undefined as string | undefined };
     if (!phoneValidation.ok) {
-      return jsonError(
-        phoneValidation.reason === "empty" ? "phoneRequired" : "phoneInvalid",
-        400,
-        userLocale
-      );
+      return jsonError("phoneInvalid", 400, userLocale);
     }
 
     const normalizedEmail = normalizeSignupEmail(email);
 
-    if (!body.registerToken?.trim()) {
-      return jsonError("verificationRequired", 400, userLocale);
-    }
-
-    const verified = await consumeRegisterToken(normalizedEmail, body.registerToken);
-    if (!verified) {
-      return jsonError("verificationRequired", 400, userLocale);
+    if (body.registerToken?.trim()) {
+      const verified = await consumeRegisterToken(normalizedEmail, body.registerToken);
+      if (!verified) {
+        return jsonError("verificationRequired", 400, userLocale);
+      }
     }
 
     if (await emailAlreadyRegistered(normalizedEmail)) {

@@ -329,7 +329,7 @@ export default function RoutePage() {
               <Button
                 size="sm"
                 variant={interstateOnly ? "ghost" : "secondary"}
-                className="h-7 px-2 text-xs"
+                className="h-9 px-3 text-sm"
                 onClick={() => setInterstateOnly(false)}
               >
                 {t("routePage.allRoutes")}
@@ -337,7 +337,7 @@ export default function RoutePage() {
               <Button
                 size="sm"
                 variant={interstateOnly ? "secondary" : "ghost"}
-                className="h-7 px-2 text-xs"
+                className="h-9 px-3 text-sm"
                 onClick={() => setInterstateOnly(true)}
               >
                 {t("routePage.interstateOnly")}

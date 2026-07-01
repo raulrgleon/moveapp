@@ -17,6 +17,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const PHONE_PROMPT_SNOOZE_KEY = "movepilot_phone_prompt_snooze";
+const PHONE_PROMPT_SNOOZE_MS = 24 * 60 * 60 * 1000;
+
 export function PhoneCapturePrompt() {
   const t = useT();
   const { user, isAdmin, isImpersonating, isHydrated, refreshUser } = useAuth();
@@ -30,8 +33,25 @@ export function PhoneCapturePrompt() {
       setOpen(false);
       return;
     }
+    const snoozedUntilRaw =
+      typeof window !== "undefined" ? window.localStorage.getItem(PHONE_PROMPT_SNOOZE_KEY) : null;
+    const snoozedUntil = snoozedUntilRaw ? Number(snoozedUntilRaw) : 0;
+    if (Number.isFinite(snoozedUntil) && snoozedUntil > Date.now()) {
+      setOpen(false);
+      return;
+    }
     setOpen(!user.phone?.trim());
   }, [isHydrated, user, isAdmin, isImpersonating]);
+
+  const dismissForNow = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        PHONE_PROMPT_SNOOZE_KEY,
+        String(Date.now() + PHONE_PROMPT_SNOOZE_MS)
+      );
+    }
+    setOpen(false);
+  };
 
   const save = async () => {
     setError("");
@@ -58,7 +78,7 @@ export function PhoneCapturePrompt() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => undefined}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
         className="sm:max-w-md"
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -74,6 +94,9 @@ export function PhoneCapturePrompt() {
         <PhoneInputField id="phone-capture" value={phone} onChange={setPhone} />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
+          <Button type="button" variant="outline" onClick={dismissForNow} disabled={saving}>
+            {t("auth.phonePromptLater")}
+          </Button>
           <Button type="button" onClick={() => void save()} disabled={saving} className="w-full">
             {saving ? t("common.saving") : t("auth.phonePromptSave")}
           </Button>
