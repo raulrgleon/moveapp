@@ -1528,6 +1528,9 @@ export const en = {
     amazonMarketplaceDomain: "Marketplace domain",
     saveAmazonSettings: "Save Amazon settings",
     amazonSettingsSaved: "Amazon affiliate settings updated",
+    amazonProductMapTitle: "Product to Amazon mapping",
+    amazonProductMapHint:
+      "Customers never see ASINs. Configure each product ASIN here so cart links work automatically.",
     pilotTitle: "Admin Pilot",
     pilotSubtitle: "Platform-wide move intelligence",
     pilotWelcome:

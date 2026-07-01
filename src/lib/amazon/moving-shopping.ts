@@ -5,7 +5,7 @@
  * - Do not scrape Amazon pages.
  * - Do not crawl Amazon search results.
  * - Do not fake product data from Amazon.
- * - Use manual ASIN assignment (admin config or user-entered ASINs).
+ * - Use manual ASIN assignment from admin configuration only.
  */
 export type MovingPresetKey = "studio" | "two_bed" | "three_bed" | "four_plus";
 

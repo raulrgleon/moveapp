@@ -86,7 +86,8 @@ export default function ShoppingListPage() {
             ...item,
             quantity: clampQty(Number(saved.quantity ?? item.quantity)),
             selected: saved.selected ?? item.selected,
-            asin: typeof saved.asin === "string" ? saved.asin : item.asin,
+            // Keep ASIN hidden and server-configured only.
+            asin: item.asin,
           };
         });
         setItems(merged);
@@ -159,7 +160,7 @@ export default function ShoppingListPage() {
     if (!cartUrl) return;
     setWarning(
       selectedMissingAsin.length
-        ? "Some items need an Amazon product selected before they can be added."
+        ? "Some items are not linked yet. We opened Amazon search links for those products."
         : null
     );
     window.open(cartUrl, "_blank", "noopener,noreferrer");
@@ -229,16 +230,6 @@ export default function ShoppingListPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor={`${item.id}-asin`}>Amazon ASIN (optional)</Label>
-                      <Input
-                        id={`${item.id}-asin`}
-                        value={item.asin}
-                        placeholder="e.g. B0XXXXXXXX"
-                        onChange={(e) => updateItem(item.id, { asin: e.target.value.trim().toUpperCase() })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
                       <Label htmlFor={`${item.id}-qty`}>Quantity</Label>
                       <div className="flex items-center gap-2">
                         <Button
@@ -291,7 +282,7 @@ export default function ShoppingListPage() {
 
             {!!selectedMissingAsin.length && (
               <p className="text-sm text-muted-foreground">
-                Some items need an Amazon product selected before they can be added.
+                Some items are not linked yet, so they will open as Amazon search links.
               </p>
             )}
 

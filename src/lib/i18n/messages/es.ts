@@ -1531,6 +1531,9 @@ export const es = {
     amazonMarketplaceDomain: "Dominio marketplace",
     saveAmazonSettings: "Guardar configuración Amazon",
     amazonSettingsSaved: "Configuración de afiliados Amazon actualizada",
+    amazonProductMapTitle: "Mapa producto a Amazon",
+    amazonProductMapHint:
+      "El cliente nunca ve ASINs. Configura aquí el ASIN de cada producto para que el carrito funcione automáticamente.",
     pilotTitle: "Pilot Admin",
     pilotSubtitle: "Inteligencia de mudanzas en toda la plataforma",
     pilotWelcome:

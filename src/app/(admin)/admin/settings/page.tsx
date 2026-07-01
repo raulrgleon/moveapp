@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
+import { MOVING_PRODUCTS } from "@/lib/amazon/moving-shopping";
 
 interface AnnouncementRow {
   id: string;
@@ -32,6 +33,7 @@ interface AnnouncementRow {
 interface AmazonSettings {
   associateTag: string;
   marketplaceDomain: string;
+  defaultProducts: Record<string, string>;
 }
 
 export default function AdminSettingsPage() {
@@ -47,6 +49,7 @@ export default function AdminSettingsPage() {
   const [amazonSettings, setAmazonSettings] = useState<AmazonSettings>({
     associateTag: "",
     marketplaceDomain: "www.amazon.com",
+    defaultProducts: {},
   });
 
   async function load() {
@@ -64,6 +67,7 @@ export default function AdminSettingsPage() {
       setAmazonSettings({
         associateTag: amazonData.associateTag ?? "",
         marketplaceDomain: amazonData.marketplaceDomain ?? "www.amazon.com",
+        defaultProducts: amazonData.defaultProducts ?? {},
       });
     } finally {
       setLoading(false);
@@ -105,6 +109,7 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({
           associateTag: amazonSettings.associateTag,
           marketplaceDomain: amazonSettings.marketplaceDomain,
+          defaultProducts: amazonSettings.defaultProducts,
         }),
       });
       setSuccess(t("adminConsole.amazonSettingsSaved"));
@@ -161,6 +166,33 @@ export default function AdminSettingsPage() {
               <Button type="submit" disabled={amazonSaving}>
                 {amazonSaving ? t("common.saving") : t("adminConsole.saveAmazonSettings")}
               </Button>
+
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-sm font-medium">{t("adminConsole.amazonProductMapTitle")}</p>
+                <p className="text-xs text-muted-foreground">{t("adminConsole.amazonProductMapHint")}</p>
+                <div className="space-y-3">
+                  {MOVING_PRODUCTS.map((product) => (
+                    <div key={product.id} className="grid gap-2 md:grid-cols-[1fr_220px] md:items-center">
+                      <Label htmlFor={`asin-${product.id}`}>{product.name}</Label>
+                      <Input
+                        id={`asin-${product.id}`}
+                        placeholder="B0XXXXXXXX"
+                        value={amazonSettings.defaultProducts[product.id] ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value.trim().toUpperCase();
+                          setAmazonSettings((prev) => ({
+                            ...prev,
+                            defaultProducts: {
+                              ...prev.defaultProducts,
+                              [product.id]: value,
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </form>
           </CardContent>
         </Card>

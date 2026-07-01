@@ -17,12 +17,14 @@ export async function PATCH(req: NextRequest) {
   const body = (await req.json()) as {
     associateTag?: string;
     marketplaceDomain?: string;
+    defaultProducts?: Record<string, string>;
   };
 
   try {
     const updated = await updateAmazonAppSettings({
       associateTag: body.associateTag ?? "",
       marketplaceDomain: body.marketplaceDomain ?? "www.amazon.com",
+      defaultProducts: body.defaultProducts,
     });
     return NextResponse.json(updated);
   } catch (error) {
