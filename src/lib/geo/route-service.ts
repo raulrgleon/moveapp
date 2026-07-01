@@ -7,6 +7,8 @@ import {
   type RouteGeometry,
 } from "@/lib/geo/coordinates";
 import { estimateRestBreakCount } from "@/lib/geo/rest-break-planner";
+import { parseCityStateLabel, statesMatch } from "@/lib/geo/address-region";
+import { searchUsCities } from "@/lib/geo/city-search";
 
 export interface RouteStats {
   distanceMiles: number;
@@ -19,6 +21,9 @@ export interface RouteStats {
 export interface RouteStatsWithAlternatives extends RouteStats {
   alternatives: RouteAlternative[];
 }
+
+const ORIGIN_CITY_CENTER_TTL_MS = 24 * 60 * 60 * 1000;
+const originCityCenterCache = new Map<string, { expires: number; point: GeoPoint }>();
 
 export function formatDriveTime(hours: number): string {
   const h = Math.floor(hours);
@@ -70,6 +75,66 @@ export function resolveRoutePoints(
   };
 }
 
+async function resolveOriginCityCenter(
+  originLabel: string,
+  fallback: GeoPoint
+): Promise<GeoPoint> {
+  const label = originLabel.trim();
+  if (label.length < 2) return fallback;
+
+  const cacheKey = label.toLowerCase();
+  const cached = originCityCenterCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cached.point;
+
+  try {
+    const results = await searchUsCities(label);
+    if (!results.length) return fallback;
+
+    const parsed = parseCityStateLabel(label);
+    const cityLower = parsed.city?.trim().toLowerCase();
+    const stateValue = parsed.state?.trim();
+
+    const exactCityState = results.find((r) => {
+      if (!cityLower || !r.city) return false;
+      const cityMatch = r.city.trim().toLowerCase() === cityLower;
+      if (!cityMatch) return false;
+      if (!stateValue) return true;
+      return statesMatch(r.state, stateValue);
+    });
+
+    const exactCity = results.find((r) => {
+      if (!cityLower || !r.city) return false;
+      return r.city.trim().toLowerCase() === cityLower;
+    });
+
+    const pick = exactCityState ?? exactCity ?? results[0];
+    const point: GeoPoint = {
+      lat: pick.lat,
+      lon: pick.lon,
+      label: pick.displayName || pick.city || label,
+    };
+    originCityCenterCache.set(cacheKey, {
+      expires: Date.now() + ORIGIN_CITY_CENTER_TTL_MS,
+      point,
+    });
+    return point;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Same as resolveRoutePoints, but snaps route origin to city center. */
+export async function resolveRoutePointsFromCityCenter(
+  profile: MoveProfile,
+  destLat?: number,
+  destLon?: number
+): Promise<{ from: GeoPoint; to: GeoPoint } | null> {
+  const base = resolveRoutePoints(profile, destLat, destLon);
+  if (!base) return null;
+  const from = await resolveOriginCityCenter(profile.origin || base.from.label, base.from);
+  return { from, to: base.to };
+}
+
 function statsFromRoute(route: RouteGeometry, hasPets: boolean): RouteStats {
   return {
     distanceMiles: Math.round(route.distanceMiles),
@@ -111,7 +176,7 @@ export async function resolveRouteDistanceMiles(
   destLon?: number,
   routeIndex = 0
 ): Promise<number | undefined> {
-  const points = resolveRoutePoints(profile, destLat, destLon);
+  const points = await resolveRoutePointsFromCityCenter(profile, destLat, destLon);
   if (!points) return undefined;
 
   const alternatives = await fetchOsrmRoutes(points.from, points.to, 3);

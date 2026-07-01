@@ -4,7 +4,7 @@ import { computeFuelStopMarkers } from "@/lib/geo/fuel-stop-planner";
 import {
   estimateStopCount,
   formatDriveTime,
-  resolveRoutePoints,
+  resolveRoutePointsFromCityCenter,
   type RouteStats,
 } from "@/lib/geo/route-service";
 import { generateRouteStops } from "@/lib/geo/route-stops";
@@ -277,7 +277,7 @@ export async function syncMoveRoutesGeometry(moveId: string, locale: "en" | "es"
   if (!move) return false;
 
   const profile = moveToProfile(move.user, move);
-  const points = resolveRoutePoints(profile);
+  const points = await resolveRoutePointsFromCityCenter(profile);
   if (!points) return false;
 
   try {

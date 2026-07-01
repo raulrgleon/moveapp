@@ -5,7 +5,7 @@ import { fetchRouteStops, type RouteStopsContext } from "@/lib/geo/route-stops";
 import {
   estimateStopCount,
   formatDriveTime,
-  resolveRoutePoints,
+  resolveRoutePointsFromCityCenter,
 } from "@/lib/geo/route-service";
 import { computeFuelStopMarkers } from "@/lib/geo/fuel-stop-planner";
 import { fetchOsrmRoutes, type RouteAlternative } from "@/lib/geo/coordinates";
@@ -110,7 +110,11 @@ export async function GET(req: NextRequest) {
     destinationLon,
   };
 
-  const points = resolveRoutePoints(profile, destinationLat, destinationLon);
+  const points = await resolveRoutePointsFromCityCenter(
+    profile,
+    destinationLat,
+    destinationLon
+  );
 
   if (!points) {
     return NextResponse.json(

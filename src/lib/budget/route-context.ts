@@ -3,7 +3,7 @@ import { fetchRouteStops } from "@/lib/geo/route-stops";
 import { loadStoredMoveRoutes } from "@/lib/geo/move-routes-sync";
 import {
   computeRouteStatsWithAlternatives,
-  resolveRoutePoints,
+  resolveRoutePointsFromCityCenter,
   resolveRouteDistanceMiles,
 } from "@/lib/geo/route-service";
 import type { MoveProfile } from "@/lib/move-profile";
@@ -80,7 +80,7 @@ export async function resolveBudgetRouteContext(
   routeIndex = 0
 ): Promise<BudgetRouteContext> {
   const vehicles = await loadVehiclesWithMpg(moveId);
-  const points = resolveRoutePoints(profile);
+  const points = await resolveRoutePointsFromCityCenter(profile);
   let distanceMiles: number | undefined;
   let durationHours: number | undefined;
   let routeStops: RouteStop[] = [];
