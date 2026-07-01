@@ -117,10 +117,10 @@ function sampledRouteWaypoints(
   const interior = coordinates.slice(1, -1);
   if (!interior.length) return [];
   const count = Math.min(maxWaypoints, interior.length);
-  const step = (interior.length - 1) / count;
+  const step = interior.length / (count + 1);
   const points: Array<[number, number]> = [];
-  for (let i = 1; i <= count; i += 1) {
-    const idx = Math.max(0, Math.min(interior.length - 1, Math.round(i * step)));
+  for (let i = 0; i < count; i += 1) {
+    const idx = Math.max(0, Math.min(interior.length - 1, Math.round((i + 1) * step - 1)));
     const [lon, lat] = interior[idx];
     points.push([lat, lon]);
   }
@@ -197,9 +197,10 @@ export default function RoutePage() {
       stats?.alternatives?.[0],
     [stats?.alternatives, routeIndex]
   );
+  const externalWaypointLimit = selectedAlternative?.usesInterstate ? 14 : 8;
   const externalWaypoints = useMemo(
-    () => sampledRouteWaypoints(selectedAlternative?.coordinates, 8),
-    [selectedAlternative?.coordinates]
+    () => sampledRouteWaypoints(selectedAlternative?.coordinates, externalWaypointLimit),
+    [selectedAlternative?.coordinates, externalWaypointLimit]
   );
 
   const googleUrl = buildGoogleMapsUrl(
