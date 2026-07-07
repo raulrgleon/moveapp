@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { getSessionUser, unauthorized } from "@/lib/api-auth";
 import { getUserDataByUserId } from "@/lib/db/move-service";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   const data = await getUserDataByUserId(user.id);
-  if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!data) return jsonErrorFromRequest(req, "notFound", 404);
 
   const collaborations = await prisma.moveCollaborator.findMany({
     where: { userId: user.id, acceptedAt: { not: null } },

@@ -7,7 +7,7 @@ type RouteContext = { params: { id: string } };
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const invite = await prisma.moveCollaborator.findUnique({ where: { id: params.id } });
   if (!invite) {
@@ -30,7 +30,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const { role } = (await req.json()) as { role?: "editor" | "viewer" };
   if (!role || !["editor", "viewer"].includes(role)) {

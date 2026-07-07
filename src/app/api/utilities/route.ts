@@ -5,7 +5,7 @@ import type { Locale } from "@/lib/i18n";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   const lat = req.nextUrl.searchParams.get("lat");
   const lon = req.nextUrl.searchParams.get("lon");

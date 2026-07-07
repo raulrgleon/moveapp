@@ -8,7 +8,7 @@ type RouteContext = { params: { id: string } };
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const session = await prisma.session.findUnique({ where: { id: params.id } });
   if (!session) {

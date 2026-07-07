@@ -16,6 +16,7 @@ import {
 import { CityAutocomplete } from "@/components/address/city-autocomplete";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import type { CityComparisonResponse } from "@/lib/city-comparison/types";
 import type { QoLComparisonMetric } from "@/lib/cost-of-living/qol-metrics";
 import type { ComparisonDirection, HousingTrend } from "@/lib/rentcast/types";
@@ -190,8 +191,7 @@ export function CityComparisonPanel() {
       if (resolvedLeftZip) params.set("originZip", resolvedLeftZip);
       if (resolvedRightZip) params.set("destZip", resolvedRightZip);
 
-      const res = await fetch(`/api/city-comparison?${params.toString()}`);
-      if (!res.ok) throw new Error("comparison failed");
+      const res = await apiFetch(`/api/city-comparison?${params.toString()}`);
       const json = (await res.json()) as CityComparisonResponse;
       setData(json);
     } catch {

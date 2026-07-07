@@ -7,7 +7,7 @@ type RouteContext = { params: { id: string } };
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const body = (await req.json()) as {
     message?: string;
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   await prisma.systemAnnouncement.delete({ where: { id: params.id } });
 

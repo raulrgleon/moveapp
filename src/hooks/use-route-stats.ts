@@ -204,8 +204,7 @@ async function fetchRouteStatsCached(
 
   const promise = (useStoredRoutes
     ? fetchStoredMoveRoutes().then(({ stats }) => stats)
-    : fetch(`/api/route?${params.toString()}`).then(async (res) => {
-        if (!res.ok) throw new Error("route failed");
+    : apiFetch(`/api/route?${params.toString()}`).then(async (res) => {
         return (await res.json()) as RouteStatsResponse;
       })
   )
@@ -236,8 +235,7 @@ async function fetchAllRouteStopsCached(
 
   const promise = (useStoredRoutes
     ? fetchStoredMoveRoutes().then(({ stopsByIndex }) => stopsByIndex)
-    : fetch(`/api/route?${params.toString()}`).then(async (res) => {
-        if (!res.ok) throw new Error("stops failed");
+    : apiFetch(`/api/route?${params.toString()}`).then(async (res) => {
         const json = (await res.json()) as { stopsByIndex?: Record<number, RouteStop[]> };
         return json.stopsByIndex ?? {};
       })

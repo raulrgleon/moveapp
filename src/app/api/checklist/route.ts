@@ -4,7 +4,7 @@ import {
   requireCanEditData,
   requireMoveAccess,
 } from "@/lib/api-auth";
-import { jsonError, resolveRequestLocale } from "@/lib/api-errors";
+import { jsonError, jsonErrorFromRequest, resolveRequestLocale } from "@/lib/api-errors";
 import {
   addChecklistTask,
   deleteChecklistTask,
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<ChecklistTask>;
     if (!body.title?.trim()) {
-      return NextResponse.json({ error: "Title required" }, { status: 400 });
+      return jsonErrorFromRequest(req, "invalidInput", 400);
     }
 
     const created = await addChecklistTask(result.user.id, {

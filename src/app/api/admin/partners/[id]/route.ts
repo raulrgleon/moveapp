@@ -11,7 +11,7 @@ type RouteContext = { params: { id: string } };
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const body = (await req.json()) as {
     name?: string;
@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const ok = await deleteMovingPartner(params.id);
   if (!ok) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { randomUUID } from "crypto";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import {
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("not found")) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return jsonErrorFromRequest(req, "notFound", 404);
     }
     console.error("POST /api/chat/actions error:", error);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });

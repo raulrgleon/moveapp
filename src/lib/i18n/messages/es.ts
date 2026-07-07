@@ -147,6 +147,18 @@ export const es = {
     phoneInvalid: "Número inválido. Usa formato internacional, ej. +15551234567",
     verificationRateLimit:
       "Demasiadas solicitudes de verificación desde esta red. Inténtalo más tarde.",
+    invalidInput: "Entrada inválida",
+    internalError: "Algo salió mal. Inténtalo de nuevo.",
+    tooManyRequests: "Demasiadas solicitudes. Inténtalo más tarde.",
+    uploadFailed: "Error al subir",
+    fileNotFound: "Archivo no encontrado",
+    fileMissingOnServer: "Archivo no disponible en el servidor",
+    configurationMissing: "Servicio no configurado",
+    messagesRequired: "Mensajes requeridos",
+    invalidMessage: "Mensaje inválido",
+    checksRequired: "Se requiere el objeto de checks",
+    failed: "La operación falló",
+    badRequest: "Solicitud inválida",
   },
   checklistCategories: {
     Planning: "Planificación",

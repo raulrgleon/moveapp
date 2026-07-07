@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import OpenAI from "openai";
 import { buildAdminSystemPromptAsync } from "@/lib/ai/admin-prompt";
 import {
@@ -33,7 +34,7 @@ async function trimChatHistory(userId: string) {
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return jsonErrorFromRequest(req, "forbidden", 403);
   }
 
   const rows = await prisma.chatMessage.findMany({
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return jsonErrorFromRequest(req, "forbidden", 403);
   }
 
   if (!process.env.OPENAI_API_KEY) {

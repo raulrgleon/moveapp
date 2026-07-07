@@ -14,7 +14,7 @@ import {
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const { userId } = (await req.json()) as { userId?: string };
   if (!userId?.trim()) {

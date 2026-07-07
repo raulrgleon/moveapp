@@ -11,7 +11,7 @@ export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const body = (await req.json()) as {
     channel?: CampaignChannel;

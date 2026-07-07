@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { logMoveActivity } from "@/lib/db/activity";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "File required" }, { status: 400 });
+      return jsonErrorFromRequest(req, "invalidInput", 400);
     }
 
     const saved = await saveDocumentFile(result.access.moveId, file);

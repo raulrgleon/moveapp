@@ -38,6 +38,7 @@ import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { EmailVerificationFields } from "@/components/auth/email-verification-fields";
 import { PhoneInputField } from "@/components/auth/phone-input-field";
 import { validatePhoneForSave } from "@/lib/phone/normalize";
+import { apiFetch } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -291,10 +292,8 @@ export function OnboardingPageContent() {
     try {
       await saveStepData(true);
       if (normalizedPhone) {
-        await fetch("/api/user/preferences", {
+        await apiFetch("/api/user/preferences", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ phone: normalizedPhone }),
         });
       }

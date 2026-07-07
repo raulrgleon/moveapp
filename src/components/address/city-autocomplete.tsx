@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownPortal } from "@/components/ui/dropdown-portal";
 import { useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export interface CitySelection {
@@ -91,7 +92,7 @@ export function CityAutocomplete({
 
     setLoading(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/address/search?q=${encodeURIComponent(text.trim())}&type=city`
       );
       const data = (await res.json()) as CitySuggestion[];

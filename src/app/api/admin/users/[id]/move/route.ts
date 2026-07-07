@@ -11,7 +11,7 @@ type RouteContext = { params: { id: string } };
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(_req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(_req);
 
   const data = await getUserDataByUserId(params.id);
   if (!data) {
@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   try {
     const body = (await req.json()) as {

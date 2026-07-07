@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { getMoveForUser } from "@/lib/db/move-access";
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const moveData = await getMoveForUser(result.user.id);
   if (!moveData) {
-    return NextResponse.json({ error: "Move not found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "noMove", 404);
   }
 
   const boxes = moveData.move.inventoryBoxes;

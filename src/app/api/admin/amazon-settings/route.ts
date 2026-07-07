@@ -4,7 +4,7 @@ import { getAmazonAppSettings, updateAmazonAppSettings } from "@/lib/amazon/sett
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const settings = await getAmazonAppSettings();
   return NextResponse.json(settings);
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const body = (await req.json()) as {
     associateTag?: string;

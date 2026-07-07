@@ -9,7 +9,7 @@ import {
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const partners = await listAllMovingPartnersAdmin();
   return NextResponse.json({ partners, specialtyOptions: PARTNER_SPECIALTY_OPTIONS });
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const body = (await req.json()) as {
     name?: string;

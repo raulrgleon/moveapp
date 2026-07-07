@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { mergeProfileForSync } from "@/lib/db/move-service";
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     prisma.user.findUniqueOrThrow({ where: { id: result.user.id } }),
     prisma.move.findUniqueOrThrow({ where: { id: result.access.moveId } }),
   ]);
-  if (!move) return NextResponse.json({ error: "Move not found" }, { status: 404 });
+  if (!move) return jsonErrorFromRequest(req, "noMove", 404);
 
   const quotes = await prisma.partnerQuote.findMany({
     where: { moveId: result.access.moveId },
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
   const denied = requireCanEditData(result.access);
   if (denied) return denied;
   if (result.access.role !== "owner") {
-    return NextResponse.json({ error: "Owner only" }, { status: 403 });
+    return jsonErrorFromRequest(req, "ownerOnly", 403);
   }
 
   const { enabled } = (await req.json()) as { enabled?: boolean };

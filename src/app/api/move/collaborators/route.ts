@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { randomUUID } from "crypto";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { logMoveActivity } from "@/lib/db/activity";
@@ -45,26 +46,26 @@ export async function POST(req: NextRequest) {
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {
-    return NextResponse.json({ error: "Only the move owner can invite collaborators" }, { status: 403 });
+    return jsonErrorFromRequest(req, "ownerOnly", 403);
   }
 
   const session = result.user;
   const { email, role } = (await req.json()) as { email?: string; role?: string };
   const inviteEmail = email?.trim().toLowerCase();
   if (!inviteEmail || !inviteEmail.includes("@")) {
-    return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+    return jsonErrorFromRequest(req, "validEmailRequired", 400);
   }
 
   const moveId = result.access.moveId;
   if (inviteEmail === session.email) {
-    return NextResponse.json({ error: "Cannot invite yourself" }, { status: 400 });
+    return jsonErrorFromRequest(req, "inviteSelf", 400);
   }
 
   const existing = await prisma.moveCollaborator.findUnique({
     where: { moveId_email: { moveId, email: inviteEmail } },
   });
   if (existing) {
-    return NextResponse.json({ error: "Already invited" }, { status: 409 });
+    return jsonErrorFromRequest(req, "alreadyInvited", 409);
   }
 
   const inviteToken = randomUUID();
@@ -98,11 +99,11 @@ export async function DELETE(req: NextRequest) {
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return jsonErrorFromRequest(req, "forbidden", 403);
   }
 
   const id = req.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  if (!id) return jsonErrorFromRequest(req, "idRequired", 400);
 
   const collab = await prisma.moveCollaborator.findFirst({
     where: { id, moveId: result.access.moveId },
@@ -126,11 +127,11 @@ export async function PATCH(req: NextRequest) {
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {
-    return NextResponse.json({ error: "Only the move owner can update collaborators" }, { status: 403 });
+    return jsonErrorFromRequest(req, "ownerOnly", 403);
   }
 
   const { id, role } = (await req.json()) as { id?: string; role?: string };
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  if (!id) return jsonErrorFromRequest(req, "idRequired", 400);
 
   const nextRole = role === "viewer" ? "viewer" : "editor";
   const updated = await prisma.moveCollaborator.updateMany({

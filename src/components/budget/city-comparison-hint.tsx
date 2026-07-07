@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
 import { useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import type { CityComparisonResponse } from "@/lib/city-comparison/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,8 +23,7 @@ export function CityComparisonHint() {
           origin: profile.origin,
           destination: profile.destination,
         });
-        const res = await fetch(`/api/city-comparison?${params}`);
-        if (!res.ok) return;
+        const res = await apiFetch(`/api/city-comparison?${params}`);
         setData((await res.json()) as CityComparisonResponse);
       } catch {
         /* ignore */

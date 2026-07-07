@@ -4,7 +4,7 @@ import { setActiveMove } from "@/lib/db/move-access";
 
 export async function PATCH(req: NextRequest) {
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   const { moveId } = (await req.json()) as { moveId?: string };
   if (!moveId?.trim()) {

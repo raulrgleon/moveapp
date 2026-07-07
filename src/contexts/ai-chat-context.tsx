@@ -16,7 +16,7 @@ import {
   stripPilotActions,
 } from "@/lib/ai/pilot-actions";
 import { resolveReplyLocale } from "@/lib/ai/detect-message-locale";
-import { isUpgradeRequiredResponse } from "@/lib/api-client";
+import { isUpgradeRequiredResponse, getClientLocale } from "@/lib/api-client";
 import { showPaywallModal } from "@/lib/billing/paywall-bridge";
 import { MOVE_PROFILE_UPDATED } from "@/lib/move/profile-events";
 import type { AIQuickQuestion } from "@/lib/types";
@@ -120,7 +120,10 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Locale": getClientLocale(),
+          },
           credentials: "include",
           body: JSON.stringify({
             messages: history.map((m) => ({ role: m.role, content: m.content })),
@@ -178,7 +181,10 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
             try {
               const actionRes = await fetch("/api/chat/actions", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Locale": getClientLocale(),
+                },
                 credentials: "include",
                 body: JSON.stringify(action),
               });

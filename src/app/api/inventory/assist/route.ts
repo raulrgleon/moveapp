@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import OpenAI from "openai";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (result instanceof NextResponse) return result;
 
   if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "OpenAI not configured" }, { status: 500 });
+    return jsonErrorFromRequest(req, "configurationMissing", 500);
   }
 
   const limit = await rateLimit(`inventory-assist:${result.user.id}`, 30, 3_600_000);
@@ -40,12 +41,12 @@ export async function POST(req: NextRequest) {
   };
 
   if (!question?.trim()) {
-    return NextResponse.json({ error: "Question required" }, { status: 400 });
+    return jsonErrorFromRequest(req, "invalidInput", 400);
   }
 
   const moveData = await getMoveForUser(result.user.id);
   if (!moveData) {
-    return NextResponse.json({ error: "Move not found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "noMove", 404);
   }
 
   const boxes = moveData.move.inventoryBoxes;

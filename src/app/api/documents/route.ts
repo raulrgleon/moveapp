@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { replaceDocuments } from "@/lib/db/move-service";
@@ -22,6 +23,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("PUT /api/documents error:", error);
-    return NextResponse.json({ error: "Failed to save documents" }, { status: 500 });
+    return jsonErrorFromRequest(req, "saveFailed", 500);
   }
 }

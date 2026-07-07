@@ -30,7 +30,19 @@ export type ApiErrorKey =
   | "emailConfirmMismatch"
   | "phoneRequired"
   | "phoneInvalid"
-  | "verificationRateLimit";
+  | "verificationRateLimit"
+  | "invalidInput"
+  | "internalError"
+  | "tooManyRequests"
+  | "uploadFailed"
+  | "fileNotFound"
+  | "fileMissingOnServer"
+  | "configurationMissing"
+  | "messagesRequired"
+  | "invalidMessage"
+  | "checksRequired"
+  | "failed"
+  | "badRequest";
 
 const ERROR_KEYS: Record<ApiErrorKey, string> = {
   unauthorized: "apiErrors.unauthorized",
@@ -62,6 +74,18 @@ const ERROR_KEYS: Record<ApiErrorKey, string> = {
   phoneRequired: "apiErrors.phoneRequired",
   phoneInvalid: "apiErrors.phoneInvalid",
   verificationRateLimit: "apiErrors.verificationRateLimit",
+  invalidInput: "apiErrors.invalidInput",
+  internalError: "apiErrors.internalError",
+  tooManyRequests: "apiErrors.tooManyRequests",
+  uploadFailed: "apiErrors.uploadFailed",
+  fileNotFound: "apiErrors.fileNotFound",
+  fileMissingOnServer: "apiErrors.fileMissingOnServer",
+  configurationMissing: "apiErrors.configurationMissing",
+  messagesRequired: "apiErrors.messagesRequired",
+  invalidMessage: "apiErrors.invalidMessage",
+  checksRequired: "apiErrors.checksRequired",
+  failed: "apiErrors.failed",
+  badRequest: "apiErrors.badRequest",
 };
 
 export function apiErrorMessage(key: ApiErrorKey, locale: Locale = "en"): string {
@@ -83,4 +107,8 @@ export function resolveRequestLocale(req: Request): Locale {
 export function jsonError(key: ApiErrorKey, status: number, locale?: Locale) {
   const loc = locale ?? "en";
   return NextResponse.json({ error: apiErrorMessage(key, loc), errorKey: key }, { status });
+}
+
+export function jsonErrorFromRequest(req: Request, key: ApiErrorKey, status: number) {
+  return jsonError(key, status, resolveRequestLocale(req));
 }

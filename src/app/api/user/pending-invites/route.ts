@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   const invites = await prisma.moveCollaborator.findMany({
     where: {

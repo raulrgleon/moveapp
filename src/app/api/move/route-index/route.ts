@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest) {
     where: { id: result.access.moveId },
     include: { user: { select: { name: true, email: true, locale: true } } },
   });
-  if (!move) return NextResponse.json({ error: "No move" }, { status: 404 });
+  if (!move) return jsonErrorFromRequest(req, "noMove", 404);
 
   const previousIndex = move.selectedRouteIndex ?? 0;
 

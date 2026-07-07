@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Building2, Home, Loader2 } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import type { HousingMarketResponse } from "@/lib/rentcast/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,7 @@ export function DashboardHousingCard() {
           destination: profile.destination,
           household: profile.household?.trim() ?? "",
         });
-        const res = await fetch(`/api/housing-market?${params.toString()}`);
-        if (!res.ok) throw new Error("housing failed");
+        const res = await apiFetch(`/api/housing-market?${params.toString()}`);
         const json = (await res.json()) as HousingMarketResponse;
         if (!cancelled) setData(json);
       } catch {

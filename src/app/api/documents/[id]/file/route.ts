@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { getDocumentForUser } from "@/lib/db/move-service";
@@ -16,7 +17,7 @@ export async function GET(
 
   const found = await getDocumentForUser(result.user.id, params.id);
   if (!found?.doc.storageKey) {
-    return NextResponse.json({ error: "File not found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "fileNotFound", 404);
   }
 
   try {
@@ -30,6 +31,6 @@ export async function GET(
       },
     });
   } catch {
-    return NextResponse.json({ error: "File missing on server" }, { status: 404 });
+    return jsonErrorFromRequest(req, "fileMissingOnServer", 404);
   }
 }

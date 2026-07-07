@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { getSessionUser, unauthorized } from "@/lib/api-auth";
 import { activateProForUser, getStripe } from "@/lib/billing/stripe";
 
 /** Fallback if webhook is delayed — verify session after redirect from Stripe. */
 export async function GET(req: NextRequest) {
   const sessionUser = await getSessionUser(req);
-  if (!sessionUser) return unauthorized();
+  if (!sessionUser) return unauthorized(req);
 
   const sessionId = req.nextUrl.searchParams.get("session_id")?.trim();
   if (!sessionId) {
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const stripe = getStripe();
   if (!stripe) {
-    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
+    return jsonErrorFromRequest(req, "configurationMissing", 503);
   }
 
   try {

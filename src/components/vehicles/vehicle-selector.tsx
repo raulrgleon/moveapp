@@ -17,6 +17,7 @@ import { formatVehicleLabel } from "@/lib/vehicles/nhtsa";
 import { modelOptionKey, parseModelOptionKey } from "@/lib/vehicles/us-vehicle-makes";
 import { getVehicleTips } from "@/lib/vehicles/recommendations";
 import { useLocale, useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface VehicleSelectorProps {
@@ -98,7 +99,7 @@ export function VehicleSelector({
   }, [value?.id, value?.year, value?.make, value?.model, value?.makeId, value?.modelId, value?.trim]);
 
   useEffect(() => {
-    fetch("/api/vehicles/years")
+    apiFetch("/api/vehicles/years")
       .then((r) => r.json())
       .then((data) => setYears(Array.isArray(data) ? data : []))
       .catch(() => setYears([]));
@@ -106,7 +107,7 @@ export function VehicleSelector({
 
   useEffect(() => {
     setLoadingMakes(true);
-    fetch("/api/vehicles/makes")
+    apiFetch("/api/vehicles/makes")
       .then((r) => r.json())
       .then((data) => setMakes(Array.isArray(data) ? data : []))
       .catch(() => setMakes([]))
@@ -123,7 +124,7 @@ export function VehicleSelector({
     setLoadingModels(true);
 
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/vehicles/models?year=${targetYear}&makeId=${targetMakeId}`
       );
       const data = (await res.json()) as VehicleModel[];
@@ -189,22 +190,20 @@ export function VehicleSelector({
           model: vehicle.model,
         });
         if (vehicle.trim) params.set("trim", vehicle.trim);
-        const res = await fetch(`/api/vehicles/fuel-economy?${params.toString()}`);
-        if (res.ok) {
-          const mpg = (await res.json()) as {
-            combMpg?: number;
-            cityMpg?: number;
-            highwayMpg?: number;
-            fuelType?: string;
-          };
-          enriched = {
-            ...vehicle,
-            combMpg: mpg.combMpg,
-            cityMpg: mpg.cityMpg,
-            highwayMpg: mpg.highwayMpg,
-            fuelType: mpg.fuelType,
-          };
-        }
+        const res = await apiFetch(`/api/vehicles/fuel-economy?${params.toString()}`);
+        const mpg = (await res.json()) as {
+          combMpg?: number;
+          cityMpg?: number;
+          highwayMpg?: number;
+          fuelType?: string;
+        };
+        enriched = {
+          ...vehicle,
+          combMpg: mpg.combMpg,
+          cityMpg: mpg.cityMpg,
+          highwayMpg: mpg.highwayMpg,
+          fuelType: mpg.fuelType,
+        };
       } catch {
         /* use vehicle without mpg */
       }

@@ -7,7 +7,7 @@ import { getTwilioAccountMeta, isTwilioTrialAccount } from "@/lib/notifications/
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const users = await listCampaignRecipients();
   const config = getNotificationConfigStatus();

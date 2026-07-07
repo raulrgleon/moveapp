@@ -5,7 +5,7 @@ import { listAllUsers, registerUserWithPassword } from "@/lib/auth/user-service"
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return unauthorized();
+  if (!admin) return unauthorized(req);
 
   const users = await listAllUsers();
   return NextResponse.json({ users });
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   try {
     const { email, name, password, role, username } = (await req.json()) as {

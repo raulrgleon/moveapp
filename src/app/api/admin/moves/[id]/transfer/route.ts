@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { forbidden, requireAdmin } from "@/lib/api-auth";
 import { getClientIp, logAdminAction } from "@/lib/admin/audit-log";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +8,7 @@ type RouteContext = { params: { id: string } };
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const { newOwnerId } = (await req.json()) as { newOwnerId?: string };
   if (!newOwnerId?.trim()) {
@@ -16,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
   const move = await prisma.move.findUnique({ where: { id: params.id } });
   if (!move) {
-    return NextResponse.json({ error: "Move not found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "noMove", 404);
   }
 
   const newOwner = await prisma.user.findUnique({ where: { id: newOwnerId } });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
-import { resolveRequestLocale } from "@/lib/api-errors";
+import { jsonErrorFromRequest, resolveRequestLocale } from "@/lib/api-errors";
 import { canEditMoveData } from "@/lib/db/move-access";
 import { syncBudgetEstimate } from "@/lib/db/move-service";
 import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
@@ -163,7 +163,7 @@ export async function PATCH(req: NextRequest) {
     where: { id: result.access.moveId },
     include: { user: { select: { name: true, email: true } } },
   });
-  if (!move) return NextResponse.json({ error: "No move" }, { status: 404 });
+  if (!move) return jsonErrorFromRequest(req, "noMove", 404);
 
   if (body.recalculate && canEditMoveData(result.access.role)) {
     const profile = buildProfile(move, move.user);

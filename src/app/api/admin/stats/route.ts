@@ -4,7 +4,7 @@ import { getAdminStats } from "@/lib/admin/stats";
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const stats = await getAdminStats();
   return NextResponse.json(stats);

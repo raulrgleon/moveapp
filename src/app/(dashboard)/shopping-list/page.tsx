@@ -10,6 +10,7 @@ import { useT } from "@/contexts/locale-context";
 import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
 import { useMovingSupplies } from "@/hooks/use-moving-supplies";
+import { useShoppingSelections } from "@/hooks/use-shopping-selections";
 import { apiFetch } from "@/lib/api-client";
 import { shoppingListStorageKey } from "@/lib/amazon/shopping-list-storage";
 import {
@@ -71,15 +72,22 @@ function applySupplyGathered(
 
 export default function ShoppingListPage() {
   const t = useT();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { profile } = useMove();
   const { checked: supplyChecks, isHydrated: suppliesHydrated } = useMovingSupplies();
+  const {
+    selections: dbSelections,
+    persist: persistSelections,
+    isHydrated: selectionsHydrated,
+  } = useShoppingSelections(true);
   const [settings, setSettings] = useState<AmazonSettingsResponse | null>(null);
   const [items, setItems] = useState<ShoppingItemState[]>([]);
   const [preset, setPreset] = useState<MovingPresetKey>("studio");
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState<string | null>(null);
   const cartFormRef = useRef<HTMLFormElement>(null);
+  const initialDbHydrated = useRef(false);
+  const migratedLegacyToDb = useRef(false);
 
   const storageKey = useMemo(
     () =>
@@ -113,6 +121,24 @@ export default function ShoppingListPage() {
     [productLabel]
   );
 
+  const mergeSavedSelections = useCallback(
+    (
+      fromDefaults: ShoppingItemState[],
+      saved: Array<Partial<ShoppingItemState>>
+    ): ShoppingItemState[] =>
+      fromDefaults.map((item) => {
+        const row = saved.find((p) => p.id === item.id);
+        if (!row) return item;
+        return {
+          ...item,
+          quantity: clampQty(Number(row.quantity ?? item.quantity)),
+          selected: row.selected ?? item.selected,
+          asin: item.asin,
+        };
+      }),
+    []
+  );
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -121,6 +147,15 @@ export default function ShoppingListPage() {
         const json = (await res.json()) as AmazonSettingsResponse;
         setSettings(json);
         const fromDefaults = baseItems(json.defaultProducts);
+
+        if (isAuthenticated && selectionsHydrated && !initialDbHydrated.current) {
+          initialDbHydrated.current = true;
+          if (dbSelections && dbSelections.length > 0) {
+            setItems(mergeSavedSelections(fromDefaults, dbSelections));
+            return;
+          }
+        }
+
         if (typeof window === "undefined") {
           setItems(fromDefaults);
           return;
@@ -136,16 +171,7 @@ export default function ShoppingListPage() {
         }
 
         const parsed = JSON.parse(savedRaw) as Partial<ShoppingItemState>[];
-        const merged = fromDefaults.map((item) => {
-          const saved = parsed.find((p) => p.id === item.id);
-          if (!saved) return item;
-          return {
-            ...item,
-            quantity: clampQty(Number(saved.quantity ?? item.quantity)),
-            selected: saved.selected ?? item.selected,
-            asin: item.asin,
-          };
-        });
+        const merged = mergeSavedSelections(fromDefaults, parsed);
         setItems(merged);
       } catch {
         setSettings({
@@ -160,8 +186,29 @@ export default function ShoppingListPage() {
       }
     }
 
+    if (isAuthenticated && !selectionsHydrated) return;
     void load();
-  }, [baseItems, storageKey]);
+  }, [baseItems, storageKey, isAuthenticated, selectionsHydrated, dbSelections, mergeSavedSelections]);
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !selectionsHydrated ||
+      !items.length ||
+      migratedLegacyToDb.current ||
+      (dbSelections && dbSelections.length > 0)
+    ) {
+      return;
+    }
+    migratedLegacyToDb.current = true;
+    persistSelections(
+      items.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        selected: item.selected,
+      }))
+    );
+  }, [isAuthenticated, selectionsHydrated, dbSelections, items, persistSelections]);
 
   useEffect(() => {
     if (!suppliesHydrated || !items.length) return;
@@ -170,8 +217,16 @@ export default function ShoppingListPage() {
 
   useEffect(() => {
     if (!items.length || typeof window === "undefined") return;
-    localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items, storageKey]);
+    const payload = items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      selected: item.selected,
+    }));
+    localStorage.setItem(storageKey, JSON.stringify(payload));
+    if (isAuthenticated) {
+      persistSelections(payload);
+    }
+  }, [items, storageKey, isAuthenticated, persistSelections]);
 
   const supplySync = useMemo(
     () => countGatheredShoppingProducts(supplyChecks),

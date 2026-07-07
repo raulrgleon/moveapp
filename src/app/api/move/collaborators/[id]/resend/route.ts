@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { canManageCollaborators } from "@/lib/db/move-access";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +15,7 @@ export async function POST(
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
   if (!canManageCollaborators(result.access.role)) {
-    return NextResponse.json({ error: "Only the move owner can resend invitations" }, { status: 403 });
+    return jsonErrorFromRequest(req, "ownerOnly", 403);
   }
 
   const collab = await prisma.moveCollaborator.findFirst({

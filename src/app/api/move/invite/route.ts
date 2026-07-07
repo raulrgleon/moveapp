@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { getSessionUser } from "@/lib/api-auth";
 import { acceptMoveInviteByToken, InviteAcceptError } from "@/lib/move/accept-invite";
 import { prisma } from "@/lib/prisma";
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Accept invite error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return jsonErrorFromRequest(req, "failed", 500);
   }
 }
 

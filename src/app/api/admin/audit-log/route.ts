@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") ?? 50), 200);
   const action = req.nextUrl.searchParams.get("action");

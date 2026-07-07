@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { fetchOsrmRoutes, type GeoPoint } from "@/lib/geo/coordinates";
 import { fetchCurrentWeather } from "@/lib/weather/weatherapi";
 import { samplePointsAlongRoute, weatherSampleCount } from "@/lib/weather/route-sampling";
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
 
   if (!process.env.WEATHERAPI_KEY) {
-    return NextResponse.json({ error: "Weather API not configured" }, { status: 500 });
+    return jsonErrorFromRequest(req, "configurationMissing", 500);
   }
 
   const originLat = parseCoord(req.nextUrl.searchParams.get("originLat"));
@@ -104,6 +105,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Along-route weather error:", error);
-    return NextResponse.json({ error: "Failed to fetch route weather" }, { status: 500 });
+    return jsonErrorFromRequest(req, "failed", 500);
   }
 }

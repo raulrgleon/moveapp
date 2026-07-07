@@ -7,6 +7,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { useAuth } from "@/contexts/auth-context";
+import { apiFetch } from "@/lib/api-client";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,10 +28,9 @@ export function UpgradeSuccessContent() {
 
     void (async () => {
       try {
-        const res = await fetch(`/api/billing/verify?session_id=${encodeURIComponent(sessionId)}`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("verify failed");
+        const res = await apiFetch(
+          `/api/billing/verify?session_id=${encodeURIComponent(sessionId)}`
+        );
         const data = (await res.json()) as { paid?: boolean };
         if (!data.paid) throw new Error("not paid");
         await refreshUser();

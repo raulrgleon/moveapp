@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMove } from "@/contexts/move-context";
 import { useLocale } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import type { DestinationUtilityProvider } from "@/lib/types";
 
@@ -60,7 +61,7 @@ export function useUtilityProviders(): UtilityLoadResult {
           address: utilityAddress,
           locale,
         });
-        const res = await fetch(`/api/utilities?${params}`, { credentials: "include" });
+        const res = await apiFetch(`/api/utilities?${params}`);
         if (!res.ok) throw new Error("utilities failed");
         const data = (await res.json()) as {
           providers: DestinationUtilityProvider[];
@@ -98,14 +99,13 @@ export function useUtilityProviders(): UtilityLoadResult {
   useEffect(() => {
     if (!isHydrated || !hasLocation) return;
     return subscribeProfileUpdated(() => {
-      void fetch(
+      void apiFetch(
         `/api/utilities?${new URLSearchParams({
           lat: String(utilityLat),
           lon: String(utilityLon),
           address: utilityAddress,
           locale,
-        }).toString()}`,
-        { credentials: "include" }
+        }).toString()}`
       )
         .then((r) => (r.ok ? r.json() : Promise.reject()))
         .then((data: { providers: DestinationUtilityProvider[]; summary: string }) => {

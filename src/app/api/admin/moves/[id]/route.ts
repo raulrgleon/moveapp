@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { forbidden, requireAdmin } from "@/lib/api-auth";
 import { getClientIp, logAdminAction } from "@/lib/admin/audit-log";
 import { deleteMoveByAdmin } from "@/lib/admin/move-delete";
@@ -8,7 +9,7 @@ type RouteContext = { params: { id: string } };
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(_req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(_req);
 
   const move = await prisma.move.findUnique({
     where: { id: params.id },
@@ -26,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   });
 
   if (!move) {
-    return NextResponse.json({ error: "Move not found" }, { status: 404 });
+    return jsonErrorFromRequest(_req, "noMove", 404);
   }
 
   return NextResponse.json({ move });
@@ -34,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   try {
     const deleted = await deleteMoveByAdmin(params.id);

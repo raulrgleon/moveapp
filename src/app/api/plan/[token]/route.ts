@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { prisma } from "@/lib/prisma";
 import { resolveBudgetRouteContext } from "@/lib/budget/route-context";
 import { estimateBudget } from "@/lib/budget/estimator";
@@ -18,7 +19,7 @@ export async function GET(
   });
 
   if (!move) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return jsonErrorFromRequest(_req, "notFound", 404);
   }
 
   const profile: MoveProfile = {

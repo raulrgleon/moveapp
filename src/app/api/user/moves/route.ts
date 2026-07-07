@@ -4,7 +4,7 @@ import { listUserMoves } from "@/lib/db/move-service";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
   if (user.role === "admin") {
     return NextResponse.json({ activeMoveId: null, moves: [] });
   }

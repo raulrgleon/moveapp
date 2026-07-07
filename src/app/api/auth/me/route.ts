@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  if (!session) return unauthorized(req);
 
   const user = await prisma.user.findUnique({
     where: { id: session.id },
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   const { passwordHash, ...publicUser } = user;
 

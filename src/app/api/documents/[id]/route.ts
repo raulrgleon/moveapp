@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { deleteDocumentForUser } from "@/lib/db/move-service";
 import { requireProSubscription } from "@/lib/billing/require-pro";
@@ -28,6 +29,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     console.error("DELETE /api/documents/[id] error:", error);
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    return jsonErrorFromRequest(req, "deleteFailed", 500);
   }
 }

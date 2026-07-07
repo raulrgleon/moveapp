@@ -6,7 +6,7 @@ import { isValidE164Phone, normalizePhoneInput } from "@/lib/phone/normalize";
 
 export async function PATCH(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  if (!session) return unauthorized(req);
 
   const locale = resolveRequestLocale(req);
   const body = (await req.json()) as {
@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest) {
     where: { id: session.id },
     select: { phone: true },
   });
-  if (!current) return unauthorized();
+  if (!current) return unauthorized(req);
 
   const effectivePhone =
     data.phone !== undefined ? data.phone : current.phone?.trim() || null;

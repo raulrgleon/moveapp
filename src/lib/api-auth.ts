@@ -8,6 +8,7 @@ import {
   type MoveAccess,
   type MoveAccessRole,
 } from "@/lib/db/move-access";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 
 export interface SessionUser {
   id: string;
@@ -52,14 +53,14 @@ export async function requireMoveAccess(req: NextRequest): Promise<
   | NextResponse
 > {
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
   if (user.role === "admin") {
-    return forbidden();
+    return forbidden(req);
   }
 
   const access = await resolveMoveAccess(user.id);
   if (!access) {
-    return NextResponse.json({ error: "No move found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "noMove", 404);
   }
 
   return { user, access };
@@ -67,31 +68,34 @@ export async function requireMoveAccess(req: NextRequest): Promise<
 
 export function requireMoveRole(
   access: MoveAccess,
-  minRole: "viewer" | "editor" | "owner"
+  minRole: "viewer" | "editor" | "owner",
+  req?: NextRequest
 ): NextResponse | null {
   const order: MoveAccessRole[] = ["viewer", "editor", "owner"];
   const current = order.indexOf(access.role);
   const required = order.indexOf(minRole);
-  if (current < required) return forbidden();
+  if (current < required) return forbidden(req);
   return null;
 }
 
-export function requireCanEditData(access: MoveAccess): NextResponse | null {
-  if (!canEditMoveData(access.role)) return forbidden();
+export function requireCanEditData(access: MoveAccess, req?: NextRequest): NextResponse | null {
+  if (!canEditMoveData(access.role)) return forbidden(req);
   return null;
 }
 
-export function requireCanEditProfile(access: MoveAccess): NextResponse | null {
-  if (!canEditMoveProfile(access.role)) return forbidden();
+export function requireCanEditProfile(access: MoveAccess, req?: NextRequest): NextResponse | null {
+  if (!canEditMoveProfile(access.role)) return forbidden(req);
   return null;
 }
 
-export function unauthorized() {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export function unauthorized(req?: NextRequest) {
+  if (req) return jsonErrorFromRequest(req, "unauthorized", 401);
+  return jsonErrorFromRequest(new Request("http://localhost"), "unauthorized", 401);
 }
 
-export function forbidden() {
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export function forbidden(req?: NextRequest) {
+  if (req) return jsonErrorFromRequest(req, "forbidden", 403);
+  return jsonErrorFromRequest(new Request("http://localhost"), "forbidden", 403);
 }
 
 export async function requireAdmin(req: NextRequest) {

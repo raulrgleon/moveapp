@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest) {
       keys = body.keys;
     }
   } catch {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    return jsonErrorFromRequest(req, "invalidInput", 400);
   }
 
   if (keys.length > 0) {

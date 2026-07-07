@@ -9,7 +9,7 @@ type RouteContext = { params: { id: string } };
 
 export async function POST(req: NextRequest, { params }: RouteContext) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const invite = await prisma.moveCollaborator.findUnique({
     where: { id: params.id },

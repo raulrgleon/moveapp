@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { apiFetch } from "@/lib/api-client";
 import {
   DEFAULT_LOCALE,
   detectDeviceLocale,
@@ -28,10 +29,8 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 async function persistLocale(locale: Locale) {
   try {
-    await fetch("/api/user/preferences", {
+    await apiFetch("/api/user/preferences", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ locale }),
     });
   } catch {

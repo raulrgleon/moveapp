@@ -6,7 +6,7 @@ import { destroySession } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {

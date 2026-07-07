@@ -7,6 +7,7 @@ import type { AddressSuggestion } from "@/lib/geo/nominatim";
 import { DropdownPortal } from "@/components/ui/dropdown-portal";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface AddressAutocompleteProps {
@@ -56,7 +57,7 @@ export function AddressAutocomplete({
         if (region?.lat != null) params.set("lat", String(region.lat));
         if (region?.lon != null) params.set("lon", String(region.lon));
 
-        const res = await fetch(`/api/address/search?${params.toString()}`);
+        const res = await apiFetch(`/api/address/search?${params.toString()}`);
         const data = (await res.json()) as AddressSuggestion[];
         setSuggestions(data);
         setOpen(data.length > 0);

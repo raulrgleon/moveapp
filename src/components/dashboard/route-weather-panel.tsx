@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CloudRain, CloudSun, Loader2, MapPin, Settings, Thermometer } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import type { RouteWeatherResponse } from "@/lib/weather/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,8 +69,7 @@ export function RouteWeatherPanel({ compact = false }: RouteWeatherPanelProps) {
         if (destLat != null) params.set("destinationLat", String(destLat));
         if (destLon != null) params.set("destinationLon", String(destLon));
 
-        const res = await fetch(`/api/weather?${params.toString()}`);
-        if (!res.ok) throw new Error("weather failed");
+        const res = await apiFetch(`/api/weather?${params.toString()}`);
         const json = (await res.json()) as RouteWeatherResponse;
         if (!cancelled) {
           setData(json);

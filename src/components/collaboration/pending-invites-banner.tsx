@@ -6,6 +6,7 @@ import { UserPlus } from "lucide-react";
 import { useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
+import { apiFetch } from "@/lib/api-client";
 import { refreshMoveData } from "@/lib/move/refresh-data";
 
 interface PendingInvite {
@@ -27,8 +28,7 @@ export function PendingInvitesBanner() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/user/pending-invites", { credentials: "include" });
-        if (!res.ok) return;
+        const res = await apiFetch("/api/user/pending-invites");
         const data = (await res.json()) as { invites: PendingInvite[] };
         setInvites(data.invites.filter((i) => i.token));
       } catch {
@@ -42,13 +42,10 @@ export function PendingInvitesBanner() {
   const accept = async (token: string) => {
     setAccepting(token);
     try {
-      const res = await fetch("/api/move/invite", {
+      await apiFetch("/api/move/invite", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ token }),
       });
-      if (!res.ok) throw new Error("Failed");
       setInvites((prev) => prev.filter((i) => i.token !== token));
       if (user?.email) await refreshMoveData(user.email);
       router.refresh();

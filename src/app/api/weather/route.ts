@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import {
   buildWeatherAlerts,
   fetchCurrentWeather,
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
 
   if (!process.env.WEATHERAPI_KEY) {
-    return NextResponse.json({ error: "Weather API not configured" }, { status: 500 });
+    return jsonErrorFromRequest(req, "configurationMissing", 500);
   }
 
   const originCity = req.nextUrl.searchParams.get("origin")?.trim() ?? "";
@@ -107,6 +108,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(payload);
   } catch (error) {
     console.error("Weather API error:", error);
-    return NextResponse.json({ error: "Failed to fetch weather" }, { status: 500 });
+    return jsonErrorFromRequest(req, "failed", 500);
   }
 }

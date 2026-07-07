@@ -8,6 +8,7 @@ import { encodeRouteCoords, escapeHtml } from "@/lib/geo/escape-html";
 import type { RouteAlternativeSummary } from "@/hooks/use-route-stats";
 import type { RouteStop } from "@/lib/types";
 import { useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
 
 interface RouteWeatherPoint {
@@ -428,8 +429,8 @@ export function RouteMap({
           coords,
           distanceMiles: String(selectedRoute!.distanceMiles),
         });
-        const wRes = await fetch(`/api/weather/along-route?${params.toString()}`);
-        if (!wRes.ok || weatherRequestRef.current !== requestId) return;
+        const wRes = await apiFetch(`/api/weather/along-route?${params.toString()}`);
+        if (weatherRequestRef.current !== requestId) return;
         const { points } = (await wRes.json()) as { points: RouteWeatherPoint[] };
         if (weatherRequestRef.current !== requestId) return;
 

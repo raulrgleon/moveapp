@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     if (contentType.includes("application/json")) {
       const body = (await req.json()) as { dataUrl?: string };
       if (!body.dataUrl?.startsWith("data:image/")) {
-        return NextResponse.json({ error: "dataUrl required" }, { status: 400 });
+        return jsonErrorFromRequest(req, "invalidInput", 400);
       }
       const saved = await saveInventoryPhotoFromBase64(result.access.moveId, body.dataUrl);
       return NextResponse.json({
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "File required" }, { status: 400 });
+      return jsonErrorFromRequest(req, "invalidInput", 400);
     }
 
     const saved = await saveInventoryPhoto(result.access.moveId, file);

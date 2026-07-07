@@ -147,6 +147,7 @@ model Move {
   routesComputedAt      DateTime?          @map("routes_computed_at")
   utilityPicks          Json?              @map("utility_picks")
   supplyChecks          Json?              @map("supply_checks")
+  shoppingSelections    Json?              @map("shopping_selections")
   planShareToken        String?            @unique @map("plan_share_token")
   planShareEnabled      Boolean            @default(false) @map("plan_share_enabled")
 

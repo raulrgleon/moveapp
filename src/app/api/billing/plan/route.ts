@@ -9,7 +9,7 @@ const SUPPORT_EMAIL =
 
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  if (!session) return unauthorized(req);
 
   const user = await prisma.user.findUnique({
     where: { id: session.id },
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   const plan = getPlanStatus(user);
 
@@ -40,14 +40,14 @@ export async function GET(req: NextRequest) {
 /** @deprecated Use POST /api/billing/checkout */
 export async function POST(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  if (!session) return unauthorized(req);
 
   const user = await prisma.user.findUnique({
     where: { id: session.id },
     select: { planTier: true },
   });
 
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
   if (user.planTier === "pro") {
     return NextResponse.json({ error: "Already on Pro" }, { status: 400 });
   }

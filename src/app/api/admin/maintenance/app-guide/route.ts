@@ -9,7 +9,7 @@ import {
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const download = req.nextUrl.searchParams.get("download") === "1";
   const { content, meta } = readAppDocumentationFromDisk();
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (!admin) return forbidden();
+  if (!admin) return forbidden(req);
 
   const meta = await writeAppDocumentationToDisk();
   const { content } = readAppDocumentationFromDisk();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { readInventoryPhoto } from "@/lib/storage/inventory";
 
@@ -11,7 +12,7 @@ export async function GET(
 
   const storageKey = params.path.join("/");
   if (!storageKey.startsWith(result.access.moveId)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "notFound", 404);
   }
 
   try {
@@ -33,6 +34,6 @@ export async function GET(
       },
     });
   } catch {
-    return NextResponse.json({ error: "File not found" }, { status: 404 });
+    return jsonErrorFromRequest(req, "fileNotFound", 404);
   }
 }

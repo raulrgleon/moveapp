@@ -20,7 +20,7 @@ async function parseDeleteBody(req: NextRequest): Promise<{
 async function handleDeleteAccount(req: NextRequest) {
   const locale = resolveRequestLocale(req);
   const user = await getSessionUser(req);
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
 
   if (user.role === "admin") {
     return NextResponse.json(

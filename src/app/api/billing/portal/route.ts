@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { getSessionUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { appBaseUrl, getStripe } from "@/lib/billing/stripe";
@@ -6,11 +7,11 @@ import { ensureStripeCustomer } from "@/lib/billing/stripe-customer";
 
 export async function POST(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) return unauthorized();
+  if (!session) return unauthorized(req);
 
   const stripe = getStripe();
   if (!stripe) {
-    return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 });
+    return jsonErrorFromRequest(req, "configurationMissing", 503);
   }
 
   const user = await prisma.user.findUnique({
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  if (!user) return unauthorized();
+  if (!user) return unauthorized(req);
   if (user.planTier !== "pro") {
     return NextResponse.json(
       { error: "Billing portal is available after upgrading to Pro" },

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { Prisma } from "@prisma/client";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
@@ -27,7 +28,7 @@ export async function PATCH(req: NextRequest) {
 
   const body = (await req.json()) as { checks?: SupplyChecks };
   if (!body.checks || typeof body.checks !== "object") {
-    return NextResponse.json({ error: "checks object required" }, { status: 400 });
+    return jsonErrorFromRequest(req, "checksRequired", 400);
   }
 
   const sanitized: SupplyChecks = {};
