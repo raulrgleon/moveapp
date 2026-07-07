@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchOsrmRoutes, type GeoPoint } from "@/lib/geo/coordinates";
 import { fetchCurrentWeather } from "@/lib/weather/weatherapi";
 import { samplePointsAlongRoute, weatherSampleCount } from "@/lib/weather/route-sampling";
+import { enforcePublicRateLimit } from "@/lib/public-api-rate-limit";
 
 function parseCoord(value: string | null): number | undefined {
   if (!value?.trim()) return undefined;
@@ -10,6 +11,9 @@ function parseCoord(value: string | null): number | undefined {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = await enforcePublicRateLimit(req, "weather-along-route", 30, 60_000);
+  if (limited) return limited;
+
   if (!process.env.WEATHERAPI_KEY) {
     return NextResponse.json({ error: "Weather API not configured" }, { status: 500 });
   }

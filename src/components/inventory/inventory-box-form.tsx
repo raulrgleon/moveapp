@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, ImagePlus, Trash2 } from "lucide-react";
 import { useT } from "@/contexts/locale-context";
 import { useMoveTeam } from "@/hooks/use-move-team";
+import { apiFetchForm } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -77,18 +78,12 @@ export function InventoryBoxForm({
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch("/api/inventory/photo", {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { photoUrl: string };
-        setPhotoUrl(data.photoUrl);
-        return;
-      }
+      const res = await apiFetchForm("/api/inventory/photo", form);
+      const data = (await res.json()) as { photoUrl: string };
+      setPhotoUrl(data.photoUrl);
+      return;
     } catch {
-      /* fallback */
+      /* fallback to local preview */
     }
 
     const reader = new FileReader();

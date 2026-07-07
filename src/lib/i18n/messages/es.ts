@@ -92,6 +92,7 @@ export const es = {
     cancel: "Cancelar",
     enabled: "Activado",
     loading: "Cargando…",
+    dashboardLoading: "Cargando tu panel de mudanza…",
     search: "Buscar tareas, documentos…",
     notifications: "Notificaciones",
     welcomeBack: "Bienvenido, {name}",
@@ -113,6 +114,7 @@ export const es = {
     updateAvailableHint: "Recarga para aplicar las correcciones más recientes y evitar errores por versión vieja.",
     reloadApp: "Recargar app",
     guest: "Invitado",
+    addressConfirmed: "Dirección confirmada",
   },
   apiErrors: {
     unauthorized: "No autorizado",
@@ -584,7 +586,14 @@ export const es = {
     multiVehicle:
       "Varios vehículos: considera enviar uno y manejar el otro, o trailer + transporte para el segundo auto.",
     towDollyNote:
-      "Tow dolly: no recomendado si ya usas trailer en la mayoría de SUVs",
+      "Plataforma de arrastre: no recomendada si ya usas trailer en la mayoría de SUVs",
+    transportDesc1:
+      "Remolca un trailer con tu propio vehículo. Mejor balance entre costo y control en rutas largas.",
+    transportDesc1WithMpg:
+      "Remolca un trailer con tu {vehicle} ({mpg} MPG EPA).",
+    transportDesc2: "Trailer abierto estilo U-Haul. Tú manejas tu propio vehículo de arrastre.",
+    transportDesc3: "Servicio de transporte de autos. Vuela o maneja por separado a tu destino.",
+    transportDesc4: "Remolca un segundo vehículo detrás de tu auto principal. Combinación limitada con trailers.",
     driveOptionDesc:
       "Remolca un trailer 6×12 con tu {vehicle}. Mejor balance entre costo y control.",
     needsTransport: "Requiere transporte separado",
@@ -1032,6 +1041,7 @@ export const es = {
       labels: "Etiquetas o stickers",
       stretchWrap: "Plástico stretch (film)",
       furniturePads: "Mantas / pads para muebles",
+      furnitureSliders: "Deslizadores de muebles",
       cornerGuards: "Protectores de esquinas",
       mattressBags: "Bolsas para colchones",
       screwdriverSet: "Juego de desarmadores / llaves Allen",
@@ -1053,6 +1063,7 @@ export const es = {
       labels: "hojas",
       stretchWrap: "rollos",
       furniturePads: "mantas",
+      furnitureSliders: "juegos",
       cornerGuards: "piezas",
       mattressBags: "bolsas",
       screwdriverSet: "juego",
@@ -1547,6 +1558,14 @@ export const es = {
     deleteMove: "Eliminar mudanza",
     deleteMoveConfirm: "¿Eliminar la mudanza {route} de {owner}? Se borrarán permanentemente checklist, inventario, documentos y presupuesto.",
     moveDeleted: "Mudanza eliminada correctamente",
+    moveNotFound: "Mudanza no encontrada",
+    tasksDocs: "Tareas / Docs",
+    colName: "Nombre",
+    colSize: "Tamaño",
+    colEmail: "Email",
+    notificationFrom: "De: {email}",
+    notificationSms: "SMS: {phone}",
+    actionFailed: "La acción falló",
     notifications: "Notificaciones",
     notificationsReady: "Email listo para enviar",
     notificationsMissing: "Configuración incompleta",
@@ -2211,6 +2230,28 @@ export const es = {
   },
   pilot: {
     suggestionTitle: "Pilot sugiere",
+  },
+  publicPlan: {
+    unavailable: "Este enlace del plan no está disponible.",
+    sharedPlan: "MovePilotAi — plan compartido",
+    moveTitle: "Mudanza de {name}",
+    moveDate: "Fecha de mudanza",
+    route: "Ruta",
+    estimatedTotal: "Total estimado",
+    truckChoice: "Camión / trailer elegido",
+    budgetBreakdown: "Desglose del presupuesto",
+    totalEstimated: "Total estimado",
+    footer: "Vista de solo lectura · Solo estimaciones — confirma precios con proveedores antes de reservar.",
+  },
+  search: {
+    boxLabel: "Caja #{number}",
+    budgetEst: "Est. ${amount}",
+  },
+  billing: {
+    checkoutFailed: "Error al iniciar el pago",
+    loginAgainUpgrade: "Inicia sesión de nuevo para actualizar.",
+    noCheckoutUrl: "No se recibió URL de pago",
+    portalFailed: "No se pudo abrir el portal de facturación",
   },
   truckFit: {
     unknown: "Agrega cajas al inventario para una mejor recomendación de camión.",

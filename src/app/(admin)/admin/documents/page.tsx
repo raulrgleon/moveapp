@@ -73,9 +73,9 @@ export default function AdminDocumentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>{t("adminConsole.colName")}</TableHead>
                   <TableHead>{t("adminConsole.owner")}</TableHead>
-                  <TableHead>Size</TableHead>
+                  <TableHead>{t("adminConsole.colSize")}</TableHead>
                   <TableHead className="text-right">{t("admin.actions")}</TableHead>
                 </TableRow>
               </TableHeader>

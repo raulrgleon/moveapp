@@ -7,8 +7,11 @@ import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useT } from "@/contexts/locale-context";
+import { useAuth } from "@/contexts/auth-context";
+import { useMove } from "@/contexts/move-context";
 import { useMovingSupplies } from "@/hooks/use-moving-supplies";
 import { apiFetch } from "@/lib/api-client";
+import { shoppingListStorageKey } from "@/lib/amazon/shopping-list-storage";
 import {
   MOVING_PRODUCTS,
   PRESET_QUANTITIES,
@@ -47,8 +50,8 @@ interface AmazonSettingsResponse {
   hasAssociateTag: boolean;
 }
 
-const STORAGE_KEY = "movepilot_shopping_list_v1";
 const PRESET_KEYS: MovingPresetKey[] = ["studio", "two_bed", "three_bed", "four_plus"];
+const LEGACY_STORAGE_KEY = "movepilot_shopping_list_v1";
 
 function clampQty(input: number): number {
   if (!Number.isFinite(input)) return 1;
@@ -68,6 +71,8 @@ function applySupplyGathered(
 
 export default function ShoppingListPage() {
   const t = useT();
+  const { user } = useAuth();
+  const { profile } = useMove();
   const { checked: supplyChecks, isHydrated: suppliesHydrated } = useMovingSupplies();
   const [settings, setSettings] = useState<AmazonSettingsResponse | null>(null);
   const [items, setItems] = useState<ShoppingItemState[]>([]);
@@ -75,6 +80,18 @@ export default function ShoppingListPage() {
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState<string | null>(null);
   const cartFormRef = useRef<HTMLFormElement>(null);
+
+  const storageKey = useMemo(
+    () =>
+      shoppingListStorageKey({
+        userId: user?.id,
+        email: user?.email,
+        origin: profile.origin,
+        destination: profile.destination,
+        moveDate: profile.moveDate,
+      }),
+    [user?.id, user?.email, profile.origin, profile.destination, profile.moveDate]
+  );
 
   const productLabel = useCallback(
     (id: string, field: "name" | "description") =>
@@ -104,7 +121,15 @@ export default function ShoppingListPage() {
         const json = (await res.json()) as AmazonSettingsResponse;
         setSettings(json);
         const fromDefaults = baseItems(json.defaultProducts);
-        const savedRaw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+        if (typeof window === "undefined") {
+          setItems(fromDefaults);
+          return;
+        }
+
+        let savedRaw = localStorage.getItem(storageKey);
+        if (!savedRaw && storageKey !== LEGACY_STORAGE_KEY) {
+          savedRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+        }
         if (!savedRaw) {
           setItems(fromDefaults);
           return;
@@ -136,7 +161,7 @@ export default function ShoppingListPage() {
     }
 
     void load();
-  }, [baseItems]);
+  }, [baseItems, storageKey]);
 
   useEffect(() => {
     if (!suppliesHydrated || !items.length) return;
@@ -144,9 +169,9 @@ export default function ShoppingListPage() {
   }, [supplyChecks, suppliesHydrated]);
 
   useEffect(() => {
-    if (!items.length) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    if (!items.length || typeof window === "undefined") return;
+    localStorage.setItem(storageKey, JSON.stringify(items));
+  }, [items, storageKey]);
 
   const supplySync = useMemo(
     () => countGatheredShoppingProducts(supplyChecks),

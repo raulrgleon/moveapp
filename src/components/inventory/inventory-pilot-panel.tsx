@@ -6,8 +6,7 @@ import { useLocale, useT } from "@/contexts/locale-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { isUpgradeRequiredResponse } from "@/lib/api-client";
-import { showPaywallModal } from "@/lib/billing/paywall-bridge";
+import { apiFetch } from "@/lib/api-client";
 
 const QUICK_KEYS = ["pilotQuick1", "pilotQuick2", "pilotQuick3", "pilotQuick4"] as const;
 
@@ -39,36 +38,16 @@ export function InventoryPilotPanel() {
     setLoading(true);
     setAnswer(null);
     try {
-      const res = await fetch("/api/inventory/assist", {
+      const res = await apiFetch("/api/inventory/assist", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ question: q, locale }),
       });
-      if (isUpgradeRequiredResponse(res)) {
-        let trialExpired = false;
-        let trialDaysLeft = 0;
-        try {
-          const json = (await res.json()) as {
-            trialExpired?: boolean;
-            trialDaysLeft?: number;
-          };
-          trialExpired = Boolean(json.trialExpired);
-          trialDaysLeft = json.trialDaysLeft ?? 0;
-        } catch {
-          /* ignore */
-        }
-        showPaywallModal({
-          trialExpired,
-          trialDaysLeft,
-          returnTo: window.location.pathname + window.location.search,
-        });
-        return;
-      }
-      if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as { answer: string };
       setAnswer(data.answer);
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message === "Pro subscription required") {
+        return;
+      }
       setAnswer(t("chat.error"));
     } finally {
       setLoading(false);

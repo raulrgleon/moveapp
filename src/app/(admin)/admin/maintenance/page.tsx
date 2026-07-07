@@ -65,7 +65,7 @@ export default function AdminMaintenancePage() {
       }
       setResult(JSON.stringify(data, null, 2));
     } catch (err) {
-      setResult(err instanceof Error ? err.message : "Failed");
+      setResult(err instanceof Error ? err.message : t("adminConsole.actionFailed"));
     } finally {
       setLoading(false);
     }
@@ -115,10 +115,18 @@ export default function AdminMaintenancePage() {
                     : t("adminConsole.smsMissing")}
                 </Badge>
                 {notificationStatus.email.from && (
-                  <Badge variant="outline">From: {notificationStatus.email.from}</Badge>
+                  <Badge variant="outline">
+                    {t("adminConsole.notificationFrom", {
+                      email: notificationStatus.email.from,
+                    })}
+                  </Badge>
                 )}
                 {notificationStatus.sms.phone && (
-                  <Badge variant="outline">SMS: {notificationStatus.sms.phone}</Badge>
+                  <Badge variant="outline">
+                    {t("adminConsole.notificationSms", {
+                      phone: notificationStatus.sms.phone,
+                    })}
+                  </Badge>
                 )}
                 {notificationStatus.missing.map((key) => (
                   <Badge key={key} variant="destructive">

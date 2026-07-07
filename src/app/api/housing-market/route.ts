@@ -4,8 +4,12 @@ import { buildFallbackHousingComparison } from "@/lib/housing/fallback-market";
 import { resolveZipFromQuery } from "@/lib/geo/resolve-zip";
 import { recommendBedroomsFromHousehold } from "@/lib/move/household";
 import type { HousingMarketResponse } from "@/lib/rentcast/types";
+import { enforcePublicRateLimit } from "@/lib/public-api-rate-limit";
 
 export async function GET(req: NextRequest) {
+  const limited = await enforcePublicRateLimit(req, "housing-market", 30, 60_000);
+  if (limited) return limited;
+
   const origin = req.nextUrl.searchParams.get("origin")?.trim();
   const destination = req.nextUrl.searchParams.get("destination")?.trim();
   const originZipParam = req.nextUrl.searchParams.get("originZip")?.trim();

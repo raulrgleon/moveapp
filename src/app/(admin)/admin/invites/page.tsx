@@ -81,7 +81,7 @@ export default function AdminInvitesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email</TableHead>
+                  <TableHead>{t("adminConsole.colEmail")}</TableHead>
                   <TableHead>{t("admin.role")}</TableHead>
                   <TableHead>{t("adminConsole.route")}</TableHead>
                   <TableHead>{t("adminConsole.owner")}</TableHead>

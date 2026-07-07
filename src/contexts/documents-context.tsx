@@ -10,8 +10,7 @@ import {
 } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useMove } from "@/contexts/move-context";
-import { apiFetch } from "@/lib/api-client";
-import { showPaywallModal } from "@/lib/billing/paywall-bridge";
+import { apiFetch, apiFetchForm } from "@/lib/api-client";
 import { invalidateUserData, loadUserData } from "@/lib/data-cache";
 import { subscribeProfileUpdated } from "@/lib/move/refresh-data";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
@@ -98,35 +97,7 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
       form.append("name", name);
       form.append("category", category);
       if (expiresAt) form.append("expiresAt", expiresAt);
-      const res = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
-      if (res.status === 402) {
-        let trialExpired = false;
-        let trialDaysLeft = 0;
-        try {
-          const json = (await res.json()) as {
-            trialExpired?: boolean;
-            trialDaysLeft?: number;
-          };
-          trialExpired = Boolean(json.trialExpired);
-          trialDaysLeft = json.trialDaysLeft ?? 0;
-        } catch {
-          /* ignore */
-        }
-        showPaywallModal({
-          trialExpired,
-          trialDaysLeft,
-          returnTo: window.location.pathname + window.location.search,
-        });
-        return;
-      }
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? "Upload failed");
-      }
+      await apiFetchForm("/api/documents/upload", form);
       invalidateUserData();
       await refreshDocuments();
     },

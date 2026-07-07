@@ -26,6 +26,7 @@ import {
 } from "@/lib/vehicles/transport-options";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import type { VehicleInfo } from "@/lib/vehicles/types";
 
 const OPTION_ICONS: Record<string, typeof Car> = {
   "1": Car,
@@ -33,6 +34,25 @@ const OPTION_ICONS: Record<string, typeof Car> = {
   "3": Package,
   "4": Truck,
 };
+
+function transportDescription(
+  optionId: string,
+  vehicle: VehicleInfo,
+  t: ReturnType<typeof useT>
+): string {
+  if (optionId === "1") {
+    return vehicle?.combMpg
+      ? t("vehicles.transportDesc1WithMpg", {
+          vehicle: vehicle.displayLabel,
+          mpg: vehicle.combMpg,
+        })
+      : t("vehicles.transportDesc1");
+  }
+  if (optionId === "2") return t("vehicles.transportDesc2");
+  if (optionId === "3") return t("vehicles.transportDesc3");
+  if (optionId === "4") return t("vehicles.transportDesc4");
+  return "";
+}
 
 export default function VehiclesPage() {
   const t = useT();
@@ -238,7 +258,9 @@ export default function VehiclesPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col gap-4">
-                    <p className="text-sm text-muted-foreground flex-1">{option.description}</p>
+                    <p className="text-sm text-muted-foreground flex-1">
+                      {transportDescription(option.id, vehicle, t)}
+                    </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3">
                       <div>
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">

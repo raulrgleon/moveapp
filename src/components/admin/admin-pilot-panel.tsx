@@ -10,6 +10,7 @@ import {
 } from "@/components/ai/chat-ui";
 import { PilotBadge } from "@/components/brand/pilot-badge";
 import { useT } from "@/contexts/locale-context";
+import { getClientLocale } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import type { ChatMessage } from "@/contexts/ai-chat-context";
@@ -51,7 +52,10 @@ export function AdminPilotPanel() {
       try {
         const res = await fetch("/api/admin/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Locale": getClientLocale(),
+          },
           credentials: "include",
           body: JSON.stringify({
             messages: history.map((m) => ({ role: m.role, content: m.content })),

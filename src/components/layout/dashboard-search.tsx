@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 
 interface SearchResult {
@@ -34,10 +35,7 @@ export function DashboardSearch({ onNavigate, autoFocus }: DashboardSearchProps)
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`, {
-          credentials: "include",
-        });
-        if (!res.ok) return;
+        const res = await apiFetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
         const data = (await res.json()) as { results: SearchResult[] };
         setResults(data.results);
         setOpen(true);

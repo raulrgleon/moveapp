@@ -6,6 +6,7 @@ import {
   formatWeatherQuery,
 } from "@/lib/weather/weatherapi";
 import type { RouteWeatherResponse } from "@/lib/weather/types";
+import { enforcePublicRateLimit } from "@/lib/public-api-rate-limit";
 
 const FORECAST_HORIZON_DAYS = 14;
 
@@ -24,6 +25,9 @@ function parseCoord(value: string | null): number | undefined {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = await enforcePublicRateLimit(req, "weather", 40, 60_000);
+  if (limited) return limited;
+
   if (!process.env.WEATHERAPI_KEY) {
     return NextResponse.json({ error: "Weather API not configured" }, { status: 500 });
   }

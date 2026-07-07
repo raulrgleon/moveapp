@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMoveAccess } from "@/lib/api-auth";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import { getDocumentForUser } from "@/lib/db/move-service";
 import { readDocumentFile } from "@/lib/storage/documents";
 
@@ -7,6 +8,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
+
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

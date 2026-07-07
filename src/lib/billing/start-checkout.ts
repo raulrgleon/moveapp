@@ -1,28 +1,31 @@
 "use client";
 
+import { apiFetch, getClientLocale } from "@/lib/api-client";
+import { translate } from "@/lib/i18n";
+
 export async function startStripeCheckout(): Promise<{ ok: true } | { ok: false; error: string }> {
-  const res = await fetch("/api/billing/checkout", {
-    method: "POST",
-    credentials: "include",
-  });
+  const locale = getClientLocale();
+  try {
+    const res = await apiFetch("/api/billing/checkout", { method: "POST" });
+    const data = (await res.json()) as { url?: string; error?: string };
 
-  const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-
-  if (!res.ok) {
-    const err = data.error || "Checkout failed";
-    if (res.status === 401) {
-      return { ok: false, error: "Please log in again to upgrade." };
+    if (!data.url) {
+      return { ok: false, error: translate(locale, "billing.noCheckoutUrl") };
     }
-    if (res.status === 503 && err.toLowerCase().includes("stripe")) {
-      return { ok: false, error: err };
+
+    window.location.href = data.url;
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Pro subscription required") {
+      return { ok: false, error: translate(locale, "billing.checkoutFailed") };
     }
-    return { ok: false, error: err };
+    if (message.toLowerCase().includes("unauthorized")) {
+      return { ok: false, error: translate(locale, "billing.loginAgainUpgrade") };
+    }
+    return {
+      ok: false,
+      error: message || translate(locale, "billing.checkoutFailed"),
+    };
   }
-
-  if (!data.url) {
-    return { ok: false, error: "No checkout URL returned" };
-  }
-
-  window.location.href = data.url;
-  return { ok: true };
 }

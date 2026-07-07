@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCanEditData, requireMoveAccess } from "@/lib/api-auth";
+import { requireProSubscription } from "@/lib/billing/require-pro";
 import { replaceDocuments } from "@/lib/db/move-service";
 import type { DocumentItem } from "@/lib/types";
 
 export async function PUT(req: NextRequest) {
+  const proCheck = await requireProSubscription(req);
+  if (proCheck instanceof NextResponse) return proCheck;
+
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

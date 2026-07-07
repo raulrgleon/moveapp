@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { useT } from "@/contexts/locale-context";
+import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -25,8 +26,7 @@ export function NotificationsBell() {
 
   const load = async () => {
     try {
-      const res = await fetch("/api/notifications", { credentials: "include" });
-      if (!res.ok) return;
+      const res = await apiFetch("/api/notifications");
       const data = (await res.json()) as {
         notifications: NotificationItem[];
         unreadCount: number;
@@ -40,10 +40,8 @@ export function NotificationsBell() {
   };
 
   const markAllRead = async () => {
-    await fetch("/api/notifications/read", {
+    await apiFetch("/api/notifications/read", {
       method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ all: true }),
     });
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));

@@ -57,7 +57,7 @@ export default function AdminMoveDetailPage({ params }: { params: { id: string }
   }
 
   if (!move) {
-    return <p className="p-8 text-destructive">Move not found</p>;
+    return <p className="p-8 text-destructive">{t("adminConsole.moveNotFound")}</p>;
   }
 
   const user = move.user as { name: string; email: string; id: string };

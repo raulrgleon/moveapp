@@ -93,13 +93,6 @@ export const MOVING_PRODUCTS: ShoppingProductDef[] = [
   },
 ];
 
-export const PRESET_LABELS: Record<MovingPresetKey, string> = {
-  studio: "studio",
-  two_bed: "two_bed",
-  three_bed: "three_bed",
-  four_plus: "four_plus",
-};
-
 export const PRESET_QUANTITIES: Record<MovingPresetKey, Record<string, number>> = {
   studio: {
     moving_boxes: 20,

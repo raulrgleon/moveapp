@@ -105,7 +105,7 @@ export default function AdminMovesPage() {
                   <TableHead>{t("adminConsole.owner")}</TableHead>
                   <TableHead>{t("adminConsole.route")}</TableHead>
                   <TableHead>{t("adminConsole.moveDate")}</TableHead>
-                  <TableHead>Tasks / Docs</TableHead>
+                  <TableHead>{t("adminConsole.tasksDocs")}</TableHead>
                   <TableHead className="text-right">{t("admin.actions")}</TableHead>
                 </TableRow>
               </TableHeader>

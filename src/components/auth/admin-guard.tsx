@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { LoadingText } from "@/components/ui/loading-text";
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, isHydrated } = useAuth();
@@ -22,7 +23,9 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   if (!isHydrated || !isAuthenticated || !isAdmin) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">
+          <LoadingText />
+        </p>
       </div>
     );
   }

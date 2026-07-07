@@ -196,11 +196,12 @@ export function AddressAutocomplete({
 }
 
 export function AddressConfirmedBadge({ address }: { address: string }) {
+  const t = useT();
   return (
     <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm">
       <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
       <div className="min-w-0">
-        <p className="font-medium text-emerald-900">Address confirmed</p>
+        <p className="font-medium text-emerald-900">{t("common.addressConfirmed")}</p>
         <p className="text-emerald-800/80 break-words text-xs mt-0.5">{address}</p>
       </div>
     </div>

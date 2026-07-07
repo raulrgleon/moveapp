@@ -28,6 +28,7 @@ export const SUPPLY_ITEMS: SupplyItemDef[] = [
   { id: "labels", category: "packing", qty: { small: 1, medium: 2, large: 2 } },
   { id: "stretchWrap", category: "packing", qty: { small: 1, medium: 1, large: 2 } },
   { id: "furniturePads", category: "protection", qty: { small: 4, medium: 8, large: 12 } },
+  { id: "furnitureSliders", category: "protection", qty: { small: 4, medium: 8, large: 12 } },
   { id: "cornerGuards", category: "protection", qty: { small: 4, medium: 8, large: 12 } },
   { id: "mattressBags", category: "protection", qty: { small: 1, medium: 2, large: 3 } },
   { id: "screwdriverSet", category: "tools", qty: { small: 1, medium: 1, large: 1 } },
@@ -68,21 +69,6 @@ export function getSupplyQuantity(item: SupplyItemDef, household: HouseholdSize)
 export function isPackingSuppliesTask(title: string): boolean {
   const normalized = title.trim().toLowerCase();
   return PACKING_SUPPLIES_TASK_TITLES.some((t) => t.toLowerCase() === normalized);
-}
-
-export function suppliesStorageKey(profile: {
-  email?: string;
-  origin?: string;
-  destination?: string;
-  moveDate?: string;
-}): string {
-  const parts = [
-    profile.email ?? "guest",
-    profile.origin ?? "",
-    profile.destination ?? "",
-    profile.moveDate ?? "",
-  ];
-  return `movepilot_supplies_${parts.join("|")}`;
 }
 
 export function suppliesProgress(

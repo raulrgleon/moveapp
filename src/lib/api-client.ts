@@ -53,6 +53,34 @@ function clientLocale(): Locale | null {
   return stored === "en" || stored === "es" ? stored : null;
 }
 
+export function getClientLocale(): Locale {
+  return clientLocale() ?? "en";
+}
+
+async function handleUpgradeResponse(res: Response): Promise<never> {
+  let trialExpired = false;
+  let trialDaysLeft = 0;
+  try {
+    const json = (await res.json()) as {
+      trialExpired?: boolean;
+      trialDaysLeft?: number;
+    };
+    trialExpired = Boolean(json.trialExpired);
+    trialDaysLeft = json.trialDaysLeft ?? 0;
+  } catch {
+    /* body may be empty */
+  }
+  showPaywallModal({
+    trialExpired,
+    trialDaysLeft,
+    returnTo:
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : undefined,
+  });
+  throw new Error("Pro subscription required");
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) {
@@ -65,27 +93,28 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
 
   const res = await fetch(path, { ...init, headers, credentials: "include" });
   if (isUpgradeRequiredResponse(res)) {
-    let trialExpired = false;
-    let trialDaysLeft = 0;
-    try {
-      const json = (await res.json()) as {
-        trialExpired?: boolean;
-        trialDaysLeft?: number;
-      };
-      trialExpired = Boolean(json.trialExpired);
-      trialDaysLeft = json.trialDaysLeft ?? 0;
-    } catch {
-      /* body may be empty */
-    }
-    showPaywallModal({
-      trialExpired,
-      trialDaysLeft,
-      returnTo:
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : undefined,
-    });
-    throw new Error("Pro subscription required");
+    await handleUpgradeResponse(res);
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throw parseApiError(text, res.status);
+  }
+  return res;
+}
+
+export async function apiFetchForm(path: string, formData: FormData) {
+  const headers = new Headers();
+  const locale = clientLocale();
+  if (locale) headers.set("X-Locale", locale);
+
+  const res = await fetch(path, {
+    method: "POST",
+    body: formData,
+    headers,
+    credentials: "include",
+  });
+  if (isUpgradeRequiredResponse(res)) {
+    await handleUpgradeResponse(res);
   }
   if (!res.ok) {
     const text = await res.text();

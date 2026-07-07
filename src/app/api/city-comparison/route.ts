@@ -10,6 +10,7 @@ import { resolveLocationFromQuery } from "@/lib/geo/resolve-location";
 import { recommendBedroomsFromHousehold } from "@/lib/move/household";
 import { fetchHousingComparison } from "@/lib/rentcast/rentcast";
 import type { HousingMarketResponse } from "@/lib/rentcast/types";
+import { enforcePublicRateLimit } from "@/lib/public-api-rate-limit";
 
 async function loadHousing(
   origin: string,
@@ -73,6 +74,9 @@ async function loadHousing(
 }
 
 export async function GET(req: NextRequest) {
+  const limited = await enforcePublicRateLimit(req, "city-comparison", 30, 60_000);
+  if (limited) return limited;
+
   const origin = req.nextUrl.searchParams.get("origin")?.trim();
   const destination = req.nextUrl.searchParams.get("destination")?.trim();
   const originZipParam = req.nextUrl.searchParams.get("originZip")?.trim();

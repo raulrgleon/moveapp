@@ -43,6 +43,9 @@ export function MovingPlanSuppliesCard() {
         <Button asChild size="sm" className="w-full">
           <Link href="/inventory?tab=supplies">{t("movingSupplies.openList")}</Link>
         </Button>
+        <Button asChild size="sm" variant="outline" className="w-full">
+          <Link href="/shopping-list">{t("movingSupplies.shoppingListLinkAction")}</Link>
+        </Button>
       </CardContent>
     </Card>
   );

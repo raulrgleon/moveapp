@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
+import { resolveRequestLocale } from "@/lib/api-errors";
+import { translate } from "@/lib/i18n";
 
 export async function GET(req: NextRequest) {
+  const locale = resolveRequestLocale(req);
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 
@@ -44,7 +47,7 @@ export async function GET(req: NextRequest) {
       results.push({
         type: "box",
         id: box.id,
-        title: `Box #${box.boxNumber}`,
+        title: translate(locale, "search.boxLabel", { number: box.boxNumber }),
         subtitle: `${box.room} — ${box.contents}`,
         href: `/inventory?box=${box.boxNumber}`,
       });
@@ -73,7 +76,7 @@ export async function GET(req: NextRequest) {
         type: "budget",
         id: item.id,
         title: item.category,
-        subtitle: `Est. $${item.estimated}`,
+        subtitle: translate(locale, "search.budgetEst", { amount: item.estimated }),
         href: "/budget",
       });
     }

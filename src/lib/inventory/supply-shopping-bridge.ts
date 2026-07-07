@@ -11,6 +11,7 @@ export const SHOPPING_TO_SUPPLY_IDS: Record<string, string[]> = {
   box_cutter: ["utilityKnife"],
   permanent_markers: ["markers"],
   mattress_bags: ["mattressBags"],
+  furniture_sliders: ["furnitureSliders"],
   dolly_hand_truck: ["dolly"],
   tie_down_straps: ["movingStraps"],
   gloves: ["workGloves"],

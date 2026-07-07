@@ -7,6 +7,7 @@ import {
 } from "@/lib/geo/address-region";
 import { parseNominatimResult } from "@/lib/geo/nominatim";
 import { searchUsCities } from "@/lib/geo/city-search";
+import { enforcePublicRateLimit } from "@/lib/public-api-rate-limit";
 
 const USER_AGENT = "MovePilotAI/1.0 (moving dashboard; contact@movepilotai.com)";
 
@@ -20,6 +21,9 @@ function parseCoord(value: string | null): number | undefined {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = await enforcePublicRateLimit(req, "address-search", 80, 60_000);
+  if (limited) return limited;
+
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const type = req.nextUrl.searchParams.get("type")?.trim();
   const stateParam = req.nextUrl.searchParams.get("state")?.trim();
