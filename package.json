@@ -12,7 +12,8 @@
     "seed:admin": "node --env-file=.env.local scripts/seed-admin.mjs",
     "download-vehicles": "node scripts/download-vehicle-catalog.mjs",
     "test:locale": "node scripts/test-locale.mjs",
-    "twilio:check": "node scripts/twilio-check.mjs"
+    "twilio:check": "node scripts/twilio-check.mjs",
+    "regenerate-app-guide": "npx --yes tsx scripts/regenerate-app-guide.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -17,7 +17,7 @@ type GuideMeta = {
 
 export function AppGuideDocumentationCard() {
   const t = useT();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState<GuideMeta | null>(null);
   const [preview, setPreview] = useState("");
   const [truncated, setTruncated] = useState(false);
@@ -25,6 +25,7 @@ export function AppGuideDocumentationCard() {
   const [exists, setExists] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
     setError("");
     try {
       const res = await apiFetch("/api/admin/maintenance/app-guide");
@@ -46,6 +47,8 @@ export function AppGuideDocumentationCard() {
       setMeta(data.meta);
     } catch {
       setError(t("adminConsole.appGuideLoadError"));
+    } finally {
+      setLoading(false);
     }
   }, [t]);
 
@@ -77,9 +80,7 @@ export function AppGuideDocumentationCard() {
 
   const download = async () => {
     try {
-      const res = await fetch("/api/admin/maintenance/app-guide?download=1", {
-        credentials: "include",
-      });
+      const res = await apiFetch("/api/admin/maintenance/app-guide?download=1");
       if (!res.ok) throw new Error("Failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -107,6 +108,10 @@ export function AppGuideDocumentationCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {loading && !preview && (
+          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+        )}
+
         {meta && (
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge variant="outline">
@@ -118,7 +123,7 @@ export function AppGuideDocumentationCard() {
           </div>
         )}
 
-        {!exists && !loading && (
+        {!loading && !exists && (
           <p className="text-sm text-muted-foreground">{t("adminConsole.appGuideEmpty")}</p>
         )}
 

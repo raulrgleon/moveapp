@@ -1,6 +1,7 @@
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { getAmazonAppSettings } from "@/lib/amazon/settings";
 import { getNotificationConfigStatus } from "@/lib/notifications/config";
 import { isTwilioConfigured } from "@/lib/notifications/twilio-config";
 import { prisma } from "@/lib/prisma";
@@ -58,19 +59,28 @@ async function loadLiveStats() {
   };
 }
 
-function integrationBlock(): string {
+function integrationBlock(amazon: {
+  associateTag: string;
+  marketplaceDomain: string;
+  configuredAsins: number;
+  totalProducts: number;
+}): string {
   const n = getNotificationConfigStatus();
   return `- **Email (Resend):** ${n.email.configured ? "configurado" : "falta RESEND_API_KEY / EMAIL_FROM"}
 - **SMS (Twilio):** ${isTwilioConfigured() ? `configurado (${n.sms.phone ?? "número OK"})` : `pendiente: ${n.sms.missing.join(", ") || "TWILIO_*"}`}
 - **Cron recordatorios:** ${n.cron ? "CRON_SECRET definido" : "falta CRON_SECRET"}
 - **OpenAI:** ${process.env.OPENAI_API_KEY ? "configurado" : "falta OPENAI_API_KEY"}
 - **Stripe:** ${process.env.STRIPE_SECRET_KEY ? "configurado" : "opcional / no configurado"}
+- **Amazon Associates:** ${amazon.associateTag ? `tag \`${amazon.associateTag}\` en ${amazon.marketplaceDomain}` : "sin tag configurado"} · ASINs: ${amazon.configuredAsins}/${amazon.totalProducts}
 - **PostgreSQL:** DATABASE_URL ${process.env.DATABASE_URL ? "definido" : "NO definido"}`;
 }
 
 /** Genera la guía completa de la aplicación en Markdown (español). */
 export async function generateAppDocumentationMarkdown(): Promise<string> {
   const stats = await loadLiveStats();
+  const amazon = await getAmazonAppSettings();
+  const configuredAsins = Object.values(amazon.defaultProducts).filter((asin) => asin.trim()).length;
+  const totalProducts = Object.keys(amazon.defaultProducts).length;
   const now = new Date();
   const gitCommit = tryGitCommit();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? null;
@@ -138,7 +148,8 @@ En **Admin → Usuarios → Ver como usuario**, el admin entra al dashboard *com
 - **/utilities** — Proveedores en la dirección confirmada (electricidad, internet, etc.).
 - **/city-comparison** — Comparación origen vs destino (RentCast cuando hay API key).
 - **/checklist** — Tareas por categoría (incluye **Moving** para día D).
-- **/inventory** — Cajas numeradas, habitación, frágil, essentials.
+- **/inventory** — Cajas numeradas, habitación, frágil, essentials; pestaña **Supplies** con checklist de materiales.
+- **/shopping-list** — Lista de compras Amazon (cajas, cinta, burbujas, etc.) con presets por tamaño de hogar.
 - **/documents** — Bóveda de documentos (lease, seguros, IDs…).
 - **/collaboration** — Invitar familia por email.
 - **/partner** — Compartir enlace con mudanceras; recibir cotizaciones.
@@ -152,6 +163,26 @@ En **Admin → Usuarios → Ver como usuario**, el admin entra al dashboard *com
 
 **Por qué:** reduce ruido cuando el usuario solo necesita ruta y tareas urgentes.
 
+### 3.4 Suministros y compras Amazon
+
+Dos vistas conectadas para materiales de mudanza:
+
+| Vista | Ruta | Función |
+|-------|------|---------|
+| **Supplies checklist** | \`/inventory?tab=supplies\` | Marcar lo que ya tienes (cajas, cinta, guantes…). Se guarda en \`moves.supply_checks\` (JSON). |
+| **Shopping List** | \`/shopping-list\` | Catálogo de 12 productos con presets (studio, 2 bed, 3 bed, 4+). Abre carrito Amazon con ASINs configurados. |
+
+**Sincronización:** \`supply-shopping-bridge.ts\` enlaza productos Amazon ↔ ítems del checklist. Si marcas cajas/cinta/etc. como conseguidos, desaparecen de “Still need to buy” en Shopping List.
+
+**Flujo Amazon (cliente):**
+1. Elige productos y cantidades en Shopping List.
+2. Pulsa **Open Amazon Cart (N items)**.
+3. La app envía formulario oficial a \`/gp/aws/cart/add.html\` con \`AssociateTag\`, \`tag\`, \`add=add\` y pares \`ASIN.N\` / \`Quantity.N\`.
+4. Amazon puede pedir login y muestra página de **confirmación** antes de agregar al carrito.
+5. El pago siempre ocurre en Amazon; MovePilotAi no procesa pagos Amazon.
+
+**Configuración admin:** **Admin → System → Amazon affiliate settings** — tag de afiliado, dominio marketplace y mapa producto→ASIN (tabla \`app_settings\`).
+
 ---
 
 ## 4. MovePilot Pro (monetización)
@@ -160,7 +191,7 @@ En **Admin → Usuarios → Ver como usuario**, el admin entra al dashboard *com
 - **Pro:** ~$29 USD **pago único por mudanza** (Stripe Checkout).
 - **Por qué pago por mudanza y no mensual:** una mudanza es un proyecto acotado; el usuario paga cuando el valor es máximo.
 
-Funciones típicas Pro: Pilot ilimitado, sync ruta/presupuesto, compartir plan, recordatorios, etc. (ver \`/upgrade\`).
+Funciones típicas Pro: Pilot ilimitado, sync ruta/presupuesto, compartir plan, recordatorios, inventario completo, etc. (ver \`/upgrade\`).
 
 Admins **siempre** tienen acceso Pro (\`requireProSubscription\` los deja pasar).
 
@@ -203,7 +234,7 @@ Pilot puede ejecutar acciones con bloques \`::pilot-action{...}::\` (completar t
 | Tabla | Para qué | Por qué existe |
 |-------|----------|----------------|
 | **users** | Cuentas, plan, teléfono, recordatorios | Auth y preferencias |
-| **moves** | Una mudanza por proyecto | Separar mudanzas futuras/pasadas |
+| **moves** | Una mudanza por proyecto; \`supply_checks\` JSON | Separar mudanzas; checklist de suministros |
 | **checklist_tasks** | Tareas con fecha y categoría | Motor del progreso |
 | **budget_items** | Estimado vs real por categoría | Control de gastos |
 | **inventory_boxes** | Cajas numeradas | Día D y descarga |
@@ -212,6 +243,7 @@ Pilot puede ejecutar acciones con bloques \`::pilot-action{...}::\` (completar t
 | **move_collaborators** | Invitaciones familia | Edición compartida |
 | **partner_quotes** | Cotizaciones mudanceras | Marketplace B2B |
 | **chat_messages** | Historial Pilot | Continuidad conversación |
+| **app_settings** | Config global (Amazon tag, ASINs, etc.) | Sin redeploy para afiliados |
 | **sessions** | Cookies de login | Seguridad |
 | **admin_audit_logs** | Acciones admin | Trazabilidad |
 
@@ -221,16 +253,23 @@ Relación central: **User 1—N Move**. La mudanza activa está en \`users.activ
 
 ## 7. API e integraciones externas
 
-| Integración | Uso | Variable env | ¿Por qué esta elección? |
-|-------------|-----|--------------|-------------------------|
+| Integración | Uso | Variable / config | ¿Por qué esta elección? |
+|-------------|-----|-------------------|-------------------------|
 | **OpenAI** | Pilot, inventario assist | OPENAI_API_KEY | Calidad/latencia balance con gpt-4o-mini |
 | **Resend** | Emails transaccionales | RESEND_API_KEY | Entregabilidad simple |
 | **Twilio** | SMS recordatorios | TWILIO_* | Estándar US |
 | **Stripe** | Pagos Pro | STRIPE_* | PCI delegado |
+| **Amazon Associates** | Shopping List → carrito | \`app_settings\` (tag + ASINs) | Monetización sin API de productos |
 | **OpenStreetMap + OSRM** | Mapas y rutas | (ninguna) | Sin costo API mapas |
 | **Nominatim** | Geocoding direcciones | User-Agent | Gratis con límites |
 | **WeatherAPI** | Clima en ruta | WEATHERAPI_KEY | Opcional |
 | **RentCast** | Comparación ciudades | RENTCAST_API_KEY | Opcional |
+
+### APIs Amazon relevantes
+
+- \`GET /api/amazon/settings\` — tag y ASINs para Shopping List (público autenticado).
+- \`GET/PATCH /api/admin/amazon-settings\` — configuración admin.
+- \`GET/POST /api/admin/maintenance/app-guide\` — esta documentación.
 
 ### Cron diario
 
@@ -252,10 +291,10 @@ Ruta base: **/admin** (solo rol \`admin\`).
 | Partners | Directorio mudanceras |
 | Partner quotes | Cotizaciones recibidas |
 | Invites | Invitaciones pendientes |
-| Documents | Vista global documentos |
+| Documents | Vista global documentos subidos |
 | Activity | Audit log |
-| Settings | Config sistema |
-| **Maintenance** | Cron manual, email/SMS test, **esta guía** |
+| Settings (System) | Anuncios globales, integraciones, **Amazon affiliate + mapa ASIN** |
+| **Maintenance** | Cron manual, email/SMS test, **documentación de la app (esta guía)** |
 
 ### Pilot Admin
 
@@ -265,12 +304,15 @@ Botón flotante en admin: chat con visión de plataforma (\`loadAdminPlatformCon
 
 ## 9. Despliegue y operaciones
 
-### Servidor típico
+### Servidor típico (producción movepilotai.com)
 
 - **Ruta app:** \`/var/www/moveapp\`
-- **PM2:** \`ecosystem.config.cjs\` carga \`.env\` + \`.env.local\`
-- **Reinicio con env fresco:** \`scripts/restart-prod.sh\`
-- **Build:** \`npm run build\` (Prisma generate + Next.js)
+- **PM2:** proceso \`moveapp\` en puerto **3000** (solo localhost)
+- **Nginx:** HTTPS público → proxy a \`127.0.0.1:3000\`
+- **Certbot:** SSL Let's Encrypt
+- **UFW:** SSH (22), HTTP (80), HTTPS (443); puerto 3000 **no** expuesto
+- **Fail2ban:** protección SSH
+- **Reinicio:** \`pm2 restart moveapp\` tras \`npm run build\`
 
 ### Variables críticas
 
@@ -284,7 +326,11 @@ Headers \`Cache-Control: no-store\` en dashboard; \`DeployReloadPrompt\` avisa n
 
 ### Backups
 
-Cron \`scripts/backup-db.sh\` (si está en crontab del servidor).
+Cron \`scripts/backup-db.sh\` (crontab diario en servidor).
+
+### Regenerar esta guía por CLI
+
+\`npm run regenerate-app-guide\` (usa \`.env.local\`, escribe \`data/app-guide.generated.md\`).
 
 ---
 
@@ -296,6 +342,7 @@ Cron \`scripts/backup-db.sh\` (si está en crontab del servidor).
 4. **Rate limit** en chat y APIs públicas.
 5. **Admin** separado de \`requireMoveAccess\` (admin no usa chat cliente sin impersonar).
 6. **Colaboradores:** token de invitación, roles viewer/editor.
+7. **Firewall:** UFW + fail2ban en servidor; app Node solo en loopback.
 
 ---
 
@@ -303,6 +350,7 @@ Cron \`scripts/backup-db.sh\` (si está en crontab del servidor).
 
 - Idiomas: **inglés** y **español**.
 - Archivos: \`src/lib/i18n/messages/en.ts\`, \`es.ts\`.
+- Shopping List, Supplies y Admin Amazon usan claves i18n (\`amazonShopping.*\`, \`movingSupplies.*\`).
 - Pilot responde en el idioma del último mensaje del usuario.
 
 **Por qué:** mercado US + hispanohablantes.
@@ -324,10 +372,11 @@ Datos al momento de generar este documento:
 | Cajas inventario | ${stats.inventoryBoxes} |
 | Cotizaciones partners | ${stats.partnerQuotes} |
 | Mensajes chat guardados | ${stats.chatMessages} |
+| ASINs Amazon configurados | ${configuredAsins}/${totalProducts} |
 
 ### Estado integraciones (sin secretos)
 
-${integrationBlock()}
+${integrationBlock({ ...amazon, configuredAsins, totalProducts })}
 
 ---
 
@@ -335,18 +384,19 @@ ${integrationBlock()}
 
 \`\`\`
 src/
-├── app/(dashboard)/     # Páginas cliente
-├── app/(admin)/         # Panel admin
-├── app/api/             # REST: chat, cron, stripe, user…
-├── components/          # UI reutilizable
-├── contexts/            # move-context, auth, ai-chat
-├── lib/
-│   ├── ai/              # Prompts Pilot, contexto DB
-│   ├── admin/           # Stats, esta guía, audit
-│   ├── db/              # move-service, access
-│   ├── notifications/   # email, SMS, reminders
-│   └── billing/         # Stripe, Pro gate
-└── prisma/schema.prisma # Modelo datos
+├── app/(dashboard)/shopping-list/   # Lista compras Amazon
+├── app/(admin)/admin/               # Panel admin
+├── app/api/amazon/                  # Settings públicos Amazon
+├── app/api/admin/amazon-settings/   # Config afiliado (admin)
+├── app/api/admin/maintenance/app-guide/  # Esta guía
+├── components/admin/app-guide-documentation-card.tsx
+├── lib/amazon/                      # links, moving-shopping, settings
+├── lib/inventory/supply-shopping-bridge.ts  # Sync supplies ↔ shopping
+├── lib/admin/generate-app-documentation.ts  # Generador de esta guía
+├── lib/ai/                          # Prompts Pilot, contexto DB
+├── lib/db/                          # move-service, access
+├── lib/notifications/               # email, SMS, reminders
+└── prisma/schema.prisma             # Modelo datos
 \`\`\`
 
 ---
@@ -355,9 +405,9 @@ src/
 
 - Se genera con \`generateAppDocumentationMarkdown()\` en \`src/lib/admin/generate-app-documentation.ts\`.
 - Se guarda en \`data/app-guide.generated.md\` en el servidor.
-- Desde **Admin → Maintenance → Documentación de la app** puedes **Actualizar** (regenera con stats e integraciones al día) y **Descargar .md**.
+- Desde **Admin → Maintenance → App documentation** puedes **Update documentation** (regenera con stats e integraciones al día) y **Download .md**.
 
-**Cuándo actualizar:** después de deploys importantes, nuevas integraciones, o cambios de flujo que quieras documentar — edita el generador en el repo y vuelve a pulsar Actualizar en producción.
+**Cuándo actualizar:** después de deploys importantes, nuevas integraciones, o cambios de flujo — edita el generador en el repo, despliega, y pulsa **Update** en admin (o \`npm run regenerate-app-guide\` en servidor).
 
 ---
 
