@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ExternalLink, ShoppingCart } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { PageContainer } from "@/components/dashboard/page-container";
@@ -14,7 +14,11 @@ import {
   PRESET_QUANTITIES,
   type MovingPresetKey,
 } from "@/lib/amazon/moving-shopping";
-import { buildAmazonCartUrl, buildAmazonSearchUrl } from "@/lib/amazon/links";
+import {
+  AMAZON_CART_MAX_ITEMS,
+  buildAmazonCartFormConfig,
+  buildAmazonSearchUrl,
+} from "@/lib/amazon/links";
 import {
   countGatheredShoppingProducts,
   isShoppingProductGathered,
@@ -70,6 +74,7 @@ export default function ShoppingListPage() {
   const [preset, setPreset] = useState<MovingPresetKey>("studio");
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState<string | null>(null);
+  const cartFormRef = useRef<HTMLFormElement>(null);
 
   const productLabel = useCallback(
     (id: string, field: "name" | "description") =>
@@ -179,21 +184,30 @@ export default function ShoppingListPage() {
     [stillNeeded]
   );
 
-  const cartUrl = useMemo(() => {
-    if (!settings) return null;
-    return buildAmazonCartUrl(
+  const cartSelection = useMemo(
+    () =>
       validCartSelection.map((item) => ({
         name: item.name,
         quantity: item.quantity,
         asin: item.asin,
         selected: true,
       })),
+    [validCartSelection]
+  );
+
+  const cartForm = useMemo(() => {
+    if (!settings) return null;
+    return buildAmazonCartFormConfig(
+      cartSelection,
       settings.associateTag,
       settings.marketplaceDomain
     );
-  }, [validCartSelection, settings]);
+  }, [cartSelection, settings]);
 
-  const canOpenCart = Boolean(settings?.marketplaceDomain.trim() && cartUrl);
+  const cartItemCount = cartSelection.length;
+  const cartTruncated = cartItemCount > AMAZON_CART_MAX_ITEMS;
+
+  const canOpenCart = Boolean(settings?.marketplaceDomain.trim() && cartForm);
 
   const applyPreset = (nextPreset: MovingPresetKey) => {
     setPreset(nextPreset);
@@ -211,11 +225,15 @@ export default function ShoppingListPage() {
   };
 
   const openAmazonCart = () => {
-    if (!cartUrl) return;
-    setWarning(
-      selectedMissingAsin.length ? t("amazonShopping.partialCartWarning") : null
-    );
-    window.open(cartUrl, "_blank", "noopener,noreferrer");
+    if (!cartForm) return;
+    if (selectedMissingAsin.length) {
+      setWarning(t("amazonShopping.partialCartWarning"));
+    } else if (cartTruncated) {
+      setWarning(t("amazonShopping.cartLimitWarning", { max: AMAZON_CART_MAX_ITEMS }));
+    } else {
+      setWarning(null);
+    }
+    cartFormRef.current?.submit();
   };
 
   const renderItemCard = (item: ShoppingItemState, gatheredItem = false) => (
@@ -370,6 +388,14 @@ export default function ShoppingListPage() {
               <p className="text-2xl font-semibold">${totalEstimate.toFixed(2)}</p>
             </div>
 
+            {cartItemCount > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t("amazonShopping.cartReady", { count: Math.min(cartItemCount, AMAZON_CART_MAX_ITEMS) })}
+              </p>
+            )}
+
+            <p className="text-xs text-muted-foreground">{t("amazonShopping.cartFlowHint")}</p>
+
             {warning && (
               <p className="text-sm text-amber-700 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -383,9 +409,27 @@ export default function ShoppingListPage() {
               </p>
             )}
 
+            {cartForm && (
+              <form
+                ref={cartFormRef}
+                action={cartForm.action}
+                method="GET"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden"
+                aria-hidden
+              >
+                {Object.entries(cartForm.fields).map(([name, value]) => (
+                  <input key={name} type="hidden" name={name} value={value} />
+                ))}
+              </form>
+            )}
+
             <Button className="w-full h-12 text-base" disabled={!canOpenCart} onClick={openAmazonCart}>
               <ShoppingCart className="mr-2 h-4 w-4" />
-              {t("amazonShopping.openCart")}
+              {t("amazonShopping.openCart", {
+                count: Math.min(cartItemCount, AMAZON_CART_MAX_ITEMS),
+              })}
             </Button>
 
             {!!selectedMissingAsin.length && settings && (
