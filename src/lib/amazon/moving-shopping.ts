@@ -11,8 +11,9 @@ export type MovingPresetKey = "studio" | "two_bed" | "three_bed" | "four_plus";
 
 export interface ShoppingProductDef {
   id: string;
-  name: string;
-  description: string;
+  /** i18n key under amazonShopping.products.{id} */
+  nameKey: string;
+  descriptionKey: string;
   estimatedPrice: number;
   defaultAsin?: string;
 }
@@ -20,83 +21,83 @@ export interface ShoppingProductDef {
 export const MOVING_PRODUCTS: ShoppingProductDef[] = [
   {
     id: "moving_boxes",
-    name: "Moving boxes",
-    description: "Mixed-size cardboard boxes for packing rooms.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 65,
   },
   {
     id: "packing_tape",
-    name: "Packing tape",
-    description: "Heavy-duty tape rolls for sealing boxes.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 22,
   },
   {
     id: "bubble_wrap",
-    name: "Bubble wrap",
-    description: "Cushioning wrap for fragile items and electronics.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 28,
   },
   {
     id: "stretch_wrap",
-    name: "Stretch wrap",
-    description: "Plastic wrap for securing drawers and grouped items.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 20,
   },
   {
     id: "moving_blankets",
-    name: "Moving blankets",
-    description: "Protective blankets for furniture and appliances.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 45,
   },
   {
     id: "box_cutter",
-    name: "Box cutter",
-    description: "Utility knife for opening boxes and cutting tape.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 12,
   },
   {
     id: "permanent_markers",
-    name: "Permanent markers",
-    description: "Markers to label box contents and destination rooms.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 10,
   },
   {
     id: "mattress_bags",
-    name: "Mattress bags",
-    description: "Plastic bags to protect mattresses during transport.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 24,
   },
   {
     id: "furniture_sliders",
-    name: "Furniture sliders",
-    description: "Floor sliders to move heavy furniture with less effort.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 18,
   },
   {
     id: "dolly_hand_truck",
-    name: "Dolly / hand truck",
-    description: "Rolling dolly to move boxes and heavy items safely.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 79,
   },
   {
     id: "tie_down_straps",
-    name: "Tie-down straps",
-    description: "Ratchet or cam straps to secure items in truck/trailer.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 19,
   },
   {
     id: "gloves",
-    name: "Gloves",
-    description: "Work gloves for grip and hand protection.",
+    nameKey: "name",
+    descriptionKey: "description",
     estimatedPrice: 15,
   },
 ];
 
 export const PRESET_LABELS: Record<MovingPresetKey, string> = {
-  studio: "Studio / 1 bedroom",
-  two_bed: "2 bedrooms",
-  three_bed: "3 bedrooms",
-  four_plus: "4+ bedrooms",
+  studio: "studio",
+  two_bed: "two_bed",
+  three_bed: "three_bed",
+  four_plus: "four_plus",
 };
 
 export const PRESET_QUANTITIES: Record<MovingPresetKey, Record<string, number>> = {

@@ -173,7 +173,7 @@ export default function AdminSettingsPage() {
                 <div className="space-y-3">
                   {MOVING_PRODUCTS.map((product) => (
                     <div key={product.id} className="grid gap-2 md:grid-cols-[1fr_220px] md:items-center">
-                      <Label htmlFor={`asin-${product.id}`}>{product.name}</Label>
+                      <Label htmlFor={`asin-${product.id}`}>{t(`amazonShopping.products.${product.id}.name`)}</Label>
                       <Input
                         id={`asin-${product.id}`}
                         placeholder="B0XXXXXXXX"

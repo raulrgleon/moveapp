@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Printer, RotateCcw } from "lucide-react";
+import { CheckCircle2, Printer, RotateCcw, ShoppingCart } from "lucide-react";
 import { useMove } from "@/contexts/move-context";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { useMovingSupplies } from "@/hooks/use-moving-supplies";
@@ -13,6 +13,7 @@ import {
   parseHousehold,
   suppliesProgress,
 } from "@/lib/inventory/supplies";
+import { countGatheredShoppingProducts } from "@/lib/inventory/supply-shopping-bridge";
 import { householdWithPets } from "@/lib/move-profile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ export function InventorySuppliesPanel() {
   );
 
   const progress = useMemo(() => suppliesProgress(checked), [checked]);
+  const shoppingSync = useMemo(() => countGatheredShoppingProducts(checked), [checked]);
 
   const itemsByCategory = useMemo(() => {
     const map = new Map<string, typeof SUPPLY_ITEMS>();
@@ -81,8 +83,22 @@ export function InventorySuppliesPanel() {
                 <p className="text-xs text-muted-foreground">
                   {t("movingSupplies.budgetHint")}
                 </p>
+                {shoppingSync.gathered < shoppingSync.total && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("movingSupplies.shoppingSyncHint", {
+                      gathered: shoppingSync.gathered,
+                      total: shoppingSync.total,
+                    })}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
+                <Button variant="default" size="sm" asChild>
+                  <Link href="/shopping-list">
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    {t("movingSupplies.buyOnAmazon")}
+                  </Link>
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setPrinting(true)}>
                   <Printer className="mr-2 h-4 w-4" />
                   {t("movingSupplies.printList")}
@@ -159,11 +175,19 @@ export function InventorySuppliesPanel() {
         </div>
 
         <Card className="border-dashed">
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            {t("movingSupplies.checklistLink")}{" "}
-            <Link href="/checklist?category=Packing" className="text-primary underline-offset-4 hover:underline">
-              {t("movingSupplies.checklistLinkAction")}
-            </Link>
+          <CardContent className="p-4 text-sm text-muted-foreground space-y-2">
+            <p>
+              {t("movingSupplies.checklistLink")}{" "}
+              <Link href="/checklist?category=Packing" className="text-primary underline-offset-4 hover:underline">
+                {t("movingSupplies.checklistLinkAction")}
+              </Link>
+            </p>
+            <p>
+              {t("movingSupplies.shoppingListLink")}{" "}
+              <Link href="/shopping-list" className="text-primary underline-offset-4 hover:underline">
+                {t("movingSupplies.shoppingListLinkAction")}
+              </Link>
+            </p>
           </CardContent>
         </Card>
       </div>
