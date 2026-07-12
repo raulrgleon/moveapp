@@ -37,6 +37,8 @@ export function AddressAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const requestIdRef = useRef(0);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const regionReady = Boolean(region?.state?.trim() || (region?.lat != null && region?.lon != null));
   const isDisabled = disabled || !regionReady;
@@ -46,9 +48,11 @@ export function AddressAutocomplete({
       if (!regionReady || text.trim().length < 3) {
         setSuggestions([]);
         setOpen(false);
+        setHasSearched(false);
         return;
       }
 
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       try {
         const params = new URLSearchParams({ q: text.trim() });
@@ -58,15 +62,19 @@ export function AddressAutocomplete({
         if (region?.lon != null) params.set("lon", String(region.lon));
 
         const res = await apiFetch(`/api/address/search?${params.toString()}`);
+        if (requestId !== requestIdRef.current) return;
         const data = (await res.json()) as AddressSuggestion[];
-        setSuggestions(data);
-        setOpen(data.length > 0);
+        setSuggestions(Array.isArray(data) ? data : []);
+        setHasSearched(true);
+        setOpen(true);
         setActiveIndex(-1);
       } catch {
+        if (requestId !== requestIdRef.current) return;
         setSuggestions([]);
-        setOpen(false);
+        setHasSearched(true);
+        setOpen(true);
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) setLoading(false);
       }
     },
     [region, regionReady]
@@ -183,7 +191,14 @@ export function AddressAutocomplete({
 
       <DropdownPortal
         anchorRef={anchorRef}
-        open={query.length >= 3 && !loading && suggestions.length === 0 && open && regionReady}
+        open={
+          hasSearched &&
+          !loading &&
+          suggestions.length === 0 &&
+          open &&
+          regionReady &&
+          query.trim().length >= 3
+        }
       >
         <div
           data-dropdown-portal

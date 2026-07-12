@@ -71,6 +71,7 @@ export function CityAutocomplete({
   const anchorRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const skipSearchRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     setQuery(value);
@@ -90,22 +91,25 @@ export function CityAutocomplete({
       return;
     }
 
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
       const res = await apiFetch(
         `/api/address/search?q=${encodeURIComponent(text.trim())}&type=city`
       );
+      if (requestId !== requestIdRef.current) return;
       const data = (await res.json()) as CitySuggestion[];
-      setSuggestions(data);
+      setSuggestions(Array.isArray(data) ? data : []);
       setHasSearched(true);
-      setOpen(data.length > 0);
+      setOpen(true);
       setActiveIndex(-1);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setSuggestions([]);
       setHasSearched(true);
-      setOpen(false);
+      setOpen(true);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, []);
 
