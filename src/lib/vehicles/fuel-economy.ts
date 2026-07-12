@@ -182,9 +182,10 @@ function pickVehicleOption(options: EpaMenuItem[], trim?: string): EpaMenuItem |
   return best;
 }
 
+/** EPA: 1 gal gasoline ≈ 33.7 kWh → MPGe = 3370 / (kWh/100mi). */
 function kwhToMpge(kwhPer100: number): number {
   if (!Number.isFinite(kwhPer100) || kwhPer100 <= 0) return 0;
-  return Math.round((337 / kwhPer100) * 10) / 10;
+  return Math.round((3370 / kwhPer100) * 10) / 10;
 }
 
 function parseMpgRecord(data: Record<string, unknown>, optionText?: string): VehicleMpgProfile | null {
@@ -195,16 +196,29 @@ function parseMpgRecord(data: Record<string, unknown>, optionText?: string): Veh
     /electric/i.test(String(data.atvType ?? ""));
 
   if (isElectric) {
+    // EPA already publishes MPGe in city08/highway08/comb08 for EVs.
+    const comb08 = Number(data.comb08 ?? data.comb08U ?? 0);
+    const city08 = Number(data.city08 ?? data.city08U ?? 0);
+    const highway08 = Number(data.highway08 ?? data.highway08U ?? 0);
     const combE = Number(data.combE) || 0;
     const cityE = Number(data.cityE) || combE;
     const highwayE = Number(data.highwayE) || combE;
-    const combMpge = kwhToMpge(combE) || kwhToMpge(cityE);
+    const combMpge =
+      (comb08 > 0 ? Math.round(comb08 * 10) / 10 : 0) ||
+      kwhToMpge(combE) ||
+      kwhToMpge(cityE);
     if (combMpge <= 0) return null;
 
     return {
       combMpg: combMpge,
-      cityMpg: kwhToMpge(cityE) || combMpge,
-      highwayMpg: kwhToMpge(highwayE) || combMpge,
+      cityMpg:
+        (city08 > 0 ? Math.round(city08 * 10) / 10 : 0) ||
+        kwhToMpge(cityE) ||
+        combMpge,
+      highwayMpg:
+        (highway08 > 0 ? Math.round(highway08 * 10) / 10 : 0) ||
+        kwhToMpge(highwayE) ||
+        combMpge,
       fuelType: "Electric",
       epaVehicleId: String(data.id ?? ""),
       drive: String(data.drive ?? ""),
