@@ -46,7 +46,7 @@ function dbToVehicle(v: {
   };
 }
 
-/** Detect legacy bad EV rows where city/highway were stored as kWh/100mi instead of MPGe. */
+/** Detect missing / legacy MPG rows that should be re-pulled from EPA. */
 function needsMpgRefresh(info: VehicleInfo): boolean {
   if (!info.combMpg || info.combMpg <= 0) return true;
   if (info.fuelType && /electric/i.test(info.fuelType)) {
@@ -54,7 +54,8 @@ function needsMpgRefresh(info: VehicleInfo): boolean {
       return true;
     }
   }
-  return false;
+  // Force one re-pull so saved EPA values pick up the real-world -3 MPG offset
+  return Boolean(info.year?.trim() && info.make?.trim() && info.model?.trim());
 }
 
 export async function loadVehiclesWithMpg(moveId: string): Promise<VehicleInfo[]> {

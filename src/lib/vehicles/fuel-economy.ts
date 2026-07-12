@@ -188,6 +188,17 @@ function kwhToMpge(kwhPer100: number): number {
   return Math.round((3370 / kwhPer100) * 10) / 10;
 }
 
+/**
+ * EPA lab ratings are optimistic vs real-world driving.
+ * Subtract a flat buffer so fuel estimates stay conservative.
+ */
+const REAL_WORLD_MPG_OFFSET = 3;
+
+function applyRealWorldMpg(mpg: number): number {
+  if (!Number.isFinite(mpg) || mpg <= 0) return mpg;
+  return Math.max(1, Math.round((mpg - REAL_WORLD_MPG_OFFSET) * 10) / 10);
+}
+
 function parseMpgRecord(data: Record<string, unknown>, optionText?: string): VehicleMpgProfile | null {
   const fuelType = String(data.fuelType1 ?? data.fuelType ?? "Regular");
   const isElectric =
@@ -209,16 +220,19 @@ function parseMpgRecord(data: Record<string, unknown>, optionText?: string): Veh
       kwhToMpge(cityE);
     if (combMpge <= 0) return null;
 
+    const city =
+      (city08 > 0 ? Math.round(city08 * 10) / 10 : 0) ||
+      kwhToMpge(cityE) ||
+      combMpge;
+    const highway =
+      (highway08 > 0 ? Math.round(highway08 * 10) / 10 : 0) ||
+      kwhToMpge(highwayE) ||
+      combMpge;
+
     return {
-      combMpg: combMpge,
-      cityMpg:
-        (city08 > 0 ? Math.round(city08 * 10) / 10 : 0) ||
-        kwhToMpge(cityE) ||
-        combMpge,
-      highwayMpg:
-        (highway08 > 0 ? Math.round(highway08 * 10) / 10 : 0) ||
-        kwhToMpge(highwayE) ||
-        combMpge,
+      combMpg: applyRealWorldMpg(combMpge),
+      cityMpg: applyRealWorldMpg(city),
+      highwayMpg: applyRealWorldMpg(highway),
       fuelType: "Electric",
       epaVehicleId: String(data.id ?? ""),
       drive: String(data.drive ?? ""),
@@ -232,9 +246,9 @@ function parseMpgRecord(data: Record<string, unknown>, optionText?: string): Veh
   if (!Number.isFinite(comb) || comb <= 0) return null;
 
   return {
-    combMpg: Math.round(comb * 10) / 10,
-    cityMpg: Math.round(Number(data.city08 ?? comb) * 10) / 10,
-    highwayMpg: Math.round(Number(data.highway08 ?? comb) * 10) / 10,
+    combMpg: applyRealWorldMpg(Math.round(comb * 10) / 10),
+    cityMpg: applyRealWorldMpg(Math.round(Number(data.city08 ?? comb) * 10) / 10),
+    highwayMpg: applyRealWorldMpg(Math.round(Number(data.highway08 ?? comb) * 10) / 10),
     fuelType,
     epaVehicleId: String(data.id ?? ""),
     drive: String(data.drive ?? ""),
