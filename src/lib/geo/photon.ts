@@ -1,4 +1,5 @@
 import type { AddressSuggestion } from "@/lib/geo/nominatim";
+import { statesMatch } from "@/lib/geo/address-region";
 
 const PHOTON_BASE = "https://photon.komoot.io/api/";
 /** Continental US + Alaska + Hawaii + Puerto Rico */
@@ -177,18 +178,32 @@ export async function searchUsAddressesPhoton(
   const q = query.trim();
   if (q.length < 2) return [];
 
-  const regional = [q, region?.city, region?.state, "USA"].filter(Boolean).join(", ");
-  const params = new URLSearchParams({
-    q: regional,
-    limit: "12",
-    lang: "en",
-    bbox: US_BBOX,
-  });
+  const variants = [
+    [q, region?.city, region?.state].filter(Boolean).join(", "),
+    [q, region?.city].filter(Boolean).join(", "),
+    q,
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
 
-  const features = await photonFetch(params);
-  const suggestions = features
+  const featureSets = await Promise.all(
+    variants.map(async (variant) => {
+      const params = new URLSearchParams({
+        q: variant,
+        limit: "10",
+        lang: "en",
+        bbox: US_BBOX,
+      });
+      return photonFetch(params);
+    })
+  );
+
+  const suggestions = featureSets
+    .flat()
     .map(toAddressSuggestion)
-    .filter((s): s is AddressSuggestion => Boolean(s));
+    .filter((s): s is AddressSuggestion => Boolean(s))
+    .filter((s) => {
+      if (!region?.state) return true;
+      return statesMatch(s.state, region.state);
+    });
 
   // Prefer rows that look like street addresses when the query has a house number
   const hasNumber = /\d/.test(q);

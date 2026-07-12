@@ -713,10 +713,12 @@ export const en = {
   },
   address: {
     placeholder: "Start typing your new address…",
-    selectDestinationFirst: "Select your destination city first — then we'll search addresses only in that state.",
-    searchInState: "Searching in {city}, {state} only",
-    searchInStateOnly: "Searching in {state} only",
-    noResultsInState: "No matches in this state. Try street number + name.",
+    selectDestinationFirst: "Select your destination city first — then we'll search addresses in that area.",
+    searchInState: "Searching near {city}, {state}",
+    searchInStateOnly: "Searching in {state}",
+    noResultsInState: "No match found yet. Try: number + street (e.g. 2114 Guadalupe St).",
+    useTypedAddress: "Use this address",
+    sourceHint: "US addresses from Census Bureau + OpenStreetMap",
   },
   dashboard: {
     title: "Dashboard",

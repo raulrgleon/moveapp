@@ -113,7 +113,28 @@ export function AddressAutocomplete({
     onSelect(suggestion);
   };
 
+  const useTypedAddress = () => {
+    const text = query.trim();
+    if (!text || !regionReady) return;
+    const label = [text, region?.city, region?.state].filter(Boolean).join(", ");
+    handleSelect({
+      placeId: `typed-${Date.now()}`,
+      displayName: label,
+      lat: region?.lat ?? 0,
+      lon: region?.lon ?? 0,
+      city: region?.city,
+      state: region?.state,
+      street: text,
+      country: "United States",
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && open && suggestions.length === 0 && hasSearched && query.trim().length >= 5) {
+      e.preventDefault();
+      useTypedAddress();
+      return;
+    }
     if (!open || suggestions.length === 0) return;
 
     if (e.key === "ArrowDown") {
@@ -202,9 +223,19 @@ export function AddressAutocomplete({
       >
         <div
           data-dropdown-portal
-          className="w-full rounded-lg border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg"
+          className="w-full rounded-lg border bg-popover px-3 py-2.5 text-sm shadow-lg space-y-2"
         >
-          {t("address.noResultsInState")}
+          <p className="text-muted-foreground">{t("address.noResultsInState")}</p>
+          {query.trim().length >= 5 && (
+            <button
+              type="button"
+              className="w-full rounded-md border bg-background px-3 py-2 text-left text-sm font-medium hover:bg-muted"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={useTypedAddress}
+            >
+              {t("address.useTypedAddress")}: {query.trim()}
+            </button>
+          )}
         </div>
       </DropdownPortal>
     </div>
