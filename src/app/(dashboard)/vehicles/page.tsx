@@ -161,6 +161,7 @@ export default function VehiclesPage() {
               onChange={setVehicles}
               showTips
               variant="fleet"
+              allowEmpty
               showTransportCheckbox
             />
           </CardContent>

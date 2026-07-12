@@ -12,28 +12,28 @@ const OUT_FILE = path.join(OUT_DIR, "vehicle-catalog.json");
 
 const NHTSA_BASE = "https://vpic.nhtsa.dot.gov/api/vehicles";
 
-/** Same list as us-vehicle-makes.ts */
+/** Same list as us-vehicle-makes.ts (alphabetical) */
 const MAKES = [
-  { makeId: 448, label: "Toyota" },
-  { makeId: 460, label: "Ford" },
-  { makeId: 467, label: "Chevrolet" },
-  { makeId: 474, label: "Honda" },
-  { makeId: 478, label: "Nissan" },
-  { makeId: 498, label: "Hyundai" },
-  { makeId: 499, label: "Kia" },
-  { makeId: 483, label: "Jeep" },
-  { makeId: 523, label: "Subaru" },
-  { makeId: 441, label: "Tesla" },
-  { makeId: 472, label: "GMC" },
-  { makeId: 496, label: "Ram" },
-  { makeId: 473, label: "Mazda" },
-  { makeId: 482, label: "Volkswagen" },
-  { makeId: 515, label: "Lexus" },
-  { makeId: 452, label: "BMW" },
-  { makeId: 449, label: "Mercedes-Benz" },
   { makeId: 582, label: "Audi" },
+  { makeId: 452, label: "BMW" },
   { makeId: 468, label: "Buick" },
   { makeId: 469, label: "Cadillac" },
+  { makeId: 467, label: "Chevrolet" },
+  { makeId: 460, label: "Ford" },
+  { makeId: 472, label: "GMC" },
+  { makeId: 474, label: "Honda" },
+  { makeId: 498, label: "Hyundai" },
+  { makeId: 483, label: "Jeep" },
+  { makeId: 499, label: "Kia" },
+  { makeId: 515, label: "Lexus" },
+  { makeId: 473, label: "Mazda" },
+  { makeId: 449, label: "Mercedes-Benz" },
+  { makeId: 478, label: "Nissan" },
+  { makeId: 496, label: "Ram" },
+  { makeId: 523, label: "Subaru" },
+  { makeId: 441, label: "Tesla" },
+  { makeId: 448, label: "Toyota" },
+  { makeId: 482, label: "Volkswagen" },
 ];
 
 function sleep(ms) {

@@ -151,7 +151,10 @@ export function VehicleSelector({
     setLoadingMakes(true);
     apiFetch("/api/vehicles/makes")
       .then((r) => r.json())
-      .then((data) => setMakes(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const list = Array.isArray(data) ? (data as VehicleMake[]) : [];
+        setMakes([...list].sort((a, b) => a.makeName.localeCompare(b.makeName, "en")));
+      })
       .catch(() => setMakes([]))
       .finally(() => setLoadingMakes(false));
   }, []);
@@ -170,7 +173,9 @@ export function VehicleSelector({
         `/api/vehicles/models?year=${targetYear}&makeId=${targetMakeId}`
       );
       const data = (await res.json()) as VehicleModel[];
-      const list = Array.isArray(data) ? data : [];
+      const list = (Array.isArray(data) ? data : []).slice().sort((a, b) =>
+        a.modelName.localeCompare(b.modelName, "en")
+      );
 
       if (requestId !== modelsRequestRef.current) return [];
 

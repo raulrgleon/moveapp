@@ -263,7 +263,12 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label>{t("settings.vehiclesSection")}</Label>
               <p className="text-xs text-muted-foreground">{t("settings.vehiclesHint")}</p>
-              <VehicleListEditor vehicles={vehicles} onChange={setVehicles} showTips={false} />
+              <VehicleListEditor
+                vehicles={vehicles}
+                onChange={setVehicles}
+                showTips={false}
+                allowEmpty
+              />
             </div>
 
             <div className="space-y-2">

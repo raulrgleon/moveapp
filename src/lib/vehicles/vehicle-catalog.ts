@@ -18,7 +18,8 @@ export function isVehicleCatalogLoaded(): boolean {
 export function getCatalogModels(makeId: number, year: string): VehicleModel[] | null {
   const key = `${makeId}-${year}`;
   const models = data.models[key];
-  return models?.length ? models : null;
+  if (!models?.length) return null;
+  return [...models].sort((a, b) => a.modelName.localeCompare(b.modelName, "en"));
 }
 
 export function getCatalogMeta() {

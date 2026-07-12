@@ -21,7 +21,7 @@ interface VehicleListEditorProps {
   showTips?: boolean;
   /** Fleet layout: compact rows with expand/collapse. Default: stacked cards for onboarding. */
   variant?: "stacked" | "fleet";
-  /** Allow zero vehicles (onboarding). Shows empty state until user adds one. */
+  /** Allow zero vehicles (onboarding / fleet). Shows empty state until user adds one. */
   allowEmpty?: boolean;
   /** Show per-vehicle needsTransport checkbox (fleet page). */
   showTransportCheckbox?: boolean;
@@ -39,6 +39,8 @@ export function VehicleListEditor({
   const { locale } = useLocale();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
+  const canRemove = vehicles.length > 1 || allowEmpty;
+
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -55,7 +57,7 @@ export function VehicleListEditor({
   };
 
   const removeAt = (index: number) => {
-    if (vehicles.length <= 1 && !allowEmpty) return;
+    if (!canRemove) return;
     const removed = vehicles[index];
     onChange(vehicles.filter((_, i) => i !== index));
     setExpandedIds((prev) => {
@@ -74,22 +76,22 @@ export function VehicleListEditor({
     }
   };
 
-  if (variant === "stacked") {
-    if (allowEmpty && vehicles.length === 0) {
-      return (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center space-y-3">
-            <Car className="h-8 w-8 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">{t("vehicleList.noVehicleYet")}</p>
-            <Button type="button" variant="default" onClick={addVehicle}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t("vehicleList.addVehicle")}
-            </Button>
-          </div>
+  if (allowEmpty && vehicles.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center space-y-3">
+          <Car className="h-8 w-8 mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">{t("vehicleList.noVehicleYet")}</p>
+          <Button type="button" variant="default" onClick={addVehicle}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("vehicleList.addVehicle")}
+          </Button>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
+  if (variant === "stacked") {
     return (
       <div className="space-y-4">
         {vehicles.map((vehicle, index) => (
@@ -103,7 +105,7 @@ export function VehicleListEditor({
                   ? t("vehicleList.primary")
                   : t("vehicleList.vehicleN", { n: index + 1 })}
               </p>
-              {(vehicles.length > 1 || allowEmpty) && (
+              {canRemove && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -170,46 +172,64 @@ export function VehicleListEditor({
               isExpanded && "shadow-md ring-1 ring-primary/20"
             )}
           >
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 p-4 text-left"
-              onClick={() => toggleExpanded(vehicle.id)}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <Car className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={index === 0 ? "default" : "secondary"} className="text-[10px]">
-                    {index === 0
-                      ? t("vehicles.primary")
-                      : t("vehicles.vehicleN", { n: index + 1 })}
-                  </Badge>
-                  {vehicle.year && vehicle.make && (
-                    <span className="truncate text-sm font-semibold">{vehicle.displayLabel}</span>
-                  )}
-                  {vehicle.combMpg && vehicle.combMpg > 0 && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {vehicle.combMpg} MPG
+            <div className="flex w-full items-center gap-2 p-4">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                onClick={() => toggleExpanded(vehicle.id)}
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <Car className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={index === 0 ? "default" : "secondary"} className="text-[10px]">
+                      {index === 0
+                        ? t("vehicles.primary")
+                        : t("vehicles.vehicleN", { n: index + 1 })}
                     </Badge>
-                  )}
-                  {(!vehicle.year || !vehicle.make) && (
-                    <span className="text-sm text-muted-foreground">
-                      {t("vehicleSelector.selectMake")}
-                    </span>
+                    {vehicle.year && vehicle.make && (
+                      <span className="truncate text-sm font-semibold">{vehicle.displayLabel}</span>
+                    )}
+                    {vehicle.combMpg && vehicle.combMpg > 0 && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {vehicle.combMpg} MPG
+                      </Badge>
+                    )}
+                    {(!vehicle.year || !vehicle.make) && (
+                      <span className="text-sm text-muted-foreground">
+                        {t("vehicleSelector.selectMake")}
+                      </span>
+                    )}
+                  </div>
+                  {summary && vehicle.make && (
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{summary}</p>
                   )}
                 </div>
-                {summary && vehicle.make && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{summary}</p>
-                )}
-              </div>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                  isExpanded && "rotate-180"
-                )}
-              />
-            </button>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                    isExpanded && "rotate-180"
+                  )}
+                />
+              </button>
+              {canRemove && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                  aria-label={t("vehicleList.remove")}
+                  title={t("vehicleList.remove")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeAt(index);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
 
             {isExpanded && (
               <div className="border-t px-4 pb-4 pt-3">
@@ -233,21 +253,7 @@ export function VehicleListEditor({
                     </Label>
                   </div>
                 )}
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  {vehicles.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => removeAt(index)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      {t("vehicleList.remove")}
-                    </Button>
-                  ) : (
-                    <span />
-                  )}
+                <div className="mt-3 flex items-center justify-end gap-2">
                   <Button
                     type="button"
                     variant="secondary"
