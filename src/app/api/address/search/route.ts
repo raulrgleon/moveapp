@@ -32,18 +32,26 @@ function dedupeSuggestions(items: AddressSuggestion[]): AddressSuggestion[] {
   });
 }
 
-function rankAddressSuggestions(items: AddressSuggestion[], query: string): AddressSuggestion[] {
+function rankAddressSuggestions(
+  items: AddressSuggestion[],
+  query: string,
+  regionCity?: string
+): AddressSuggestion[] {
   const q = query.trim().toLowerCase();
   const houseMatch = q.match(/^(\d+)/);
   const house = houseMatch?.[1];
+  const wantCity = regionCity?.trim().toLowerCase() ?? "";
 
   const score = (item: AddressSuggestion): number => {
     const street = (item.street ?? "").toLowerCase();
+    const city = (item.city ?? "").toLowerCase();
     const display = item.displayName.toLowerCase();
-    let s = 10;
-    if (house && street.startsWith(house)) s -= 5;
+    let s = 20;
+    if (wantCity && city === wantCity) s -= 8;
+    else if (wantCity && city.includes(wantCity)) s -= 4;
+    if (house && (street.startsWith(house) || display.includes(house))) s -= 5;
+    if (item.placeId.startsWith("census-")) s -= 4; // official US TIGER addresses
     if (street.includes(q) || display.includes(q)) s -= 2;
-    if (item.placeId.startsWith("census-")) s -= 3; // prefer official US matches
     if (item.street) s -= 1;
     return s;
   };
@@ -173,7 +181,8 @@ export async function GET(req: NextRequest) {
     // Census first — authoritative for US residential addresses
     const merged = rankAddressSuggestions(
       dedupeSuggestions([...census, ...photon, ...nominatim]),
-      q
+      q,
+      cityParam
     );
 
     const payload = merged.slice(0, 8);
