@@ -14,26 +14,26 @@ const NHTSA_BASE = "https://vpic.nhtsa.dot.gov/api/vehicles";
 
 /** Same list as us-vehicle-makes.ts */
 const MAKES = [
+  { makeId: 448, label: "Toyota" },
   { makeId: 460, label: "Ford" },
   { makeId: 467, label: "Chevrolet" },
-  { makeId: 448, label: "Toyota" },
   { makeId: 474, label: "Honda" },
   { makeId: 478, label: "Nissan" },
-  { makeId: 496, label: "Ram" },
-  { makeId: 483, label: "Jeep" },
-  { makeId: 472, label: "GMC" },
   { makeId: 498, label: "Hyundai" },
   { makeId: 499, label: "Kia" },
-  { makeId: 482, label: "Volkswagen" },
+  { makeId: 483, label: "Jeep" },
   { makeId: 523, label: "Subaru" },
+  { makeId: 441, label: "Tesla" },
+  { makeId: 472, label: "GMC" },
+  { makeId: 496, label: "Ram" },
   { makeId: 473, label: "Mazda" },
-  { makeId: 476, label: "Dodge" },
-  { makeId: 477, label: "Chrysler" },
+  { makeId: 482, label: "Volkswagen" },
   { makeId: 515, label: "Lexus" },
   { makeId: 452, label: "BMW" },
   { makeId: 449, label: "Mercedes-Benz" },
   { makeId: 582, label: "Audi" },
-  { makeId: 441, label: "Tesla" },
+  { makeId: 468, label: "Buick" },
+  { makeId: 469, label: "Cadillac" },
 ];
 
 function sleep(ms) {
