@@ -113,7 +113,7 @@ export function AddressAutocomplete({
     onSelect(suggestion);
   };
 
-  const useTypedAddress = () => {
+  const applyTypedAddress = () => {
     const text = query.trim();
     if (!text || !regionReady) return;
     const label = [text, region?.city, region?.state].filter(Boolean).join(", ");
@@ -132,7 +132,7 @@ export function AddressAutocomplete({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && open && suggestions.length === 0 && hasSearched && query.trim().length >= 5) {
       e.preventDefault();
-      useTypedAddress();
+      applyTypedAddress();
       return;
     }
     if (!open || suggestions.length === 0) return;
@@ -231,9 +231,9 @@ export function AddressAutocomplete({
               type="button"
               className="w-full rounded-md border bg-background px-3 py-2 text-left text-sm font-medium hover:bg-muted"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={useTypedAddress}
+              onClick={applyTypedAddress}
             >
-              {t("address.useTypedAddress")}: {query.trim()}
+              {t("address.applyTypedAddress")}: {query.trim()}
             </button>
           )}
         </div>
