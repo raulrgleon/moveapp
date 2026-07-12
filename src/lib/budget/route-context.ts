@@ -26,6 +26,7 @@ function dbToVehicle(v: {
   cityMpg?: number | null;
   highwayMpg?: number | null;
   fuelType?: string | null;
+  epaVehicleId?: string | null;
 }): VehicleInfo {
   return {
     id: v.id,
@@ -41,7 +42,19 @@ function dbToVehicle(v: {
     cityMpg: v.cityMpg ?? undefined,
     highwayMpg: v.highwayMpg ?? undefined,
     fuelType: v.fuelType ?? undefined,
+    epaVehicleId: v.epaVehicleId ?? undefined,
   };
+}
+
+/** Detect legacy bad EV rows where city/highway were stored as kWh/100mi instead of MPGe. */
+function needsMpgRefresh(info: VehicleInfo): boolean {
+  if (!info.combMpg || info.combMpg <= 0) return true;
+  if (info.fuelType && /electric/i.test(info.fuelType)) {
+    if ((info.cityMpg ?? 0) > 0 && (info.cityMpg ?? 0) < 40 && (info.combMpg ?? 0) > 60) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export async function loadVehiclesWithMpg(moveId: string): Promise<VehicleInfo[]> {
@@ -49,8 +62,8 @@ export async function loadVehiclesWithMpg(moveId: string): Promise<VehicleInfo[]
   return Promise.all(
     rows.map(async (row) => {
       const info = dbToVehicle(row);
-      if (info.combMpg && info.combMpg > 0) return info;
-      const enriched = await enrichVehicleMpg(info);
+      if (!needsMpgRefresh(info)) return info;
+      const enriched = await enrichVehicleMpg(info, { force: true });
       if (enriched.combMpg && enriched.combMpg > 0) {
         await prisma.vehicle.update({
           where: { id: row.id },
@@ -59,6 +72,7 @@ export async function loadVehiclesWithMpg(moveId: string): Promise<VehicleInfo[]
             cityMpg: enriched.cityMpg ?? null,
             highwayMpg: enriched.highwayMpg ?? null,
             fuelType: enriched.fuelType ?? null,
+            epaVehicleId: enriched.epaVehicleId ?? null,
           },
         });
       }

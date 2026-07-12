@@ -259,6 +259,7 @@ model Vehicle {
   cityMpg        Float?  @map("city_mpg")
   highwayMpg     Float?  @map("highway_mpg")
   fuelType       String? @map("fuel_type")
+  epaVehicleId   String? @map("epa_vehicle_id")
 
   @@index([moveId])
   @@map("vehicles")

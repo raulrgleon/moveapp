@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Car, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { Car, CheckCircle2, Fuel, Info, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -20,24 +19,26 @@ import { useLocale, useT } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
+interface EpaOption {
+  id: string;
+  text: string;
+}
+
+interface MpgPayload {
+  combMpg?: number;
+  cityMpg?: number;
+  highwayMpg?: number;
+  fuelType?: string;
+  epaVehicleId?: string;
+  optionText?: string;
+}
+
 interface VehicleSelectorProps {
   value?: VehicleInfo | null;
   onChange: (vehicle: VehicleInfo) => void;
   showTips?: boolean;
   className?: string;
   layout?: "default" | "compact";
-}
-
-function sameVehicle(a: VehicleInfo | null | undefined, b: VehicleInfo): boolean {
-  if (!a) return false;
-  return (
-    a.year === b.year &&
-    a.make === b.make &&
-    a.model === b.model &&
-    a.trim === b.trim &&
-    a.makeId === b.makeId &&
-    a.modelId === b.modelId
-  );
 }
 
 function isCompleteVehicle(vehicle: VehicleInfo | null | undefined): boolean {
@@ -61,19 +62,36 @@ export function VehicleSelector({
   const { locale } = useLocale();
   const vehicleId = value?.id ?? createVehicleId();
   const modelsRequestRef = useRef(0);
+  const optionsRequestRef = useRef(0);
+  const mpgRequestRef = useRef(0);
 
   const [years, setYears] = useState<string[]>([]);
   const [makes, setMakes] = useState<VehicleMake[]>([]);
   const [models, setModels] = useState<VehicleModel[]>([]);
+  const [epaOptions, setEpaOptions] = useState<EpaOption[]>([]);
   const [year, setYear] = useState(value?.year ?? "");
   const [makeId, setMakeId] = useState(value?.makeId ? String(value.makeId) : "");
   const [makeName, setMakeName] = useState(value?.make ?? "");
   const [modelKey, setModelKey] = useState(
     value?.model ? modelOptionKey(value.modelId ?? 0, value.model) : ""
   );
-  const [trim, setTrim] = useState(value?.trim ?? "");
+  const [epaId, setEpaId] = useState(value?.epaVehicleId ?? "");
+  const [mpg, setMpg] = useState<MpgPayload | null>(
+    value?.combMpg
+      ? {
+          combMpg: value.combMpg,
+          cityMpg: value.cityMpg,
+          highwayMpg: value.highwayMpg,
+          fuelType: value.fuelType,
+          epaVehicleId: value.epaVehicleId,
+          optionText: value.trim,
+        }
+      : null
+  );
   const [loadingMakes, setLoadingMakes] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [loadingMpg, setLoadingMpg] = useState(false);
   const [tips, setTips] = useState<VehicleTip[]>([]);
 
   const selectedModel = useMemo(() => {
@@ -88,6 +106,7 @@ export function VehicleSelector({
 
   const modelName = selectedModel?.modelName ?? "";
   const modelId = selectedModel ? String(selectedModel.modelId) : "";
+  const selectedOptionText = epaOptions.find((o) => o.id === epaId)?.text ?? value?.trim ?? "";
 
   useEffect(() => {
     if (!value?.make && !value?.model) return;
@@ -95,8 +114,31 @@ export function VehicleSelector({
     setMakeId(value.makeId ? String(value.makeId) : "");
     setMakeName(value.make ?? "");
     setModelKey(value.model ? modelOptionKey(value.modelId ?? 0, value.model) : "");
-    setTrim(value.trim ?? "");
-  }, [value?.id, value?.year, value?.make, value?.model, value?.makeId, value?.modelId, value?.trim]);
+    setEpaId(value.epaVehicleId ?? "");
+    if (value.combMpg) {
+      setMpg({
+        combMpg: value.combMpg,
+        cityMpg: value.cityMpg,
+        highwayMpg: value.highwayMpg,
+        fuelType: value.fuelType,
+        epaVehicleId: value.epaVehicleId,
+        optionText: value.trim,
+      });
+    }
+  }, [
+    value?.id,
+    value?.year,
+    value?.make,
+    value?.model,
+    value?.makeId,
+    value?.modelId,
+    value?.trim,
+    value?.epaVehicleId,
+    value?.combMpg,
+    value?.cityMpg,
+    value?.highwayMpg,
+    value?.fuelType,
+  ]);
 
   useEffect(() => {
     apiFetch("/api/vehicles/years")
@@ -153,67 +195,137 @@ export function VehicleSelector({
     void loadModels(year, makeId);
   }, [year, makeId, loadModels]);
 
-  const buildVehicle = useCallback((): VehicleInfo | null => {
-    if (!year || !makeName.trim() || !modelName.trim()) return null;
-    return {
-      id: vehicleId,
-      year,
-      makeId: Number(makeId) || 0,
-      make: makeName,
-      modelId: Number(modelId) || 0,
-      model: modelName,
-      trim: trim || undefined,
-      displayLabel: formatVehicleLabel(year, makeName, modelName, trim),
-    };
-  }, [year, makeId, makeName, modelId, modelName, trim, vehicleId]);
+  // Load EPA options when year/make/model ready
+  useEffect(() => {
+    if (!year || !makeName.trim() || !modelName.trim()) {
+      setEpaOptions([]);
+      return;
+    }
+
+    const requestId = ++optionsRequestRef.current;
+    setLoadingOptions(true);
+
+    void (async () => {
+      try {
+        const params = new URLSearchParams({
+          year,
+          make: makeName,
+          model: modelName,
+          options: "1",
+        });
+        const res = await apiFetch(`/api/vehicles/fuel-economy?${params.toString()}`);
+        const data = (await res.json()) as { options?: EpaOption[] };
+        if (requestId !== optionsRequestRef.current) return;
+        const list = Array.isArray(data.options) ? data.options : [];
+        setEpaOptions(list);
+
+        setEpaId((current) => {
+          if (current && list.some((o) => o.id === current)) return current;
+          // Auto-select single config; otherwise wait for user
+          return list.length === 1 ? list[0].id : "";
+        });
+      } catch {
+        if (requestId === optionsRequestRef.current) setEpaOptions([]);
+      } finally {
+        if (requestId === optionsRequestRef.current) setLoadingOptions(false);
+      }
+    })();
+  }, [year, makeName, modelName]);
+
+  const buildVehicle = useCallback(
+    (mpgData?: MpgPayload | null): VehicleInfo | null => {
+      if (!year || !makeName.trim() || !modelName.trim()) return null;
+      const optionLabel = selectedOptionText || mpgData?.optionText;
+      return {
+        id: vehicleId,
+        year,
+        makeId: Number(makeId) || 0,
+        make: makeName,
+        modelId: Number(modelId) || 0,
+        model: modelName,
+        trim: optionLabel || undefined,
+        displayLabel: formatVehicleLabel(year, makeName, modelName, optionLabel),
+        combMpg: mpgData?.combMpg,
+        cityMpg: mpgData?.cityMpg,
+        highwayMpg: mpgData?.highwayMpg,
+        fuelType: mpgData?.fuelType,
+        epaVehicleId: mpgData?.epaVehicleId || epaId || undefined,
+      };
+    },
+    [year, makeId, makeName, modelId, modelName, selectedOptionText, vehicleId, epaId]
+  );
 
   useEffect(() => {
-    const vehicle = buildVehicle();
+    const vehicle = buildVehicle(mpg);
     if (!vehicle) {
       setTips([]);
       return;
     }
     if (showTips) setTips(getVehicleTips(vehicle, locale));
-  }, [buildVehicle, showTips, locale]);
+  }, [buildVehicle, showTips, locale, mpg]);
 
+  // Fetch exact EPA MPG when configuration id is known
   useEffect(() => {
-    const vehicle = buildVehicle();
-    if (!vehicle || sameVehicle(value, vehicle)) return;
+    if (!year || !makeName.trim() || !modelName.trim()) {
+      setMpg(null);
+      return;
+    }
 
-    let cancelled = false;
+    const requestId = ++mpgRequestRef.current;
+    setLoadingMpg(true);
+
     void (async () => {
-      let enriched = vehicle;
       try {
-        const params = new URLSearchParams({
-          year: vehicle.year,
-          make: vehicle.make,
-          model: vehicle.model,
-        });
-        if (vehicle.trim) params.set("trim", vehicle.trim);
-        const res = await apiFetch(`/api/vehicles/fuel-economy?${params.toString()}`);
-        const mpg = (await res.json()) as {
-          combMpg?: number;
-          cityMpg?: number;
-          highwayMpg?: number;
-          fuelType?: string;
-        };
-        enriched = {
-          ...vehicle,
-          combMpg: mpg.combMpg,
-          cityMpg: mpg.cityMpg,
-          highwayMpg: mpg.highwayMpg,
-          fuelType: mpg.fuelType,
-        };
-      } catch {
-        /* use vehicle without mpg */
-      }
-      if (!cancelled) onChange(enriched);
-    })();
+        const params = new URLSearchParams({ year, make: makeName, model: modelName });
+        if (epaId) params.set("epaId", epaId);
+        else if (selectedOptionText) params.set("trim", selectedOptionText);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [buildVehicle, onChange, value]);
+        const res = await apiFetch(`/api/vehicles/fuel-economy?${params.toString()}`);
+        const data = (await res.json()) as MpgPayload;
+        if (requestId !== mpgRequestRef.current) return;
+
+        if (!data.combMpg) {
+          setMpg(null);
+          return;
+        }
+
+        const nextMpg: MpgPayload = {
+          combMpg: data.combMpg,
+          cityMpg: data.cityMpg,
+          highwayMpg: data.highwayMpg,
+          fuelType: data.fuelType,
+          epaVehicleId: data.epaVehicleId || epaId,
+          optionText: data.optionText || selectedOptionText,
+        };
+        setMpg(nextMpg);
+
+        if (
+          data.epaVehicleId &&
+          !epaId &&
+          epaOptions.some((o) => o.id === data.epaVehicleId)
+        ) {
+          setEpaId(data.epaVehicleId);
+        }
+
+        const enriched = buildVehicle(nextMpg);
+        if (
+          enriched &&
+          (!value ||
+            value.combMpg !== enriched.combMpg ||
+            value.cityMpg !== enriched.cityMpg ||
+            value.highwayMpg !== enriched.highwayMpg ||
+            value.epaVehicleId !== enriched.epaVehicleId ||
+            value.trim !== enriched.trim)
+        ) {
+          onChange(enriched);
+        }
+      } catch {
+        if (requestId === mpgRequestRef.current) setMpg(null);
+      } finally {
+        if (requestId === mpgRequestRef.current) setLoadingMpg(false);
+      }
+    })();
+  }, [year, makeName, modelName, epaId, selectedOptionText, buildVehicle, onChange, value, epaOptions]);
 
   const notifyPartial = useCallback(
     (patch: Partial<VehicleInfo>) => {
@@ -224,17 +336,25 @@ export function VehicleSelector({
         make: patch.make ?? makeName,
         modelId: patch.modelId ?? 0,
         model: patch.model ?? "",
-        trim: (patch.trim ?? trim) || undefined,
+        trim: (patch.trim ?? selectedOptionText) || undefined,
         displayLabel: patch.displayLabel ?? "",
+        epaVehicleId: undefined,
+        combMpg: undefined,
+        cityMpg: undefined,
+        highwayMpg: undefined,
+        fuelType: undefined,
       });
     },
-    [onChange, vehicleId, year, makeId, makeName, trim]
+    [onChange, vehicleId, year, makeId, makeName, selectedOptionText]
   );
 
   const handleYearChange = (nextYear: string) => {
     setYear(nextYear);
     setModelKey("");
     setModels([]);
+    setEpaOptions([]);
+    setEpaId("");
+    setMpg(null);
     notifyPartial({
       year: nextYear,
       model: "",
@@ -249,6 +369,9 @@ export function VehicleSelector({
     setMakeName(selected?.makeName ?? "");
     setModelKey("");
     setModels([]);
+    setEpaOptions([]);
+    setEpaId("");
+    setMpg(null);
     notifyPartial({
       makeId: Number(id) || 0,
       make: selected?.makeName ?? "",
@@ -260,6 +383,14 @@ export function VehicleSelector({
 
   const handleModelChange = (key: string) => {
     setModelKey(key);
+    setEpaOptions([]);
+    setEpaId("");
+    setMpg(null);
+  };
+
+  const handleEpaChange = (id: string) => {
+    setEpaId(id);
+    setMpg(null);
   };
 
   const makeSelectValue =
@@ -270,11 +401,16 @@ export function VehicleSelector({
       ? modelKey
       : undefined;
 
-  const built = buildVehicle();
+  const epaSelectValue =
+    epaId && epaOptions.some((o) => o.id === epaId) ? epaId : undefined;
+
+  const built = buildVehicle(mpg);
   const gridClass =
     layout === "compact"
       ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       : "grid gap-4 sm:grid-cols-2";
+
+  const isElectric = Boolean(mpg?.fuelType && /electric/i.test(mpg.fuelType));
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -294,7 +430,9 @@ export function VehicleSelector({
             </SelectTrigger>
             <SelectContent>
               {years.map((y) => (
-                <SelectItem key={y} value={y}>{y}</SelectItem>
+                <SelectItem key={y} value={y}>
+                  {y}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -365,13 +503,34 @@ export function VehicleSelector({
 
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">{t("vehicleSelector.trim")}</Label>
-          <Input
-            className="h-10"
-            value={trim}
-            onChange={(e) => setTrim(e.target.value)}
-            placeholder={t("vehicleSelector.trimPlaceholder")}
-            disabled={!isCompleteVehicle(built)}
-          />
+          <Select
+            value={epaSelectValue}
+            onValueChange={handleEpaChange}
+            disabled={
+              loadingOptions || !isCompleteVehicle(built) || epaOptions.length === 0
+            }
+          >
+            <SelectTrigger className="h-10">
+              <SelectValue
+                placeholder={
+                  !isCompleteVehicle(built)
+                    ? t("vehicleSelector.selectConfigFirst")
+                    : loadingOptions
+                      ? t("common.loading")
+                      : epaOptions.length
+                        ? t("vehicleSelector.selectConfig")
+                        : t("vehicleSelector.noConfigs")
+                }
+              />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {epaOptions.map((o) => (
+                <SelectItem key={o.id} value={o.id}>
+                  {o.text}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -379,6 +538,36 @@ export function VehicleSelector({
         <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
           <Car className="h-4 w-4 shrink-0 text-primary" />
           <span className="font-medium">{built.displayLabel}</span>
+        </div>
+      )}
+
+      {(loadingMpg || mpg?.combMpg) && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm space-y-1">
+          <div className="flex items-center gap-2 font-medium">
+            <Fuel className="h-4 w-4 text-primary" />
+            {t("vehicleSelector.mpgLabel")}
+            {loadingMpg && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          </div>
+          {!loadingMpg && mpg?.combMpg != null && (
+            <>
+              <p>
+                {isElectric
+                  ? t("vehicleSelector.mpgElectric", { mpg: mpg.combMpg })
+                  : t("vehicleSelector.mpgCombined", { mpg: mpg.combMpg })}
+              </p>
+              {!isElectric && mpg.cityMpg != null && mpg.highwayMpg != null && (
+                <p className="text-xs text-muted-foreground">
+                  {t("vehicleSelector.mpgCityHighway", {
+                    city: mpg.cityMpg,
+                    highway: mpg.highwayMpg,
+                  })}
+                </p>
+              )}
+            </>
+          )}
+          {!loadingMpg && !mpg?.combMpg && isCompleteVehicle(built) && epaId && (
+            <p className="text-xs text-amber-700">{t("vehicleSelector.mpgMissing")}</p>
+          )}
         </div>
       )}
 
@@ -393,18 +582,13 @@ export function VehicleSelector({
           </p>
           <div
             className={cn(
-              layout === "compact"
-                ? "grid gap-2 sm:grid-cols-2"
-                : "space-y-2"
+              layout === "compact" ? "grid gap-2 sm:grid-cols-2" : "space-y-2"
             )}
           >
             {tips.slice(0, layout === "compact" ? 2 : 4).map((tip) => (
               <div
                 key={tip.id}
-                className={cn(
-                  "rounded-lg border px-3 py-2.5",
-                  tipStyles[tip.type]
-                )}
+                className={cn("rounded-lg border px-3 py-2.5", tipStyles[tip.type])}
               >
                 <p className="text-sm font-medium leading-snug">{tip.title}</p>
                 <p className="mt-1 text-xs opacity-80 leading-relaxed">{tip.message}</p>
@@ -414,10 +598,10 @@ export function VehicleSelector({
         </div>
       )}
 
-      {(loadingMakes || loadingModels) && (
+      {(loadingMakes || loadingModels || loadingOptions) && (
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
-          {t("vehicleSelector.catalogLoading")}
+          {loadingOptions ? t("vehicleSelector.mpgLoading") : t("vehicleSelector.catalogLoading")}
         </p>
       )}
 

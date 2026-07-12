@@ -496,6 +496,7 @@ function dbToVehicle(v: {
   cityMpg?: number | null;
   highwayMpg?: number | null;
   fuelType?: string | null;
+  epaVehicleId?: string | null;
 }): VehicleInfo {
   return {
     id: v.id,
@@ -511,6 +512,7 @@ function dbToVehicle(v: {
     cityMpg: v.cityMpg ?? undefined,
     highwayMpg: v.highwayMpg ?? undefined,
     fuelType: v.fuelType ?? undefined,
+    epaVehicleId: v.epaVehicleId ?? undefined,
   };
 }
 
@@ -756,6 +758,7 @@ export async function updateMoveForUserId(
           cityMpg: v.cityMpg ?? null,
           highwayMpg: v.highwayMpg ?? null,
           fuelType: v.fuelType ?? null,
+          epaVehicleId: v.epaVehicleId ?? null,
           };
         }),
       });

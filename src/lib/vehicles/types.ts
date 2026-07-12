@@ -22,6 +22,8 @@ export interface VehicleInfo {
   cityMpg?: number;
   highwayMpg?: number;
   fuelType?: string;
+  /** Exact EPA fueleconomy.gov vehicle id — most accurate MPG source. */
+  epaVehicleId?: string;
 }
 
 export function createVehicleId(): string {
