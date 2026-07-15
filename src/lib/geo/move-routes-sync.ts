@@ -1,6 +1,7 @@
 import { loadVehiclesWithMpg } from "@/lib/budget/route-context";
 import { fetchOsrmRoutes } from "@/lib/geo/coordinates";
 import { computeFuelStopMarkers } from "@/lib/geo/fuel-stop-planner";
+import { fetchNearbyHotel } from "@/lib/geo/route-pois";
 import {
   estimateStopCount,
   formatDriveTime,
@@ -14,6 +15,27 @@ import { prisma } from "@/lib/prisma";
 import type { RouteStop } from "@/lib/types";
 import type { VehicleInfo } from "@/lib/vehicles/types";
 import type { Prisma } from "@prisma/client";
+
+/** Placeholder locations written by the fast sync (no Overpass yet). */
+export function isPlaceholderRouteLocation(location: string): boolean {
+  const text = location.trim();
+  if (!text) return true;
+  if (/^Night\s+\d+/i.test(text)) return true;
+  if (/^~\d+(\.\d+)?\s*mi\s+from/i.test(text)) return true;
+  return false;
+}
+
+export function stopsNeedHotelEnrichment(stopsByIndex: Record<number, RouteStop[]>): boolean {
+  return Object.values(stopsByIndex).some((stops) =>
+    stops.some(
+      (stop) =>
+        (stop.type === "hotel" || stop.type === "pet_hotel") &&
+        isPlaceholderRouteLocation(stop.location)
+    )
+  );
+}
+
+const hotelEnrichInflight = new Set<string>();
 
 export interface StoredRouteAlternative {
   index: number;
@@ -312,6 +334,9 @@ export async function syncMoveRoutesGeometry(moveId: string, locale: "en" | "es"
       },
     });
 
+    // Fast placeholders first; upgrade hotel addresses via Overpass/Nominatim in background.
+    scheduleMoveRouteStopsSync(moveId, locale);
+
     return true;
   } catch (error) {
     console.error("syncMoveRoutesGeometry error:", error);
@@ -323,8 +348,96 @@ export async function syncMoveRoutes(moveId: string, locale: "en" | "es" = "en")
   return syncMoveRoutesGeometry(moveId, locale);
 }
 
-export function scheduleMoveRouteStopsSync(_moveId: string, _locale: "en" | "es" = "en") {
-  /* Stops are generated synchronously with geometry; kept for API compatibility. */
+/**
+ * Replace placeholder overnight stops with real hotels + street addresses
+ * (OpenStreetMap Overpass + Nominatim reverse geocode).
+ */
+export async function enrichMoveRouteHotelStops(
+  moveId: string,
+  locale: "en" | "es" = "en"
+): Promise<boolean> {
+  const stored = await loadStoredMoveRoutes(moveId);
+  if (!stored || !stopsNeedHotelEnrichment(stored.stopsByIndex)) return false;
+
+  const move = await prisma.move.findUnique({
+    where: { id: moveId },
+    include: { user: { select: { name: true, email: true } } },
+  });
+  if (!move) return false;
+
+  const profile = moveToProfile(move.user, move);
+  const usedIds = new Set<string>();
+  const nextStops: Record<number, RouteStop[]> = { ...stored.stopsByIndex };
+  let changed = false;
+
+  for (const alt of stored.alternatives) {
+    const stops = [...(nextStops[alt.index] ?? [])];
+    let altChanged = false;
+
+    for (let i = 0; i < stops.length; i++) {
+      const stop = stops[i];
+      if (stop.type !== "hotel" && stop.type !== "pet_hotel") continue;
+      if (!isPlaceholderRouteLocation(stop.location)) continue;
+      if (stop.lat == null || stop.lon == null) continue;
+
+      try {
+        const poi = await fetchNearbyHotel(stop.lat, stop.lon, usedIds, profile.pets);
+        if (!poi) continue;
+
+        const dayMatch =
+          stop.notes?.match(/Night\s+(\d+)/i) ?? stop.location.match(/Night\s+(\d+)/i);
+        const day = dayMatch?.[1] ?? String(i + 1);
+        const isPet = profile.pets && poi.petFriendly;
+
+        stops[i] = {
+          ...stop,
+          id: `hotel-${poi.osmId}`,
+          type: profile.pets || isPet ? "pet_hotel" : "hotel",
+          name: poi.name,
+          location: poi.location,
+          lat: poi.lat,
+          lon: poi.lon,
+          estimatedPrice: poi.estimatedPrice,
+          notes:
+            profile.pets && !poi.petFriendly
+              ? locale === "es"
+                ? `Noche ${day} · ~$${poi.estimatedPrice}/noche · Verifica política de mascotas`
+                : `Night ${day} · ~$${poi.estimatedPrice}/night · Verify pet policy`
+              : locale === "es"
+                ? `Noche ${day} · ~$${poi.estimatedPrice}/noche · ~${stop.routeMile ?? 0} mi`
+                : `Night ${day} · ~$${poi.estimatedPrice}/night · ~${stop.routeMile ?? 0} mi`,
+        };
+        altChanged = true;
+        changed = true;
+      } catch (error) {
+        console.error("enrichMoveRouteHotelStops hotel lookup error:", error);
+      }
+    }
+
+    if (altChanged) nextStops[alt.index] = stops;
+  }
+
+  if (!changed) return false;
+
+  await prisma.move.update({
+    where: { id: moveId },
+    data: {
+      routeStopsByIndex: nextStops as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  return true;
+}
+
+/** Fire-and-forget hotel address enrichment after fast route sync. */
+export function scheduleMoveRouteStopsSync(moveId: string, locale: "en" | "es" = "en") {
+  if (hotelEnrichInflight.has(moveId)) return;
+  hotelEnrichInflight.add(moveId);
+  void enrichMoveRouteHotelStops(moveId, locale)
+    .catch((error) => console.error("scheduleMoveRouteStopsSync error:", error))
+    .finally(() => {
+      hotelEnrichInflight.delete(moveId);
+    });
 }
 
 export async function ensureMoveRoutes(

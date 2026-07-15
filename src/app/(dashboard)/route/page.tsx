@@ -46,7 +46,25 @@ const RouteMap = dynamic(
   }
 );
 
-function buildStopMapsUrl(stop: { name: string; location: string; lat?: number; lon?: number }): string {
+function buildStopMapsUrl(stop: {
+  name: string;
+  location: string;
+  type?: string;
+  lat?: number;
+  lon?: number;
+}): string {
+  const isHotel = stop.type === "hotel" || stop.type === "pet_hotel";
+  const hasStreetAddress =
+    Boolean(stop.location?.trim()) &&
+    !/^Night\s+\d+/i.test(stop.location) &&
+    !/^~\d+(\.\d+)?\s*mi\s+from/i.test(stop.location);
+
+  // Prefer name + street address so Maps opens the property, not just a raw pin.
+  if (isHotel && hasStreetAddress) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      `${stop.name}, ${stop.location}`
+    )}`;
+  }
   if (stop.lat != null && stop.lon != null) {
     return `https://www.google.com/maps/search/?api=1&query=${stop.lat},${stop.lon}`;
   }

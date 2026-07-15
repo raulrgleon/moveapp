@@ -8,6 +8,8 @@ import { computeFuelStopMarkers } from "@/lib/geo/fuel-stop-planner";
 import {
   ensureMoveRoutes,
   loadStoredMoveRoutes,
+  scheduleMoveRouteStopsSync,
+  stopsNeedHotelEnrichment,
   storedRoutesMatchMove,
   syncMoveRoutesGeometry,
 } from "@/lib/geo/move-routes-sync";
@@ -84,6 +86,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No routes stored" }, { status: 404 });
   }
 
+  const hotelsPending = stopsNeedHotelEnrichment(stored.stopsByIndex);
+  if (hotelsPending) {
+    scheduleMoveRouteStopsSync(access.moveId, locale);
+  }
+
   const routeIndex = move.selectedRouteIndex ?? 0;
   const selected =
     stored.alternatives.find((alt) => alt.index === routeIndex) ??
@@ -103,7 +110,7 @@ export async function GET(req: NextRequest) {
     durationHours: selected?.durationHours ?? 0,
     driveTimeLabel: selected?.driveTimeLabel ?? formatDriveTime(0),
     stopCount,
-    stopsPending: false,
+    stopsPending: hotelsPending,
     computedAt: stored.computedAt,
   });
 }

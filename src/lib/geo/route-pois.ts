@@ -121,6 +121,8 @@ async function reverseGeocodeLabel(lat: number, lon: number): Promise<string> {
     url.searchParams.set("lon", String(lon));
     url.searchParams.set("format", "json");
     url.searchParams.set("addressdetails", "1");
+    // Building/street zoom so hotels get a street address, not just the city.
+    url.searchParams.set("zoom", "18");
 
     const res = await fetch(url.toString(), {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
@@ -134,6 +136,8 @@ async function reverseGeocodeLabel(lat: number, lon: number): Promise<string> {
         city?: string;
         town?: string;
         village?: string;
+        municipality?: string;
+        suburb?: string;
         state?: string;
         postcode?: string;
       };
@@ -141,7 +145,7 @@ async function reverseGeocodeLabel(lat: number, lon: number): Promise<string> {
     const a = data.address;
     if (!a) return "";
     const street = [a.house_number, a.road].filter(Boolean).join(" ");
-    const city = a.city || a.town || a.village;
+    const city = a.city || a.town || a.village || a.municipality || a.suburb;
     return [street, city, a.state, a.postcode].filter(Boolean).join(", ");
   } catch {
     return "";
@@ -247,11 +251,12 @@ export async function fetchNearbyHotel(
   estimatedPrice: number;
   tags: Record<string, string>;
 } | null> {
-  const ql = `[out:json][timeout:15];
+  const ql = `[out:json][timeout:18];
 (
-  nwr["tourism"~"hotel|motel"](around:15000,${lat},${lon});
+  nwr["tourism"~"hotel|motel|guest_house|hostel"](around:25000,${lat},${lon});
+  nwr["tourism"="hotel"]["addr:street"](around:25000,${lat},${lon});
 );
-out center tags 10;`;
+out center tags 16;`;
 
   const elements = await queryOverpass(ql);
   const picked = pickClosestNamed(elements, lat, lon, usedIds, {

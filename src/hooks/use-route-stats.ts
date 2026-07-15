@@ -167,16 +167,35 @@ function apiResponseToStats(json: MoveRoutesApiResponse): RouteStatsResponse {
   };
 }
 
-async function fetchStoredMoveRoutes(): Promise<{
+function hasPlaceholderHotels(stopsByIndex: Record<number, RouteStop[]>): boolean {
+  return Object.values(stopsByIndex).some((stops) =>
+    stops.some(
+      (stop) =>
+        (stop.type === "hotel" || stop.type === "pet_hotel") &&
+        /^Night\s+\d+/i.test(stop.location.trim())
+    )
+  );
+}
+
+async function fetchStoredMoveRoutes(opts?: { bypassCache?: boolean }): Promise<{
   stats: RouteStatsResponse;
   stopsByIndex: Record<number, RouteStop[]>;
+  stopsPending: boolean;
 }> {
+  if (opts?.bypassCache) {
+    routeStatsCache.delete("stored");
+    routeStopsAllCache.delete("stored-stops");
+    routeStatsInflight.delete("stored");
+    routeStopsAllInflight.delete("stored-stops");
+  }
   const res = await apiFetch("/api/move/routes");
   const json = (await res.json()) as MoveRoutesApiResponse;
   const stats = apiResponseToStats(json);
+  const stopsByIndex = json.stopsByIndex ?? {};
   return {
     stats,
-    stopsByIndex: json.stopsByIndex ?? {},
+    stopsByIndex,
+    stopsPending: Boolean(json.stopsPending) || hasPlaceholderHotels(stopsByIndex),
   };
 }
 
@@ -438,7 +457,7 @@ export function useRouteStats() {
 
       try {
         if (useStoredRoutes) {
-          const { stats, stopsByIndex: allStops } = await fetchStoredMoveRoutes();
+          const { stats, stopsByIndex: allStops, stopsPending } = await fetchStoredMoveRoutes();
           if (cancelled) return;
           setBaseStats({
             stopCount: stats.stopCount,
@@ -446,7 +465,23 @@ export function useRouteStats() {
           });
           setStopsByIndex(allStops);
           setLoading(false);
-          setStopsLoading(false);
+
+          // Placeholders load instantly; poll until hotels get real street addresses.
+          if (stopsPending || hasPlaceholderHotels(allStops)) {
+            setStopsLoading(true);
+            let latest = allStops;
+            for (let attempt = 0; attempt < 16; attempt++) {
+              await new Promise((r) => setTimeout(r, 2500));
+              if (cancelled) return;
+              const refreshed = await fetchStoredMoveRoutes({ bypassCache: true });
+              latest = refreshed.stopsByIndex;
+              setStopsByIndex(latest);
+              if (!refreshed.stopsPending && !hasPlaceholderHotels(latest)) break;
+            }
+            if (!cancelled) setStopsLoading(false);
+          } else {
+            setStopsLoading(false);
+          }
           return;
         }
 
