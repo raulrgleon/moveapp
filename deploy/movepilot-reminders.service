@@ -1,0 +1,11 @@
+[Unit]
+Description=MovePilot due reminder dispatch
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec app-zvnnxo9gmqwknq77qzkhyqsa node -e "fetch('http://127.0.0.1:3000/api/cron/reminders',{method:'POST',headers:{Authorization:'Bearer '+process.env.CRON_SECRET},signal:AbortSignal.timeout(60000)}).then(r=>{if(!r.ok)throw Error('Reminder dispatch failed');console.log('Reminder dispatch completed')}).catch(()=>process.exit(1))"
+TimeoutStartSec=75
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+PrivateTmp=true

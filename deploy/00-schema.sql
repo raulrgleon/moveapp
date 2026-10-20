@@ -479,4 +479,3 @@ ALTER TABLE "move_activities" ADD CONSTRAINT "move_activities_user_id_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

@@ -7,3 +7,5 @@ Compose is registered as an independent Coolify service. Secrets belong in encry
 Build with Dockerfile on Linux, preserve the previous image, then recreate only the service app using Coolify's generated compose. Verify `/api/health`, session cookie settings and authorized data access. Roll back by restoring the prior image while preserving volumes; schema changes need a separately reviewed migration and backup.
 
 The old PM2 deployment scripts are historical and do not apply to DNET. `movepilotai.com` needs Namecheap account recovery before DNS migration. Stripe, OAuth and Twilio credentials must be restored separately; missing keys do not imply working integrations.
+
+Install the supplied systemd reminder service/timer as root on DNET. It dispatches every15minutes through the app's existing Bearer-protected endpoint, reading the secret inside the container process. It does not place a secret in command arguments. The first empty-database run passed; stopped apps cause a failed dispatch rather than restarting the application. SMTP transport was verified with TLS/auth only; inbox delivery was not tested.
