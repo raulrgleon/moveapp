@@ -4,7 +4,7 @@ alwaysApply: true
 ---
 # Deployment
 Source: raulrgleon/moveapp. DNET source path: /home/raul/moveapp, SSH alias dnet.llc.
-New hosting uses Coolify service MovePilot AI and Cloudflare Tunnel at https://movepilot.dnet.llc.
+New hosting uses Coolify service MovePilot AI and Cloudflare Tunnel at https://movepilotai.com.
 The old SSH alias moveapp, PM2 workflow and /var/www/moveapp are historical; never deploy there.
 Verify build and scoped tests, review secret-free changes, commit and push authorized changes.
 Build Dockerfile as dnet-movepilot:current on DNET, preserving the previous image for rollback.
@@ -12,4 +12,4 @@ Use the existing Coolify service generated compose; recreate only app after a he
 Never initialize or reset an existing database. deploy/00-schema.sql is only for an empty new volume.
 Keep encrypted runtime credentials in Coolify and uploads/database volumes intact.
 Verify health, authenticated access and HTTPS after deployment. Do not restart other DNET apps.
-The original movepilotai.com domain requires registrar recovery before cutover; preserve unknown mail/DNS records.
+The canonical domain is movepilotai.com. Preserve its mail DNS records. Ask Raul before choosing/changing any domain or subdomain.
