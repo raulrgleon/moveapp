@@ -1,13 +1,10 @@
 import { NextRequest } from "next/server";
-import OpenAI from "openai";
+import { getOpenAI } from "@/lib/ai/openai-client";
 import { buildGuestSystemPrompt } from "@/lib/ai/guest-prompt";
 import { getLatestUserMessage, resolveReplyLocale, buildReplyLanguageReminder } from "@/lib/ai/detect-message-locale";
 import { rateLimit } from "@/lib/rate-limit";
 import type { Locale } from "@/lib/i18n";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(req: NextRequest) {
   if (!process.env.OPENAI_API_KEY) {
@@ -15,6 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip =
+    req.headers.get("cf-connecting-ip") ??
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     "unknown";
@@ -50,7 +48,7 @@ export async function POST(req: NextRequest) {
     const languageReminder = buildReplyLanguageReminder(replyLocale);
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    const stream = await openai.chat.completions.create({
+    const stream = await getOpenAI().chat.completions.create({
       model,
       stream: true,
       temperature: 0.5,

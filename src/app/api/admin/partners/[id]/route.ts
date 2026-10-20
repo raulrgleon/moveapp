@@ -7,9 +7,10 @@ import {
   updateMovingPartner,
 } from "@/lib/partner/partner-store";
 
-type RouteContext = { params: { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: NextRequest, { params }: RouteContext) {
+export async function PATCH(req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const admin = await requireAdmin(req);
   if (!admin) return forbidden(req);
 
@@ -53,7 +54,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   return NextResponse.json({ partner });
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
+export async function DELETE(req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const admin = await requireAdmin(req);
   if (!admin) return forbidden(req);
 

@@ -6,10 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { sendMoveInviteEmail } from "@/lib/notifications/email";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const proCheck = await requireProSubscription(req);
   if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);

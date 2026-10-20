@@ -5,9 +5,10 @@ import { getClientIp, logAdminAction } from "@/lib/admin/audit-log";
 import { deleteMoveByAdmin } from "@/lib/admin/move-delete";
 import { prisma } from "@/lib/prisma";
 
-type RouteContext = { params: { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: RouteContext) {
+export async function GET(_req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const admin = await requireAdmin(_req);
   if (!admin) return forbidden(_req);
 
@@ -33,7 +34,8 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   return NextResponse.json({ move });
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
+export async function DELETE(req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const admin = await requireAdmin(req);
   if (!admin) return forbidden(req);
 

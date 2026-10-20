@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { Calendar, DollarSign, MapPin, Truck } from "lucide-react";
 import { useLocale, useT } from "@/contexts/locale-context";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -18,7 +18,8 @@ interface PlanShareData {
   budgetTarget: number;
 }
 
-export default function PublicPlanPage({ params }: { params: { token: string } }) {
+export default function PublicPlanPage(props: { params: Promise<{ token: string }> }) {
+  const params = use(props.params);
   const t = useT();
   const { locale } = useLocale();
   const [data, setData] = useState<PlanShareData | null>(null);

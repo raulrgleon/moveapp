@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/lib/auth/user-service";
 import {
@@ -9,6 +10,11 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = await rateLimit(`login:${ip}`, 20, 15 * 60_000);
+    if (!limit.ok) return NextResponse.json({ error: "Too many login attempts" }, {
+      status: 429, headers: { "Retry-After": String(limit.retryAfterSec || 900) },
+    });
     const body = (await req.json()) as {
       identifier?: string;
       email?: string;

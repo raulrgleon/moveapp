@@ -23,3 +23,17 @@
 - **Próximo paso:** recibir la próxima tarea del usuario, leer contexto mínimo y confirmar estado de Git.
 
 No publicar ni ejecutar comandos destructivos sin autorización; mantener las siguientes actualizaciones cortas y verificables.
+
+## 2026-10-20 — DNET migration in progress (Codex)
+User authorized GitHub restore after losing old hosting/domain access, DNET installation and GitHub updates.
+Fresh clone main at 2568d3a; no pre-existing user edits. moveapp contains real Prisma/PostgreSQL auth and storage; older movepilot-ai is not the deployment source.
+Next upgraded compatibly to 15.5.28, async params migrated, SMTP fallback and lazy server OpenAI initialization added. Exact-origin middleware protects browser writes; signed/Bearer hooks retain their own verification.
+Five security/mail tests and three locale checks passed. Production dependency audit reports zero vulnerabilities. Final build and independent Docker build currently running.
+Dockerfile and deploy/compose.yaml add independent private PostgreSQL and persistent uploads; initial schema is for an EMPTY dedicated database only.
+Coolify MovePilot AI service created, UUID zvnnxo9gmqwknq77qzkhyqsa. Runtime credentials held encrypted in Coolify, existing DNET SMTP/OpenAI reused privately. No historical DB/uploads recovered. Domain movepilotai.com is registered at Namecheap; access unavailable. Public alias planned movepilot.dnet.llc.
+Next: complete build, start isolated stack, test auth/ownership/files/mobile, publish alias, enable dashboard lifecycle controls, push reviewed source and memory. No assertion of completed deployment yet.
+
+### Installation verification
+Independent Coolify stack and fresh PostgreSQL volume now healthy; encrypted secret placeholders were populated before initialization. No existing DNET database touched. Origin Host health HTTP200, exact-origin rejection, owner sessions with Secure/HttpOnly/Lax cookies, persistent document upload/download/delete and cross-user/admin denials passed using disposable accounts/files, then scoped cleanup completed. SMTP TLS/auth verified without sending mail. Final Linux image build passed. Existing shopping-list useEffect lint warning remains.
+Cloudflare alias added while preserving every prior ingress rule; public recursive DNS sees proxied Cloudflare IPs, local negative DNS cache still pending at first check. Dashboard registry now includes only MovePilot app process (database excluded); authenticated status shows20 running controls, policy rejection checks passed. Public browser/mobile and idempotent control confirmation in progress.
+Owner admin password generated and held only in macOS Keychain service codex:movepilot.dnet.llc:admin, account admin. No owner password or provider secrets in source.

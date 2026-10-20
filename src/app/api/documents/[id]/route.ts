@@ -5,10 +5,8 @@ import { deleteDocumentForUser } from "@/lib/db/move-service";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { deleteDocumentFile } from "@/lib/storage/documents";
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const proCheck = await requireProSubscription(req);
   if (proCheck instanceof NextResponse) return proCheck;
   const result = await requireMoveAccess(req);

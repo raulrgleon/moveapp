@@ -6,3 +6,7 @@ dist/
 build/
 uploads/
 data/
+
+.env.*
+!.env.example
+*.log

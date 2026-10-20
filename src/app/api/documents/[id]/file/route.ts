@@ -5,10 +5,8 @@ import { requireProSubscription } from "@/lib/billing/require-pro";
 import { getDocumentForUser } from "@/lib/db/move-service";
 import { readDocumentFile } from "@/lib/storage/documents";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const proCheck = await requireProSubscription(req);
   if (proCheck instanceof NextResponse) return proCheck;
 

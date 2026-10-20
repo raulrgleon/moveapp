@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EmailVerificationFields } from "@/components/auth/email-verification-fields";
@@ -25,7 +25,8 @@ interface InviteInfo {
   accepted: boolean;
 }
 
-export default function JoinPage({ params }: { params: { token: string } }) {
+export default function JoinPage(props: { params: Promise<{ token: string }> }) {
+  const params = use(props.params);
   const t = useT();
   const router = useRouter();
   const { register } = useAuth();

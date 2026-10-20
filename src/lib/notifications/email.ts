@@ -1,3 +1,4 @@
+import nodemailer from "nodemailer";
 import type { Locale } from "@/lib/i18n";
 
 type EmailLocale = Locale;
@@ -7,64 +8,43 @@ function appUrl(): string {
 }
 
 function fromAddress(): string {
-  return process.env.EMAIL_FROM || "MovePilotAi <noreply@movepilotai.com>";
+  return process.env.EMAIL_FROM || process.env.SMTP_FROM || "MovePilotAi <noreply@movepilotai.com>";
 }
 
-async function sendHtmlEmail(to: string, subject: string, html: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.log(`[email] ${subject} → ${to}`);
-    return { ok: false as const };
-  }
-
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: fromAddress(),
-      to: [to],
-      subject,
-      html,
-    }),
-  });
-
-  return { ok: res.ok };
+export function emailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD));
 }
 
-export async function sendAdminCampaignEmail(
-  to: string,
-  subject: string,
-  html: string
-): Promise<{ ok: boolean; error?: string }> {
+export async function sendHtmlEmail(to: string, subject: string, html: string) {
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+    const port = Number(process.env.SMTP_PORT || "587");
+    if (![465, 587].includes(port)) return { ok: false as const };
+    try {
+      const transport = nodemailer.createTransport({
+        host: process.env.SMTP_HOST, port, secure: port === 465,
+        requireTLS: port === 587,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+        tls: { minVersion: "TLSv1.2", rejectUnauthorized: true },
+        connectionTimeout: 15_000, socketTimeout: 20_000,
+      });
+      const result = await transport.sendMail({ from: fromAddress(), to, subject, html });
+      return { ok: result.accepted.length > 0 && result.rejected.length === 0 };
+    } catch { return { ok: false as const }; }
+  }
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.log(`[email] ${subject} → ${to}`);
-    return { ok: false, error: "RESEND_API_KEY not configured" };
-  }
+  if (!apiKey) return { ok: false as const };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: fromAddress(), to: [to], subject, html }), signal: AbortSignal.timeout(20_000),
+    });
+    return { ok: res.ok };
+  } catch { return { ok: false as const }; }
+}
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: fromAddress(),
-      to: [to],
-      subject,
-      html,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    return { ok: false, error: text || `HTTP ${res.status}` };
-  }
-
-  return { ok: true };
+export async function sendAdminCampaignEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
+  const result = await sendHtmlEmail(to, subject, html);
+  return result.ok ? result : { ok: false, error: "Email delivery is unavailable." };
 }
 
 export async function sendWelcomeEmail(
@@ -97,7 +77,8 @@ export async function sendEmailVerificationCode(
       ? `<p>Tu código para crear tu cuenta en MovePilotAi es:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>Válido 15 minutos. Si no solicitaste esto, ignora este correo.</p>`
       : `<p>Your code to create your MovePilotAi account is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>Valid for 15 minutes. If you didn't request this, ignore this email.</p>`;
 
-  await sendHtmlEmail(to, subject, body);
+  const result = await sendHtmlEmail(to, subject, body);
+  if (!result.ok) throw new Error("Email delivery is unavailable.");
 }
 
 export async function sendPasswordResetEmail(

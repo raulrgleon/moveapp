@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
@@ -23,7 +23,8 @@ import { useLocale } from "@/contexts/locale-context";
 import { apiFetch } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 
-export default function AdminMoveDetailPage({ params }: { params: { id: string } }) {
+export default function AdminMoveDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params);
   const t = useT();
   const router = useRouter();
   const { locale } = useLocale();

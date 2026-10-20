@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LanguageToggle } from "@/components/layout/language-toggle";
@@ -18,7 +18,8 @@ interface InviteInfo {
   accepted: boolean;
 }
 
-export default function InvitePage({ params }: { params: { token: string } }) {
+export default function InvitePage(props: { params: Promise<{ token: string }> }) {
+  const params = use(props.params);
   const t = useT();
   const router = useRouter();
   const [info, setInfo] = useState<InviteInfo | null>(null);

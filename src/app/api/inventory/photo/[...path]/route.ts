@@ -3,10 +3,8 @@ import { jsonErrorFromRequest } from "@/lib/api-errors";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { readInventoryPhoto } from "@/lib/storage/inventory";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { path: string[] } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
+  const params = await props.params;
   const result = await requireMoveAccess(req);
   if (result instanceof NextResponse) return result;
 

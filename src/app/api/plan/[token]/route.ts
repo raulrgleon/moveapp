@@ -6,10 +6,8 @@ import { estimateBudget } from "@/lib/budget/estimator";
 import { mergeLiveBudgetItems } from "@/lib/budget/merge-items";
 import type { MoveProfile } from "@/lib/move-profile";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const move = await prisma.move.findFirst({
     where: { planShareToken: params.token, planShareEnabled: true },
     include: {

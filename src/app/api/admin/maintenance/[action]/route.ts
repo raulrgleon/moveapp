@@ -9,9 +9,10 @@ import { sendTestSms } from "@/lib/notifications/sms";
 import { isValidE164Phone, normalizePhoneInput } from "@/lib/phone/normalize";
 import { verifyTwilioConnection } from "@/lib/notifications/twilio-config";
 
-type RouteContext = { params: { action: string } };
+type RouteContext = { params: Promise<{ action: string }> };
 
-export async function POST(req: NextRequest, { params }: RouteContext) {
+export async function POST(req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const admin = await requireAdmin(req);
   if (!admin) return forbidden(req);
 

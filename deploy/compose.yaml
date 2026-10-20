@@ -1,0 +1,56 @@
+services:
+  app:
+    image: dnet-movepilot:current
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://movepilot:${POSTGRES_PASSWORD}@db:5432/movepilot
+      AUTH_SECRET: ${AUTH_SECRET}
+      COOKIE_SECURE: 'true'
+      NEXT_PUBLIC_APP_URL: https://movepilot.dnet.llc
+      UPLOAD_DIR: /app/uploads/documents
+      UPLOAD_DIR_INVENTORY: /app/uploads/inventory
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: gpt-4.1-mini
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      CRON_SECRET: ${CRON_SECRET}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 150
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: movepilot
+      POSTGRES_USER: movepilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - /home/raul/moveapp/deploy/00-schema.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U movepilot -d movepilot]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 120
+volumes:
+  database:
+  uploads:

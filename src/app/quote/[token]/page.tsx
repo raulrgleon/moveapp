@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { AlertTriangle, Handshake, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/layout/logo";
@@ -31,7 +31,8 @@ interface LeadSummary extends Omit<MoveBrief, "vehicles"> {
   serviceTypes: string[];
 }
 
-export default function PartnerQuotePage({ params }: { params: { token: string } }) {
+export default function PartnerQuotePage(props: { params: Promise<{ token: string }> }) {
+  const params = use(props.params);
   const t = useT();
   const { locale } = useLocale();
   const [summary, setSummary] = useState<LeadSummary | null>(null);

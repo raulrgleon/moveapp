@@ -17,11 +17,11 @@ export function getNotificationConfigStatus(): NotificationConfigStatus {
   const twilio = getTwilioConfigStatus();
   const cron = Boolean(process.env.CRON_SECRET?.trim());
 
-  const emailConfigured = Boolean(resendKey);
+  const emailConfigured = Boolean(resendKey || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD));
   const smsConfigured = isTwilioConfigured();
 
   const missing: string[] = [];
-  if (!emailConfigured) missing.push("RESEND_API_KEY");
+  if (!emailConfigured) missing.push("SMTP transport or RESEND_API_KEY");
   if (!emailFrom) missing.push("EMAIL_FROM");
   if (!smsConfigured) missing.push(...twilio.missing.map((m) => `Twilio: ${m}`));
   if (!cron) missing.push("CRON_SECRET");

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { getOpenAI } from "@/lib/ai/openai-client";
 import { buildMoveSystemPromptAsync } from "@/lib/ai/move-context";
 import {
   getLatestUserMessage,
@@ -13,9 +13,6 @@ import { rateLimit } from "@/lib/rate-limit";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import { requireMoveAccess } from "@/lib/api-auth";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 async function trimChatHistory(userId: string) {
   const excess = await prisma.chatMessage.findMany({
@@ -117,7 +114,7 @@ export async function POST(req: NextRequest) {
     }
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-    const stream = await openai.chat.completions.create({
+    const stream = await getOpenAI().chat.completions.create({
       model,
       stream: true,
       temperature: 0.45,

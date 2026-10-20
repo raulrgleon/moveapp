@@ -12,7 +12,7 @@ import { resolveRouteDistanceMiles } from "@/lib/geo/route-service";
 import { prisma } from "@/lib/prisma";
 import type { Locale } from "@/lib/i18n";
 
-type RouteContext = { params: { token: string } };
+type RouteContext = { params: Promise<{ token: string }> };
 
 function profileFromMove(move: {
   origin: string;
@@ -43,7 +43,8 @@ function profileFromMove(move: {
   };
 }
 
-export async function GET(_req: NextRequest, { params }: RouteContext) {
+export async function GET(_req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const move = await prisma.move.findFirst({
     where: {
       partnerShareToken: params.token,
@@ -132,7 +133,8 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   });
 }
 
-export async function POST(req: NextRequest, { params }: RouteContext) {
+export async function POST(req: NextRequest, props: RouteContext) {
+  const params = await props.params;
   const move = await prisma.move.findFirst({
     where: {
       partnerShareToken: params.token,

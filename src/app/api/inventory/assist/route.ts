@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonErrorFromRequest } from "@/lib/api-errors";
-import OpenAI from "openai";
+import { getOpenAI } from "@/lib/ai/openai-client";
 import { requireMoveAccess } from "@/lib/api-auth";
 import { getMoveForUser } from "@/lib/db/move-access";
 import { buildLanguageInstruction, resolveReplyLocale } from "@/lib/ai/detect-message-locale";
@@ -10,7 +10,6 @@ import { rateLimit } from "@/lib/rate-limit";
 import { requireProSubscription } from "@/lib/billing/require-pro";
 import type { Locale } from "@/lib/i18n";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
   const proCheck = await requireProSubscription(req);
@@ -67,7 +66,7 @@ export async function POST(req: NextRequest) {
           .join("\n");
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       temperature: 0.5,
       max_tokens: 280,
